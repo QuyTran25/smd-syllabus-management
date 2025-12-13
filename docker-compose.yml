@@ -1,0 +1,248 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # DATABASE: PostgreSQL with pgvector
+  # ============================================
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: smd-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smd_database}
+      POSTGRES_USER: ${POSTGRES_USER:-smd_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smd_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    networks:
+      - smd-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smd_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # CACHE: Redis
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: smd-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - smd-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MESSAGE QUEUE: RabbitMQ
+  # ============================================
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: smd-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infrastructure/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    networks:
+      - smd-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # EVENT STREAMING: Zookeeper (for Kafka)
+  # ============================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: smd-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - smd-network
+
+  # ============================================
+  # EVENT STREAMING: Kafka
+  # ============================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: smd-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - smd-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # BACKEND: API Gateway (Spring Cloud Gateway)
+  # ============================================
+  gateway:
+    build:
+      context: ./backend/gateway
+      dockerfile: ../../infrastructure/docker/gateway/Dockerfile
+    container_name: smd-gateway
+    environment:
+      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORE_SERVICE_URL=http://core-service:8081
+      - AI_SERVICE_URL=http://ai-service:8082
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      - core-service
+    networks:
+      - smd-network
+    restart: unless-stopped
+
+  # ============================================
+  # BACKEND: Core Service (Java Spring Boot)
+  # ============================================
+  core-service:
+    build:
+      context: ./backend/core-service
+      dockerfile: ../../infrastructure/docker/core-service/Dockerfile
+    container_name: smd-core-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smd_database}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-smd_user}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-smd_password}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - FIREBASE_SERVICE_ACCOUNT_KEY=${FIREBASE_SERVICE_ACCOUNT_KEY}
+    ports:
+      - "${CORE_SERVICE_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - smd-network
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/app/uploads
+
+  # ============================================
+  # BACKEND: AI Service (Python FastAPI)
+  # ============================================
+  ai-service:
+    build:
+      context: ./backend/ai-service
+      dockerfile: ../../infrastructure/docker/ai-service/Dockerfile
+    container_name: smd-ai-service
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-smd_user}:${POSTGRES_PASSWORD:-smd_password}@postgres:5432/${POSTGRES_DB:-smd_database}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+    ports:
+      - "${AI_SERVICE_PORT:-8082}:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - smd-network
+    restart: unless-stopped
+
+  # ============================================
+  # FRONTEND: React Application
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infrastructure/docker/frontend/Dockerfile
+    container_name: smd-frontend
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:${GATEWAY_PORT:-8080}
+      - VITE_FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - VITE_FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - gateway
+    networks:
+      - smd-network
+    restart: unless-stopped
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  smd-network:
+    driver: bridge
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  kafka_data:
+    driver: local

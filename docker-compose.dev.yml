@@ -1,0 +1,49 @@
+version: '3.8'
+
+# ============================================
+# Development Override Configuration
+# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ============================================
+
+services:
+  # ============================================
+  # CORE SERVICE - Development Settings
+  # ============================================
+  core-service:
+    environment:
+      - SPRING_DEVTOOLS_RESTART_ENABLED=true
+      - LOGGING_LEVEL_VN_EDU_SMD=DEBUG
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+    volumes:
+      - ./backend/core-service/src:/app/src
+      - ./backend/core-service/target:/app/target
+
+  # ============================================
+  # AI SERVICE - Development Settings
+  # ============================================
+  ai-service:
+    environment:
+      - LOG_LEVEL=DEBUG
+      - RELOAD=true
+    volumes:
+      - ./backend/ai-service/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8082 --reload
+
+  # ============================================
+  # FRONTEND - Development Settings
+  # ============================================
+  frontend:
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: npm run dev -- --host 0.0.0.0
+
+  # ============================================
+  # GATEWAY - Development Settings
+  # ============================================
+  gateway:
+    environment:
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=DEBUG
+    volumes:
+      - ./backend/gateway/src:/app/src

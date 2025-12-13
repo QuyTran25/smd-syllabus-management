@@ -1,0 +1,112 @@
+version: '3.8'
+
+# ============================================
+# Production Override Configuration
+# Use: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================
+
+services:
+  # ============================================
+  # CORE SERVICE - Production Settings
+  # ============================================
+  core-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_JPA_SHOW_SQL=false
+      - LOGGING_LEVEL_VN_EDU_SMD=INFO
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ============================================
+  # AI SERVICE - Production Settings
+  # ============================================
+  ai-service:
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # ============================================
+  # FRONTEND - Production Settings
+  # ============================================
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # ============================================
+  # GATEWAY - Production Settings
+  # ============================================
+  gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=WARN
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ============================================
+  # DATABASE - Production Settings
+  # ============================================
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # ============================================
+  # REDIS - Production Settings
+  # ============================================
+  redis:
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # ============================================
+  # RABBITMQ - Production Settings
+  # ============================================
+  rabbitmq:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ============================================
+  # KAFKA - Production Settings
+  # ============================================
+  kafka:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
