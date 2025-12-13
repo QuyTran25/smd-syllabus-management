@@ -13,6 +13,7 @@ jobs:
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest
+    if: hashFiles('frontend/package.json') != ''
     
     steps:
       - name: Checkout code
@@ -47,6 +48,7 @@ jobs:
   test-core-service:
     name: Test Core Service (Java)
     runs-on: ubuntu-latest
+    if: hashFiles('backend/core-service/pom.xml') != ''
     
     steps:
       - name: Checkout code
@@ -75,6 +77,7 @@ jobs:
   test-ai-service:
     name: Test AI Service (Python)
     runs-on: ubuntu-latest
+    if: hashFiles('backend/ai-service/requirements.txt') != ''
     
     steps:
       - name: Checkout code
@@ -108,8 +111,11 @@ jobs:
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [test-frontend, test-core-service, test-ai-service]
-    
+    needs: [test-frontend, test-core-service, test-ai-service]    if: |
+      always() &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped') &&
+      (needs.test-core-service.result == 'success' || needs.test-core-service.result == 'skipped') &&
+      (needs.test-ai-service.result == 'success' || needs.test-ai-service.result == 'skipped')    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
