@@ -98,62 +98,17 @@ const App: React.FC = () => {
         path="/lecturer"
         element={
           <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <LecturerDashboard />
-            </LecturerLayout>
+            <LecturerLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/lecturer/syllabi"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <ManageSyllabiPage />
-            </LecturerLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/syllabi/create"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <SyllabusFormPage />
-            </LecturerLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/syllabi/edit/:id"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <SyllabusFormPage />
-            </LecturerLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/syllabi/:id"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <LecturerSyllabusDetail />
-            </LecturerLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/reviews"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout>
-              <CollaborativeReviewPage />
-            </LecturerLayout>
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route index element={<LecturerDashboard />} />
+        <Route path="syllabi" element={<ManageSyllabiPage />} />
+        <Route path="syllabi/create" element={<SyllabusFormPage />} />
+        <Route path="syllabi/edit/:id" element={<SyllabusFormPage />} />
+        <Route path="syllabi/:id" element={<LecturerSyllabusDetail />} />
+        <Route path="reviews" element={<CollaborativeReviewPage />} />
+      </Route>
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />

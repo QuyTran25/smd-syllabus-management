@@ -9,7 +9,7 @@ import {
   CommentOutlined,
   DashboardOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthContext';
 import NotificationBell from '@/shared/components/NotificationBell';
 import type { MenuProps } from 'antd';
@@ -17,7 +17,7 @@ import type { MenuProps } from 'antd';
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-export const LecturerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const LecturerLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,7 +157,7 @@ export const LecturerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             borderRadius: 8,
           }}
         >
-          {children}
+          <Outlet />
         </Content>
       </Layout>
     </Layout>
