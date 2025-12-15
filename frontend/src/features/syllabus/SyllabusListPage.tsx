@@ -364,13 +364,15 @@ export const SyllabusListPage: React.FC = () => {
       width: 100,
       fixed: 'left',
       sorter: true,
+      align: 'center',
     },
     {
       title: 'Tên môn học',
       dataIndex: 'courseName',
       key: 'courseName',
-      width: 300,
+      width: 180,
       sorter: true,
+      align: 'center',
       render: (text, record) => (
         <Space direction="vertical" size={0}>
           <a onClick={() => navigate(`/syllabi/${record.id}`)} style={{ color: '#018486' }}>
@@ -394,12 +396,14 @@ export const SyllabusListPage: React.FC = () => {
       dataIndex: 'ownerName',
       key: 'ownerName',
       width: 150,
+      align: 'center',
     },
     {
       title: 'Khoa/Bộ môn',
       dataIndex: 'department',
       key: 'department',
       width: 180,
+      align: 'center',
       render: (text, record) => (
         <Space direction="vertical" size={0}>
           <Text>{record.faculty}</Text>
@@ -414,12 +418,14 @@ export const SyllabusListPage: React.FC = () => {
       dataIndex: 'semester',
       key: 'semester',
       width: 120,
+      align: 'center',
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 150,
+      align: 'center',
       render: (status: SyllabusStatus, record) => {
         const statusConfig = {
           [SyllabusStatus.DRAFT]: { color: 'default', text: 'Nháp' },
@@ -455,13 +461,15 @@ export const SyllabusListPage: React.FC = () => {
       key: 'updatedAt',
       width: 120,
       sorter: true,
+      align: 'center',
       render: (date: string) => dayjs(date).format('DD/MM/YYYY'),
     },
     {
       title: 'Hành động',
       key: 'actions',
-      width: 280,
+      width: 150,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="Xem chi tiết">
@@ -638,7 +646,7 @@ export const SyllabusListPage: React.FC = () => {
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
           onChange={handleTableChange}
-          scroll={{ x: 1600 }}
+          scroll={{ x: 1250 }}
         />
       </Card>
 

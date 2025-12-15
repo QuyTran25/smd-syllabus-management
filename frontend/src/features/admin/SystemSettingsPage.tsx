@@ -79,7 +79,8 @@ export const SystemSettingsPage: React.FC = () => {
       title: 'Mã', 
       dataIndex: 'code', 
       key: 'code', 
-      width: 100,
+      width: 115,
+      align: 'center',
       render: (text, record) => (
         <Space size="small">
           {text}
@@ -91,19 +92,22 @@ export const SystemSettingsPage: React.FC = () => {
       title: 'Tên học kỳ', 
       dataIndex: 'name', 
       key: 'name',
+      align: 'center',
       ellipsis: { showTitle: false },
     },
     { 
       title: 'Năm học', 
       dataIndex: 'academicYear', 
       key: 'academicYear', 
-      width: 90 
+      width: 90,
+      align: 'center',
     },
     { 
       title: 'Bắt đầu', 
       dataIndex: 'startDate', 
       key: 'startDate', 
       width: 90,
+      align: 'center',
       render: (date) => dayjs(date).format('DD/MM/YY'),
     },
     { 
@@ -111,12 +115,14 @@ export const SystemSettingsPage: React.FC = () => {
       dataIndex: 'endDate', 
       key: 'endDate', 
       width: 90,
+      align: 'center',
       render: (date) => dayjs(date).format('DD/MM/YY'),
     },
     {
       title: 'Hành động',
       key: 'actions',
       width: 140,
+      align: 'center',
       render: (_, record) => (
         <Space>
           {!record.isActive && (

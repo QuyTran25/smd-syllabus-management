@@ -171,7 +171,8 @@ export const StudentFeedbackPage: React.FC = () => {
       title: 'Loại',
       dataIndex: 'type',
       key: 'type',
-      width: 75,
+      width: 80,
+      align: 'center',
       filters: Object.values(FeedbackType).map((type) => ({
         text: FEEDBACK_TYPE_LABELS[type],
         value: type,
@@ -187,34 +188,39 @@ export const StudentFeedbackPage: React.FC = () => {
       title: 'Mã HP',
       dataIndex: 'syllabusCode',
       key: 'syllabusCode',
-      width: 65,
+      width: 75,
+      align: 'center',
     },
     {
       title: 'Tên học phần',
       dataIndex: 'syllabusName',
       key: 'syllabusName',
-      minWidth: 180,
+      width: 220,
+      align: 'center',
       ellipsis: { showTitle: false },
     },
     {
       title: 'Phần',
       dataIndex: 'section',
       key: 'section',
-      width: 90,
+      width: 120,
+      align: 'center',
       render: (section) => <Tag>{section}</Tag>,
     },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
-      minWidth: 200,
+      width: 160,
+      align: 'center',
       ellipsis: { showTitle: false },
     },
     {
       title: 'Sinh viên',
       dataIndex: 'studentName',
       key: 'studentName',
-      width: 130,
+      width: 180,
+      align: 'center',
       ellipsis: { showTitle: false },
     },
     {
@@ -222,6 +228,7 @@ export const StudentFeedbackPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 105,
+      align: 'center',
       filters: Object.values(FeedbackStatus).map((status) => ({
         text: FEEDBACK_STATUS_LABELS[status],
         value: status,
@@ -237,7 +244,7 @@ export const StudentFeedbackPage: React.FC = () => {
       title: 'Quyền sửa',
       dataIndex: 'editEnabled',
       key: 'editEnabled',
-      width: 80,
+      width: 120,
       align: 'center',
       render: (enabled: boolean) =>
         enabled ? (
@@ -252,7 +259,8 @@ export const StudentFeedbackPage: React.FC = () => {
       title: 'Ngày',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 80,
+      width: 100,
+      align: 'center',
       sorter: (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend',
@@ -261,8 +269,9 @@ export const StudentFeedbackPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'actions',
-      width: 190,
+      width: 280,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
         <Space>
           <Button
@@ -373,7 +382,7 @@ export const StudentFeedbackPage: React.FC = () => {
               showSizeChanger: true,
               showTotal: (total) => `Tổng ${total} phản hồi`,
             }}
-            scroll={{ x: 1600 }}
+            scroll={{ x: 1480 }}
           />
         </Card>
       </Space>

@@ -30,7 +30,7 @@ import { userService } from '@/services';
 import { User, UserRole } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 export const UserManagementPage: React.FC = () => {
@@ -176,7 +176,7 @@ export const UserManagementPage: React.FC = () => {
     {
       title: 'Người dùng',
       key: 'user',
-      width: 180,
+      width: 250,
       ellipsis: { showTitle: false },
       render: (_, record) => (
         <Space size="small">
@@ -205,6 +205,7 @@ export const UserManagementPage: React.FC = () => {
     {
       title: 'Khoa/Bộ môn',
       key: 'department',
+      width: 200,
       ellipsis: { showTitle: false },
       render: (_, record) => (
         <Text>
@@ -231,13 +232,13 @@ export const UserManagementPage: React.FC = () => {
       title: 'Đăng nhập',
       dataIndex: 'lastLogin',
       key: 'lastLogin',
-      width: 95,
+      width: 90,
       render: (date?: string) => date ? new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '-',
     },
     {
       title: 'Hành động',
       key: 'actions',
-      width: 130,
+      width: 110,
       fixed: 'right',
       render: (_, record) => (
         <Space>
@@ -317,7 +318,7 @@ export const UserManagementPage: React.FC = () => {
           dataSource={users}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1000 }}
         />
       </Card>
 

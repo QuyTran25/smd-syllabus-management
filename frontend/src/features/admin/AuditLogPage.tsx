@@ -195,6 +195,7 @@ export const AuditLogPage: React.FC = () => {
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 110,
+      align: 'center',
       sorter: (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
       render: (timestamp) => {
         const date = new Date(timestamp);
@@ -204,7 +205,8 @@ export const AuditLogPage: React.FC = () => {
     {
       title: 'Người dùng',
       key: 'user',
-      width: 140,
+      width: 200,
+      align: 'center',
       ellipsis: { showTitle: false },
       render: (_, record) => (
         <Space size="small">
@@ -217,7 +219,8 @@ export const AuditLogPage: React.FC = () => {
       title: 'Hành động',
       dataIndex: 'action',
       key: 'action',
-      width: 95,
+      width: 100,
+      align: 'center',
       render: (action) => {
         const colors: Record<string, string> = {
           CREATE: 'green',
@@ -235,7 +238,8 @@ export const AuditLogPage: React.FC = () => {
     {
       title: 'Tài nguyên',
       key: 'resource',
-      width: 110,
+      width: 150,
+      align: 'center',
       ellipsis: { showTitle: false },
       render: (_, record) => `${record.resource}${record.resourceId !== '-' ? ` #${record.resourceId}` : ''}`,
     },
@@ -243,14 +247,16 @@ export const AuditLogPage: React.FC = () => {
       title: 'Chi tiết',
       dataIndex: 'details',
       key: 'details',
+      align: 'center',
       ellipsis: { showTitle: false },
-      minWidth: 250,
+      minWidth: 200,
     },
     {
       title: 'Kết quả',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: 110,
+      align: 'center',
       render: (status) => (
         <Tag color={status === 'success' ? 'success' : 'error'}>
           {status === 'success' ? 'Thành công' : 'Lỗi'}
@@ -279,7 +285,7 @@ export const AuditLogPage: React.FC = () => {
             allowClear
           />
 
-          <Select value={selectedAction} onChange={setSelectedAction} style={{ width: 150 }}>
+          <Select value={selectedAction} onChange={setSelectedAction} style={{ width: 180 }}>
             <Option value="all">Tất cả hành động</Option>
             <Option value="CREATE">CREATE</Option>
             <Option value="UPDATE">UPDATE</Option>
@@ -291,7 +297,7 @@ export const AuditLogPage: React.FC = () => {
             <Option value="EXPORT">EXPORT</Option>
           </Select>
 
-          <Select value={selectedRole} onChange={setSelectedRole} style={{ width: 150 }}>
+          <Select value={selectedRole} onChange={setSelectedRole} style={{ width: 160 }}>
             <Option value="all">Tất cả vai trò</Option>
             <Option value="Admin">Admin</Option>
             <Option value="Principal">Principal</Option>
@@ -320,7 +326,7 @@ export const AuditLogPage: React.FC = () => {
             showSizeChanger: true,
             showTotal: (total) => `Tổng ${total} bản ghi`,
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 950 }}
         />
       </Card>
     </div>
