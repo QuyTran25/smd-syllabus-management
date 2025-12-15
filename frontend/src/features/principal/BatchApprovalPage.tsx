@@ -112,6 +112,7 @@ export const BatchApprovalPage: React.FC = () => {
           type="link"
           icon={<FileTextOutlined />}
           onClick={() => navigate(`/syllabi/${record.id}`)}
+          style={{ fontSize: '12px' }}
         >
           Xem chi tiết
         </Button>
