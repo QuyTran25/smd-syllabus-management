@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Form, Input, Button, Card, Typography, Space, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -18,8 +19,17 @@ export const LoginPage: React.FC = () => {
 
   const onFinish = async (values: LoginFormValues) => {
     try {
-      await login(values.email, values.password);
-      navigate('/');
+      const user = await login(values.email, values.password);
+      
+      // Redirect based on user role
+      if (user.role === UserRole.LECTURER) {
+        navigate('/lecturer');
+      } else if (user.role === UserRole.STUDENT) {
+        navigate('/student');
+      } else {
+        // Admin, HoD, AA, Principal
+        navigate('/');
+      }
     } catch (error) {
       // Error handled in AuthContext
     }
@@ -98,10 +108,22 @@ export const LoginPage: React.FC = () => {
                 label="Email"
                 rules={[
                   { required: true, message: 'Vui lòng nhập email!' },
-                  { type: 'email', message: 'Email không hợp lệ!' },
+                  { 
+                    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
+                    message: 'Email không hợp lệ!' 
+                  },
                 ]}
               >
-                <Input prefix={<UserOutlined />} placeholder="admin@smd.edu.vn" />
+                <Input 
+                  prefix={<UserOutlined />} 
+                  placeholder="lecturer@smd.edu.vn" 
+                  autoComplete="off"
+                  onBlur={(e) => {
+                    // Trim spaces
+                    const value = e.target.value.trim();
+                    form.setFieldValue('email', value);
+                  }}
+                />
               </Form.Item>
 
               <Form.Item

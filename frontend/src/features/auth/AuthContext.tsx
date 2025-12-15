@@ -4,7 +4,7 @@ import { authService } from '@/services/auth.service';
 import { message } from 'antd';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
 }
@@ -59,6 +59,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
 
       message.success(`Chào mừng ${response.user.fullName}!`);
+      
+      return response.user;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại';
       message.error(errorMessage);

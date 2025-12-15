@@ -13,6 +13,12 @@ import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
 import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
 import { PLOManagementPage } from './features/aa/PLOManagementPage';
 import { CourseManagementPage } from './features/aa/CourseManagementPage';
+import LecturerDashboard from './features/lecturer/DashboardPage';
+import ManageSyllabiPage from './features/lecturer/ManageSyllabiPage';
+import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
+import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
+import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
+import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
 import { UserRole } from '@/types';
 
 const App: React.FC = () => {
@@ -85,6 +91,23 @@ const App: React.FC = () => {
         } />
         
         <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+
+      {/* Lecturer routes - GIAO DIỆN RIÊNG với LecturerLayout */}
+      <Route
+        path="/lecturer"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
+            <LecturerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<LecturerDashboard />} />
+        <Route path="syllabi" element={<ManageSyllabiPage />} />
+        <Route path="syllabi/create" element={<SyllabusFormPage />} />
+        <Route path="syllabi/edit/:id" element={<SyllabusFormPage />} />
+        <Route path="syllabi/:id" element={<LecturerSyllabusDetail />} />
+        <Route path="reviews" element={<CollaborativeReviewPage />} />
       </Route>
 
       {/* Fallback */}
