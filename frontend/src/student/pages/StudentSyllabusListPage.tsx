@@ -163,7 +163,7 @@ export const StudentSyllabusListPage: React.FC = () => {
               <div key={item.id} style={{ minWidth: 0 }}>
                 <SyllabusCard
                   item={item}
-                  onOpen={(sid) => navigate(`/student/syllabi/${sid}`)}
+                  onOpen={(sid) => navigate(`/syllabi/${sid}`)}
                   onToggleTrack={(sid) => toggleTrack.mutate(sid)}
                 />
               </div>

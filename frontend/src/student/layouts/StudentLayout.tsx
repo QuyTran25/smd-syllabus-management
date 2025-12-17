@@ -118,7 +118,7 @@ export const StudentLayout: React.FC = () => {
           align="center"
           size={12}
           style={{ cursor: 'pointer', userSelect: 'none' }}
-          onClick={() => navigate('/student')}
+          onClick={() => navigate('/syllabi?scope=ALL')}
         >
           <div
             style={{

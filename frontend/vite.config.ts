@@ -17,7 +17,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         admin: path.resolve(__dirname, 'index.html'),
-        student: path.resolve(__dirname, 'student.html'),
+        student: path.resolve(__dirname, 'student.index.html'),
       },
     },
   },
