@@ -5,7 +5,8 @@ import {
   listStudentSyllabi,
   reportIssue,
   toggleTrackSyllabus,
-} from '../api/studentSyllabus.api';
+} from '@/student/api/studentSyllabus.api';
+
 import { ReportIssuePayload, StudentSyllabiFilters } from '../types';
 
 export function useStudentSyllabi(filters: StudentSyllabiFilters) {

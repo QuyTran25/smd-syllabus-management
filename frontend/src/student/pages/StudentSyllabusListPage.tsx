@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Breadcrumb, Col, Row, Space, Typography, Skeleton, Empty } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { StudentFilters } from '../../../student/components/StudentFilters';
-import { SyllabusCard } from '../../../student/components/SyllabusCard';
+import { StudentFilters } from '../components/StudentFilters';
+import { SyllabusCard } from '../components/SyllabusCard';
 import { useStudentSyllabi, useToggleTrack } from '../hooks/useStudentSyllabus';
 import type { StudentSyllabiFilters } from '../types';
 

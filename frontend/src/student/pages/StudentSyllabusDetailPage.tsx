@@ -15,9 +15,9 @@ import {
 } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { AISummaryModal } from '../../../student/components/AISummaryModal';
-import { CloPloModal } from '../../../student/components/CloPloModal';
-import { ReportIssueModal } from '../../../student/components/ReportIssueModal';
+import { AISummaryModal } from '../components/AISummaryModal';
+import { CloPloModal } from '../components/CloPloModal';
+import { ReportIssueModal } from '../components/ReportIssueModal';
 
 import {
   useDownloadPdf,

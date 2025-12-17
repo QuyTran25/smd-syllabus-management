@@ -19,9 +19,6 @@ import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
 import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
 import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
 import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
-import { StudentSyllabusListPage } from './features/student/pages/StudentSyllabusListPage';
-import { StudentSyllabusDetailPage } from './features/student/pages/StudentSyllabusDetailPage';
-import { StudentLayout } from './features/student/components/StudentLayout';
 
 import { UserRole } from '@/types';
 
@@ -119,20 +116,6 @@ const App: React.FC = () => {
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-
-      <Route
-        path="/student"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.STUDENT]}>
-            <StudentLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="syllabi" replace />} />
-        <Route path="syllabi" element={<StudentSyllabusListPage />} />
-        <Route path="syllabi/:id" element={<StudentSyllabusDetailPage />} />
-        <Route path="*" element={<Navigate to="/student" replace />} />
       </Route>
 
       {/* Lecturer routes - GIAO DIỆN RIÊNG với LecturerLayout */}
