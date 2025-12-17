@@ -188,8 +188,8 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Overview Statistics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Tổng đề cương"
@@ -199,7 +199,7 @@ export const ReportsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Đã phê duyệt"
@@ -211,7 +211,7 @@ export const ReportsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Đang chờ"
@@ -222,7 +222,7 @@ export const ReportsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Thời gian duyệt TB"
@@ -242,6 +242,7 @@ export const ReportsPage: React.FC = () => {
           dataSource={mockDepartmentStats}
           rowKey="department"
           pagination={false}
+          scroll={{ x: 700 }}
         />
       </Card>
 
@@ -251,8 +252,7 @@ export const ReportsPage: React.FC = () => {
           columns={bottleneckColumns}
           dataSource={mockBottlenecks}
           rowKey="stage"
-          pagination={false}
-        />
+          pagination={false}          scroll={{ x: 500 }}        />
 
         <div style={{ marginTop: 16, padding: 12, backgroundColor: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4 }}>
           <strong>⚠️ Khuyến nghị:</strong>

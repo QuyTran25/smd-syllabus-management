@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Button, Dropdown, Avatar, Space, Typography, Input } from 'antd';
+import { Layout, Button, Dropdown, Avatar, Space, Typography, Input, Grid } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -14,6 +14,7 @@ import type { MenuProps } from 'antd';
 
 const { Header } = Layout;
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 interface AppHeaderProps {
   collapsed: boolean;
@@ -23,6 +24,7 @@ interface AppHeaderProps {
 export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => {
   const { user, logout } = useAuth();
   const [searchVisible, setSearchVisible] = useState(false);
+  const screens = useBreakpoint();
 
   const handleLogout = async () => {
     await logout();
@@ -51,10 +53,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
     },
   ];
 
+  // Responsive search width
+  const getSearchWidth = () => {
+    if (screens.xl) return 300;
+    if (screens.lg) return 250;
+    if (screens.md) return 200;
+    return 150;
+  };
+
   return (
     <Header
       style={{
-        padding: '0 24px',
+        padding: screens.xs ? '0 8px' : screens.md ? '0 16px' : '0 24px',
         background: '#fff',
         display: 'flex',
         alignItems: 'center',
@@ -63,21 +73,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
         position: 'sticky',
         top: 0,
         zIndex: 1,
+        height: screens.xs ? 48 : 64,
       }}
     >
-      <Space size="large">
+      <Space size={screens.xs ? 'small' : 'large'}>
         <Button
           type="text"
           icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           onClick={onToggle}
-          style={{ fontSize: '18px', width: 40, height: 40 }}
+          style={{ 
+            fontSize: screens.xs ? '14px' : '18px', 
+            width: screens.xs ? 32 : 40, 
+            height: screens.xs ? 32 : 40 
+          }}
         />
 
         {searchVisible ? (
           <Input
-            placeholder="Tìm kiếm đề cương, môn học..."
+            placeholder={screens.md ? "Tìm kiếm đề cương, môn học..." : "Tìm kiếm..."}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: getSearchWidth() }}
             autoFocus
             onBlur={() => setSearchVisible(false)}
           />
@@ -86,14 +101,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
             type="text"
             icon={<SearchOutlined />}
             onClick={() => setSearchVisible(true)}
-            style={{ fontSize: '16px' }}
+            style={{ fontSize: screens.xs ? '14px' : '16px' }}
           >
-            Tìm kiếm
+            {screens.md && 'Tìm kiếm'}
           </Button>
         )}
       </Space>
 
-      <Space size="large">
+      <Space size={screens.xs ? 'small' : 'large'}>
         {/* Notifications */}
         <NotificationBell />
 
@@ -104,20 +119,23 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, onToggle }) => 
               src={user?.avatar}
               icon={!user?.avatar && <UserOutlined />}
               style={{ backgroundColor: '#018486' }}
+              size={screens.xs ? 'small' : 'default'}
             />
-            <div style={{ lineHeight: 1.2 }}>
-              <Text strong style={{ display: 'block' }}>
-                {user?.fullName}
-              </Text>
-              <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                {user?.role === 'ADMIN' && 'Quản trị viên'}
-                {user?.role === 'HOD' && 'Trưởng Bộ môn'}
-                {user?.role === 'AA' && 'Phòng Đào tạo'}
-                {user?.role === 'PRINCIPAL' && 'Hiệu trưởng'}
-                {user?.role === 'LECTURER' && 'Giảng viên'}
-                {user?.role === 'STUDENT' && 'Sinh viên'}
-              </Text>
-            </div>
+            {screens.md && (
+              <div style={{ lineHeight: 1.2 }}>
+                <Text strong style={{ display: 'block', fontSize: screens.lg ? '14px' : '13px' }}>
+                  {user?.fullName}
+                </Text>
+                <Text type="secondary" style={{ fontSize: screens.lg ? '0.85rem' : '0.75rem' }}>
+                  {user?.role === 'ADMIN' && 'Quản trị viên'}
+                  {user?.role === 'HOD' && 'Trưởng Bộ môn'}
+                  {user?.role === 'AA' && 'Phòng Đào tạo'}
+                  {user?.role === 'PRINCIPAL' && 'Hiệu trưởng'}
+                  {user?.role === 'LECTURER' && 'Giảng viên'}
+                  {user?.role === 'STUDENT' && 'Sinh viên'}
+                </Text>
+              </div>
+            )}
           </Space>
         </Dropdown>
       </Space>

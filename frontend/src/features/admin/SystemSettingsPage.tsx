@@ -208,6 +208,7 @@ export const SystemSettingsPage: React.FC = () => {
                   rowKey="id" 
                   pagination={false}
                   loading={loadingSemesters}
+                  scroll={{ x: 700 }}
                 />
               </Card>
             ),

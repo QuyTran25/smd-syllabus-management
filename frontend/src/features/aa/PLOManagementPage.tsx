@@ -212,6 +212,7 @@ export const PLOManagementPage: React.FC = () => {
           dataSource={filteredPLOs || []}
           rowKey="id"
           loading={isLoading}
+          scroll={{ x: 900 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

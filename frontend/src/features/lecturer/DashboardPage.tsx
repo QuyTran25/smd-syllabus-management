@@ -281,13 +281,13 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <h1 style={{ margin: 0 }}>Dashboard Giảng viên</h1>
 
-        {/* Stats Overview */}
-        <Row gutter={16}>
-          <Col span={6}>
+        {/* Stats Overview - Responsive Grid */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="Tổng nhiệm vụ"
@@ -297,7 +297,7 @@ const DashboardPage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="Đang soạn"
@@ -307,7 +307,7 @@ const DashboardPage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="Đang review"
@@ -317,7 +317,7 @@ const DashboardPage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="Cần sửa"
@@ -329,7 +329,7 @@ const DashboardPage: React.FC = () => {
           </Col>
         </Row>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <h2 style={{ margin: 0 }}>
             Nhiệm vụ của tôi{' '}
             {pendingCount > 0 && (
@@ -340,7 +340,7 @@ const DashboardPage: React.FC = () => {
             value={selectedTaskType}
             onChange={setSelectedTaskType}
             options={taskTypeOptions}
-            style={{ width: 200 }}
+            style={{ width: 200, minWidth: 150 }}
           />
         </div>
 
@@ -349,6 +349,7 @@ const DashboardPage: React.FC = () => {
             dataSource={filteredTasks}
             columns={columns}
             rowKey="id"
+            scroll={{ x: 800 }}
             pagination={{
               pageSize: 10,
               showTotal: (total) => `Tổng ${total} nhiệm vụ`,

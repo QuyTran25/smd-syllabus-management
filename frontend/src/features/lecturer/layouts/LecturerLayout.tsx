@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Button, Dropdown, Avatar, Space, Typography, Menu } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Button, Dropdown, Avatar, Space, Typography, Menu, Grid } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -16,12 +16,23 @@ import type { MenuProps } from 'antd';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 export const LecturerLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const screens = useBreakpoint();
+
+  // Auto collapse sidebar on smaller screens
+  useEffect(() => {
+    if (screens.lg === false) {
+      setCollapsed(true);
+    } else if (screens.xl === true) {
+      setCollapsed(false);
+    }
+  }, [screens]);
 
   const handleLogout = async () => {
     await logout();
@@ -64,6 +75,33 @@ export const LecturerLayout: React.FC = () => {
     },
   ];
 
+  // Responsive width
+  const getSiderWidth = () => {
+    if (screens.xl) return 250;
+    if (screens.lg) return 220;
+    return 200;
+  };
+
+  // Responsive padding/margin
+  const getContentStyle = () => {
+    if (screens.xs) {
+      return { margin: '8px', padding: 8 };
+    }
+    if (screens.sm && !screens.md) {
+      return { margin: '12px 8px', padding: 12 };
+    }
+    if (screens.md && !screens.lg) {
+      return { margin: '16px 8px', padding: 16 };
+    }
+    if (screens.lg && !screens.xl) {
+      return { margin: '20px 12px', padding: 20 };
+    }
+    return { margin: '24px 16px', padding: 24 };
+  };
+
+  const contentStyle = getContentStyle();
+  const isMobile = !screens.md;
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -71,24 +109,28 @@ export const LecturerLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         trigger={null}
-        width={250}
+        width={getSiderWidth()}
+        collapsedWidth={isMobile ? 0 : 80}
+        breakpoint="lg"
         style={{
           overflow: 'auto',
           height: '100vh',
           position: 'sticky',
           top: 0,
           left: 0,
+          zIndex: 100,
+          display: isMobile && collapsed ? 'none' : 'block',
         }}
       >
         <div
           style={{
-            height: 64,
+            height: screens.xs ? 48 : 64,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: '#018486',
             color: '#fff',
-            fontSize: collapsed ? '1.5rem' : '1.8rem',
+            fontSize: collapsed ? '1.2rem' : screens.lg ? '1.5rem' : '1.2rem',
             fontWeight: 700,
             letterSpacing: '2px',
           }}
@@ -100,14 +142,17 @@ export const LecturerLayout: React.FC = () => {
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
-          style={{ borderRight: 0 }}
+          style={{ 
+            borderRight: 0,
+            fontSize: screens.lg ? '14px' : '13px',
+          }}
         />
       </Sider>
 
       <Layout>
         <Header
           style={{
-            padding: '0 24px',
+            padding: screens.xs ? '0 8px' : screens.md ? '0 16px' : '0 24px',
             background: '#fff',
             display: 'flex',
             alignItems: 'center',
@@ -116,16 +161,21 @@ export const LecturerLayout: React.FC = () => {
             position: 'sticky',
             top: 0,
             zIndex: 1,
+            height: screens.xs ? 48 : 64,
           }}
         >
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: '18px', width: 40, height: 40 }}
+            style={{ 
+              fontSize: screens.xs ? '14px' : '18px', 
+              width: screens.xs ? 32 : 40, 
+              height: screens.xs ? 32 : 40 
+            }}
           />
 
-          <Space size="large">
+          <Space size={screens.xs ? 'small' : 'large'}>
             <NotificationBell />
 
             <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
@@ -134,27 +184,31 @@ export const LecturerLayout: React.FC = () => {
                   src={user?.avatar}
                   icon={!user?.avatar && <UserOutlined />}
                   style={{ backgroundColor: '#018486' }}
+                  size={screens.xs ? 'small' : 'default'}
                 />
-                <div style={{ lineHeight: 1.2 }}>
-                  <Text strong style={{ display: 'block' }}>
-                    {user?.fullName}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    Giảng viên - {user?.department}
-                  </Text>
-                </div>
+                {screens.md && (
+                  <div style={{ lineHeight: 1.2 }}>
+                    <Text strong style={{ display: 'block', fontSize: screens.lg ? '14px' : '13px' }}>
+                      {user?.fullName}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: screens.lg ? '0.85rem' : '0.75rem' }}>
+                      Giảng viên{screens.lg && ` - ${user?.department}`}
+                    </Text>
+                  </div>
+                )}
               </Space>
             </Dropdown>
           </Space>
         </Header>
 
         <Content
+          className="lecturer-dashboard"
           style={{
-            margin: '24px 16px',
-            padding: 24,
+            margin: contentStyle.margin,
+            padding: contentStyle.padding,
             minHeight: 280,
             background: '#fff',
-            borderRadius: 8,
+            borderRadius: screens.xs ? 4 : 8,
           }}
         >
           <Outlet />
