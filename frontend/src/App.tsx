@@ -19,6 +19,10 @@ import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
 import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
 import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
 import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
+import { StudentSyllabusListPage } from './features/student/pages/StudentSyllabusListPage';
+import { StudentSyllabusDetailPage } from './features/student/pages/StudentSyllabusDetailPage';
+import { StudentLayout } from './features/student/components/StudentLayout';
+
 import { UserRole } from '@/types';
 
 const App: React.FC = () => {
@@ -41,56 +45,94 @@ const App: React.FC = () => {
         <Route index element={<DashboardPage />} />
         <Route path="syllabi" element={<SyllabusListPage />} />
         <Route path="syllabi/:id" element={<SyllabusDetailPage />} />
-        
+
         {/* Admin only routes */}
-        <Route path="users" element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-            <UserManagementPage />
-          </ProtectedRoute>
-        } />
-        <Route path="settings" element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-            <SystemSettingsPage />
-          </ProtectedRoute>
-        } />
-        <Route path="audit-logs" element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-            <AuditLogPage />
-          </ProtectedRoute>
-        } />
-        <Route path="student-feedback" element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-            <StudentFeedbackPage />
-          </ProtectedRoute>
-        } />
-        
+        <Route
+          path="users"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <UserManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <SystemSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="audit-logs"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <AuditLogPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="student-feedback"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <StudentFeedbackPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Principal only routes */}
-        <Route path="batch-approval" element={
-          <ProtectedRoute allowedRoles={[UserRole.PRINCIPAL]}>
-            <BatchApprovalPage />
-          </ProtectedRoute>
-        } />
-        
+        <Route
+          path="batch-approval"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.PRINCIPAL]}>
+              <BatchApprovalPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* HoD only routes */}
-        <Route path="teaching-assignment" element={
-          <ProtectedRoute allowedRoles={[UserRole.HOD]}>
-            <TeachingAssignmentPage />
-          </ProtectedRoute>
-        } />
-        
+        <Route
+          path="teaching-assignment"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.HOD]}>
+              <TeachingAssignmentPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* AA only routes */}
-        <Route path="plo-management" element={
-          <ProtectedRoute allowedRoles={[UserRole.AA]}>
-            <PLOManagementPage />
-          </ProtectedRoute>
-        } />
-        <Route path="course-management" element={
-          <ProtectedRoute allowedRoles={[UserRole.AA]}>
-            <CourseManagementPage />
-          </ProtectedRoute>
-        } />
-        
+        <Route
+          path="plo-management"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.AA]}>
+              <PLOManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="course-management"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.AA]}>
+              <CourseManagementPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+
+      <Route
+        path="/student"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.STUDENT]}>
+            <StudentLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="syllabi" replace />} />
+        <Route path="syllabi" element={<StudentSyllabusListPage />} />
+        <Route path="syllabi/:id" element={<StudentSyllabusDetailPage />} />
+        <Route path="*" element={<Navigate to="/student" replace />} />
       </Route>
 
       {/* Lecturer routes - GIAO DIỆN RIÊNG với LecturerLayout */}
