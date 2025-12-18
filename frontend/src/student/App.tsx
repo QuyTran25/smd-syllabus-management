@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
 import { StudentLayout } from '@/student/layouts/StudentLayout'; // chỉnh đúng path của bạn
 import { StudentLoginPage } from '@/student/pages/StudentLoginPage';
 import { StudentSyllabusListPage } from '@/student/pages/StudentSyllabusListPage';
@@ -8,7 +9,17 @@ import StudentProtectedRoute from '@/student/components/StudentProtectedRoute'; 
 
 export default function StudentApp() {
   return (
-    <Routes>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#018486',
+          colorLink: '#018486',
+          colorSuccess: '#1EA69A',
+          fontFamily: '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        },
+      }}
+    >
+      <Routes>
       {/* ✅ Public - không chặn */}
       <Route path="/login" element={<StudentLoginPage />} />
 
@@ -28,5 +39,6 @@ export default function StudentApp() {
       {/* ✅ vào host => auto login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </ConfigProvider>
   );
 }

@@ -129,13 +129,13 @@ export const StudentLayout: React.FC = () => {
               placeItems: 'center',
               background:
                 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 40%),' +
-                'linear-gradient(135deg, rgba(92,110,235,1), rgba(114,73,160,1))',
+                'linear-gradient(135deg, #018486, #1EA69A)',
               color: 'white',
               fontWeight: 800,
               fontSize: 16,
               lineHeight: '1',
               letterSpacing: 0.5,
-              boxShadow: '0 10px 24px rgba(92,110,235,0.25)',
+              boxShadow: '0 10px 24px rgba(1,132,134,0.25)',
             }}
           >
             SMD
@@ -184,7 +184,7 @@ export const StudentLayout: React.FC = () => {
               <Avatar
                 size={30}
                 style={{
-                  background: 'linear-gradient(135deg, #1677ff, #69c0ff)',
+                  background: 'linear-gradient(135deg, #018486, #1EA69A)',
                   fontWeight: 700,
                 }}
               >
@@ -204,7 +204,7 @@ export const StudentLayout: React.FC = () => {
         </Space>
       </Header>
 
-      <Content style={{ padding: 0 }}>
+      <Content style={{ padding: 0, overflowX: 'hidden' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Outlet />
         </div>
@@ -213,7 +213,7 @@ export const StudentLayout: React.FC = () => {
       <Footer
         style={{
           marginTop: 20,
-          background: '#2f7f7d',
+          background: '#018486',
           color: 'rgba(255,255,255,0.9)',
           textAlign: 'center',
           padding: '14px 18px',

@@ -54,19 +54,20 @@ export const StudentSyllabusListPage: React.FC = () => {
   const terms = useMemo(() => Array.from(new Set(rows.map((x) => x.term))).sort(), [rows]);
 
   return (
-    <div style={{ padding: 18 }}>
-      {/* Banner giống ảnh: nền tím + vài vòng tròn mờ */}
+    <>
+      {/* Banner full width - escape khỏi container maxWidth 1200px */}
       <div
         style={{
-          borderRadius: 10,
           height: 120,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 18,
+          marginLeft: 'calc(-50vw + 50%)',
+          marginRight: 'calc(-50vw + 50%)',
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(90deg, rgba(92,110,235,0.95), rgba(114,73,160,0.95))',
+          background: 'linear-gradient(90deg, #018486 0%, #1EA69A 100%)',
         }}
       >
         <div
@@ -100,7 +101,8 @@ export const StudentSyllabusListPage: React.FC = () => {
         </Space>
       </div>
 
-      {/* Chào + chip theo dõi (đúng ảnh, không thêm phần khác) */}
+      {/* Content với padding */}
+      <div style={{ padding: '0 18px' }}>
       <div
         style={{
           display: 'flex',
@@ -172,5 +174,6 @@ export const StudentSyllabusListPage: React.FC = () => {
         )}
       </div>
     </div>
+    </>
   );
 };

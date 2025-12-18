@@ -34,7 +34,7 @@ export const StudentLoginPage: React.FC = () => {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
-        background: '#4D98FF',
+        background: 'linear-gradient(135deg, #018486 0%, #1EA69A 100%)',
         padding: 16,
       }}
     >
@@ -48,7 +48,7 @@ export const StudentLoginPage: React.FC = () => {
         bodyStyle={{ padding: 28 }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size={6} align="center">
-          <Title level={2} style={{ margin: 0, color: '#1677ff' }}>
+          <Title level={2} style={{ margin: 0, color: '#018486' }}>
             Student Portal
           </Title>
           <Text type="secondary">Hệ thống Tra cứu Đề cương - Sinh viên</Text>

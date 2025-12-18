@@ -39,7 +39,8 @@ const App: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="syllabi" element={<SyllabusListPage />} />
         <Route path="syllabi/:id" element={<SyllabusDetailPage />} />
 
