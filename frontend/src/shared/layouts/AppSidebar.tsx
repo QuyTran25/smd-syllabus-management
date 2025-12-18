@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Grid } from 'antd';
 import {
   DashboardOutlined,
   FileTextOutlined,
@@ -20,6 +20,7 @@ import { useAuth } from '@/features/auth';
 import { UserRole } from '@/types';
 
 const { Sider } = Layout;
+const { useBreakpoint } = Grid;
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -29,6 +30,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const screens = useBreakpoint();
+
+  // Responsive width
+  const getSiderWidth = () => {
+    if (screens.xl) return 250;
+    if (screens.lg) return 220;
+    return 200;
+  };
 
   // Get menu items based on user role
   const getMenuItems = () => {
@@ -138,29 +147,36 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
   // Get current selected key
   const selectedKey = location.pathname;
 
+  // Hide completely on mobile (controlled by MainLayout and CSS)
+  const isMobile = !screens.md;
+
   return (
     <Sider
       collapsible
       collapsed={collapsed}
       trigger={null}
-      width={250}
+      width={getSiderWidth()}
+      collapsedWidth={isMobile ? 0 : 80}
+      breakpoint="lg"
       style={{
         overflow: 'auto',
         height: '100vh',
         position: 'sticky',
         top: 0,
         left: 0,
+        zIndex: 100,
+        display: isMobile && collapsed ? 'none' : 'block',
       }}
     >
       <div
         style={{
-          height: 64,
+          height: screens.xs ? 48 : 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           background: '#018486',
           color: '#fff',
-          fontSize: collapsed ? '1.5rem' : '1.8rem',
+          fontSize: collapsed ? '1.2rem' : screens.lg ? '1.8rem' : '1.5rem',
           fontWeight: 700,
           letterSpacing: '2px',
         }}
@@ -172,7 +188,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
         selectedKeys={[selectedKey]}
         items={getMenuItems()}
         onClick={handleMenuClick}
-        style={{ borderRight: 0 }}
+        style={{ 
+          borderRight: 0,
+          fontSize: screens.lg ? '14px' : '13px',
+        }}
       />
     </Sider>
   );

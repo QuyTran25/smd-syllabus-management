@@ -4,20 +4,21 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    alias: { 
+      '@': path.resolve(__dirname, 'src'),
     },
   },
+
   server: {
-    port: 3000,
+    port: 3001,
   },
+  
   build: {
     rollupOptions: {
-      input: {
-        admin: path.resolve(__dirname, 'index.html'),
-        student: path.resolve(__dirname, 'student.index.html'),
-      },
+      input: path.resolve(__dirname, 'student-dev/index.html'),
     },
+    outDir: path.resolve(__dirname, 'dist-student'),
   },
 });

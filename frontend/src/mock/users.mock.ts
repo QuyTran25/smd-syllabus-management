@@ -28,7 +28,7 @@ export const mockUsers: User[] = [
   // Principal (1 user)
   {
     id: 'principal-001',
-    email: 'hieutruong@smd.edu.vn',
+    email: 'principal@smd.edu.vn',
     fullName: 'GS.TS Lê Văn Hiệu Trưởng',
     role: UserRole.PRINCIPAL,
     avatar: 'https://i.pravatar.cc/150?u=principal001',
@@ -41,7 +41,7 @@ export const mockUsers: User[] = [
   // Academic Affairs (2 users)
   {
     id: 'aa-001',
-    email: 'pdt@smd.edu.vn',
+    email: 'aa@smd.edu.vn',
     fullName: 'TS. Phạm Thị Phòng Đào Tạo',
     role: UserRole.AA,
     faculty: 'Phòng Đào Tạo',
@@ -67,7 +67,7 @@ export const mockUsers: User[] = [
   // Heads of Department (4 users - different departments)
   {
     id: 'hod-001',
-    email: 'hod.se@smd.edu.vn',
+    email: 'hod@smd.edu.vn',
     fullName: 'TS. Nguyễn Văn Trưởng Bộ Môn',
     role: UserRole.HOD,
     department: 'Software Engineering',

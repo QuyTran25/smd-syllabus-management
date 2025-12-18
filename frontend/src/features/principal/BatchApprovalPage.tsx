@@ -161,6 +161,7 @@ export const BatchApprovalPage: React.FC = () => {
           dataSource={data?.data || []}
           rowKey="id"
           loading={isLoading}
+          scroll={{ x: 1000 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,

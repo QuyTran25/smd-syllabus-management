@@ -10,6 +10,7 @@ import {
   Dropdown,
   Modal,
   message,
+  Typography,
 } from 'antd';
 import {
   PlusOutlined,
@@ -31,6 +32,7 @@ import RejectionReasonModal from './dashboard/components/RejectionReasonModal';
 
 const { Search } = Input;
 const { Option } = Select;
+const { Title } = Typography;
 
 interface Syllabus {
   id: string;
@@ -224,23 +226,28 @@ const ManageSyllabiPage: React.FC = () => {
       title: 'Mã HP',
       dataIndex: 'subjectCode',
       width: 100,
+      align: 'center',
       sorter: (a, b) => a.subjectCode.localeCompare(b.subjectCode),
     },
     {
       title: 'Tên học phần',
       dataIndex: 'subjectName',
+      width: 200,
+      align: 'center',
       sorter: (a, b) => a.subjectName.localeCompare(b.subjectName),
     },
     {
       title: 'Học kỳ',
       dataIndex: 'semester',
       width: 150,
+      align: 'center',
       sorter: (a, b) => a.semester.localeCompare(b.semester),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       width: 150,
+      align: 'center',
       render: (status, record) => (
         <Space>
           <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
@@ -258,6 +265,7 @@ const ManageSyllabiPage: React.FC = () => {
       title: 'Phiên bản',
       dataIndex: 'currentVersion',
       width: 100,
+      align: 'center',
       render: (version, record) => (
         <Space>
           <span>{version}</span>
@@ -275,7 +283,8 @@ const ManageSyllabiPage: React.FC = () => {
     {
       title: 'Cập nhật lần cuối',
       dataIndex: 'lastModified',
-      width: 160,
+      width: 180,
+      align: 'center',
       sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
     },
     {
@@ -283,6 +292,7 @@ const ManageSyllabiPage: React.FC = () => {
       key: 'actions',
       width: 250,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
         <Space>
           <Button
@@ -361,18 +371,18 @@ const ManageSyllabiPage: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '24px 24px 0' }}>
+        <Title level={2} style={{ margin: 0 }}>Quản lý Đề cương của tôi</Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => navigate('/lecturer/syllabi/create')}
+        >
+          Tạo đề cương mới
+        </Button>
+      </div>
       <Card
-        title="Quản lý Đề cương của tôi"
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/lecturer/syllabi/create')}
-          >
-            Tạo đề cương mới
-          </Button>
-        }
       >
         <Space style={{ marginBottom: 16, width: '100%' }} size="middle">
           <Search
@@ -409,7 +419,7 @@ const ManageSyllabiPage: React.FC = () => {
           dataSource={filteredData}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1150 }}
           pagination={{
             pageSize: 10,
             showTotal: (total) => `Tổng ${total} đề cương`,

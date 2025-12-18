@@ -291,6 +291,7 @@ export const TeachingAssignmentPage: React.FC = () => {
           dataSource={assignments || []}
           rowKey="id"
           loading={isLoading}
+          scroll={{ x: 1100 }}
           pagination={{
             pageSize: 10,
             showTotal: (total) => `Tổng ${total} nhiệm vụ`,

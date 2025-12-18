@@ -132,7 +132,7 @@ const CollaborativeReviewPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>Đánh giá Cộng tác</Title>
+      <Title level={2} style={{ margin: 0, marginBottom: 8 }}>Đánh giá Cộng tác</Title>
       <Text type="secondary">
         Danh sách đề cương được phân công review với vai trò giảng viên cộng tác
       </Text>
