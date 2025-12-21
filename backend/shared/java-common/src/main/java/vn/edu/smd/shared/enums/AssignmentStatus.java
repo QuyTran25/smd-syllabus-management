@@ -2,7 +2,7 @@ package vn.edu.smd.shared.enums;
 
 /**
  * Teaching assignment status
- * Maps to database enum: assignment_status
+ * Maps to database enum: assignment_status ('pending', 'in-progress', 'submitted', 'completed')
  */
 public enum AssignmentStatus {
     /**
@@ -23,17 +23,7 @@ public enum AssignmentStatus {
     /**
      * Syllabus approved and published
      */
-    COMPLETED,
-
-    /**
-     * Assignment cancelled
-     */
-    CANCELLED,
-
-    /**
-     * Assignment overdue
-     */
-    OVERDUE;
+    COMPLETED;
 
     /**
      * Get display name in Vietnamese
@@ -44,22 +34,20 @@ public enum AssignmentStatus {
             case IN_PROGRESS -> "Đang thực hiện";
             case SUBMITTED -> "Đã nộp";
             case COMPLETED -> "Hoàn thành";
-            case CANCELLED -> "Đã hủy";
-            case OVERDUE -> "Quá hạn";
         };
     }
 
     /**
-     * Check if assignment is active (not cancelled or completed)
+     * Check if assignment is active (not completed)
      */
     public boolean isActive() {
-        return this != CANCELLED && this != COMPLETED;
+        return this != COMPLETED;
     }
 
     /**
      * Check if assignment needs attention
      */
     public boolean needsAttention() {
-        return this == PENDING || this == OVERDUE;
+        return this == PENDING;
     }
 }
