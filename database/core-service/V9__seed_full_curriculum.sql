@@ -65,7 +65,7 @@ WITH
     d_tc   AS (SELECT id FROM departments WHERE code = 'TT_GDTC'),
     d_qp   AS (SELECT id FROM departments WHERE code = 'TT_GDQP')
 
-INSERT INTO subjects (code, name, credits, department_id, description) VALUES 
+INSERT INTO subjects (code, current_name_vi, default_credits, department_id, description) VALUES 
 
 -- === 2.1. ĐẠI CƯƠNG ===
 ('001201', 'Đại số', 2, (SELECT id FROM d_toan), 'Ma trận, định thức, hệ phương trình tuyến tính.'),
@@ -123,8 +123,8 @@ INSERT INTO subjects (code, name, credits, department_id, description) VALUES
 ('004107', 'Bóng đá', 1, (SELECT id FROM d_tc), 'GDTC Tự chọn')
 
 ON CONFLICT (code) DO UPDATE 
-SET name = EXCLUDED.name,
-    credits = EXCLUDED.credits,
+SET current_name_vi = EXCLUDED.current_name_vi,
+    default_credits = EXCLUDED.default_credits,
     description = EXCLUDED.description,
     department_id = EXCLUDED.department_id;
 
@@ -153,8 +153,8 @@ BEGIN
         ('122036', '122003'), ('122039', '122005'), ('124008', '124001'), ('125003', '123002')
     ) AS mapping(subject_code, prereq_code)
     LOOP
-        INSERT INTO prerequisites (subject_id, prerequisite_subject_id)
-        SELECT s1.id, s2.id
+        INSERT INTO subject_relationships (subject_id, related_subject_id, type)
+        SELECT s1.id, s2.id, 'PREREQUISITE'
         FROM subjects s1, subjects s2
         WHERE s1.code = rec.subject_code AND s2.code = rec.prereq_code
         ON CONFLICT DO NOTHING;
