@@ -49,6 +49,15 @@ public class Notification {
     @Builder.Default
     private Boolean isRead = false;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    @Column(name = "related_entity_type", length = 50)
+    private String relatedEntityType;
+
+    @Column(name = "related_entity_id")
+    private UUID relatedEntityId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -6,10 +6,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import vn.edu.smd.shared.enums.AuthProvider;
 import vn.edu.smd.shared.enums.Gender;
+import vn.edu.smd.shared.enums.RoleScope;
 import vn.edu.smd.shared.enums.UserStatus;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * User Entity
@@ -82,6 +86,10 @@ public class User {
     @JoinColumn(name = "created_by")
     private User createdByUser;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<UserRole> userRoles = new HashSet<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -89,4 +97,40 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // Helper methods for backward compatibility
+    public String getPassword() {
+        return this.passwordHash;
+    }
+
+    public void setPassword(String password) {
+        this.passwordHash = password;
+    }
+
+    public String getPhoneNumber() {
+        return this.phone;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phone = phoneNumber;
+    }
+
+    public Set<Role> getRoles() {
+        return this.userRoles.stream()
+                .map(UserRole::getRole)
+                .collect(Collectors.toSet());
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.userRoles.clear();
+        if (roles != null) {
+            roles.forEach(role -> {
+                UserRole userRole = new UserRole();
+                userRole.setUser(this);
+                userRole.setRole(role);
+                userRole.setScopeType(RoleScope.GLOBAL);
+                this.userRoles.add(userRole);
+            });
+        }
+    }
 }

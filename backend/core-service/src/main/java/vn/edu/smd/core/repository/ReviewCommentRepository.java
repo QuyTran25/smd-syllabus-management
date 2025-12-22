@@ -20,4 +20,6 @@ public interface ReviewCommentRepository extends JpaRepository<ReviewComment, UU
     List<ReviewComment> findBySyllabusVersionIdAndParentIsNull(UUID syllabusVersionId);
     
     List<ReviewComment> findBySyllabusVersionIdAndIsResolved(UUID syllabusVersionId, Boolean isResolved);
+    
+    List<ReviewComment> findBySyllabusVersionIdOrderByCreatedAtDesc(UUID syllabusVersionId);
 }
