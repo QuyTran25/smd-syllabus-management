@@ -4,7 +4,6 @@
  * Updated: FIX SYNTAX ERROR & ADD MISSING INDEXES
  */
 
-SET search_path TO core_service;
 
 -- ==========================================
 -- 0. ENUMS BỔ SUNG

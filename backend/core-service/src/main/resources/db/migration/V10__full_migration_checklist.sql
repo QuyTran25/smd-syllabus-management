@@ -7,7 +7,6 @@
  * 4. [Student]: Chuẩn hóa phân loại lỗi (error_report_section).
  */
 
-SET search_path TO core_service;
 
 -- ==========================================
 -- 1. [PRINCIPAL] THÊM GIÁ TRỊ CHO ENUM syllabus_status
@@ -270,7 +269,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_logs(status);
 -- ==========================================
 -- 12. CẬP NHẬT VIEW v_syllabus_full
 -- ==========================================
-CREATE OR REPLACE VIEW v_syllabus_full AS
+-- ==========================================
+-- 12. CẬP NHẬT VIEW v_syllabus_full
+-- ==========================================
+
+-- PHẢI CÓ DÒNG NÀY ĐỂ XÓA CẤU TRÚC CŨ TRƯỚC KHI TẠO MỚI
+DROP VIEW IF EXISTS v_syllabus_full;
+
+CREATE VIEW v_syllabus_full AS
 SELECT 
     sv.*,
     s.code AS subject_code, 
@@ -293,7 +299,6 @@ JOIN departments d ON s.department_id = d.id
 JOIN faculties f ON d.faculty_id = f.id
 LEFT JOIN academic_terms at ON sv.academic_term_id = at.id
 WHERE sv.is_deleted = FALSE;
-
 -- ==========================================
 -- 13. [STUDENT] CHUẨN HÓA SECTION BÁO LỖI
 -- ==========================================

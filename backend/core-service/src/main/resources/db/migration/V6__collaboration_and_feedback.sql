@@ -4,7 +4,6 @@
  * Updated: Đã tích hợp Enum và Audit columns
  */
 
-SET search_path TO core_service;
 
 -- =====================================================
 -- 0. ENUMS

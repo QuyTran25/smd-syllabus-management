@@ -4,8 +4,6 @@
  * Updated: Bổ sung Curriculum Link, Cascade Delete, Logic Check
  */
 
-SET search_path TO core_service;
-
 -- Enum quan hệ môn học
 CREATE TYPE subject_relation_type AS ENUM ('PREREQUISITE', 'CO_REQUISITE', 'REPLACEMENT');
 
@@ -32,19 +30,18 @@ CREATE TRIGGER update_curriculums_time BEFORE UPDATE ON curriculums FOR EACH ROW
 -- 2. SUBJECTS (Bản thể Môn học - Identity)
 -- ==========================================
 CREATE TABLE subjects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(), -- Thêm public.
     code VARCHAR(20) NOT NULL UNIQUE,
     department_id UUID NOT NULL REFERENCES departments(id),
-    
-    -- [NEW] Liên kết Subject với Curriculum (PLO → Curriculum → Subject → Syllabus)
-    -- Nếu 1 môn dùng chung nhiều chương trình, có thể tách bảng curriculum_subjects sau
     curriculum_id UUID REFERENCES curriculums(id) ON DELETE SET NULL,
-    
     current_name_vi VARCHAR(255) NOT NULL,
     current_name_en VARCHAR(255),
     default_credits INT NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
     
+    -- THÊM DÒNG NÀY VÀO ĐÂY
+    description TEXT, 
+    
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES users(id),

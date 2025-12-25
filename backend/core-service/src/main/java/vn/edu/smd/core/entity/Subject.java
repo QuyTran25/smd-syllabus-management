@@ -1,5 +1,6 @@
 package vn.edu.smd.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,10 +11,6 @@ import vn.edu.smd.shared.enums.SubjectType;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Subject (Môn học) Entity
- * Maps to table: subjects
- */
 @Entity
 @Table(name = "subjects", schema = "core_service")
 @Getter
@@ -30,13 +27,28 @@ public class Subject {
     @Column(name = "code", nullable = false, unique = true, length = 20)
     private String code;
 
+    // --- CÁCH FIX MỚI: Map thẳng ID ra biến riêng (An toàn tuyệt đối) ---
+    
+    // 1. Map object quan hệ (để lưu dữ liệu) -> Dùng @JsonIgnore để chặn lỗi
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
+    @JsonIgnore 
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "curriculum_id")
+    @JsonIgnore
     private Curriculum curriculum;
+
+    // 2. Map cột ID ra biến riêng (để đọc dữ liệu lọc) -> Frontend sẽ nhận được biến này
+    // insertable = false, updatable = false: Để tránh xung đột với object ở trên
+    @Column(name = "department_id", insertable = false, updatable = false)
+    private UUID departmentId;
+
+    @Column(name = "curriculum_id", insertable = false, updatable = false)
+    private UUID curriculumId;
+
+    // -------------------------------------------------------------------
 
     @Column(name = "current_name_vi", nullable = false, length = 255)
     private String currentNameVi;
@@ -47,11 +59,14 @@ public class Subject {
     @Column(name = "default_credits", nullable = false)
     private Integer defaultCredits;
 
+    public Integer getCredits() {
+        return defaultCredits;
+    }
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
 
-    // V10 additions
     @Enumerated(EnumType.STRING)
     @Column(name = "subject_type", length = 20)
     @Builder.Default
@@ -82,10 +97,12 @@ public class Subject {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
+    @JsonIgnore
     private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by")
+    @JsonIgnore
     private User updatedBy;
 
     @CreationTimestamp

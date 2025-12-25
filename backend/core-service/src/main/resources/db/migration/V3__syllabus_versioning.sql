@@ -4,8 +4,6 @@
  * Updated: Version Lineage, Keywords Search, GIN Indexes
  */
 
-SET search_path TO core_service;
-
 -- [FINAL] Status cho Workflow + Lưu trữ
 CREATE TYPE syllabus_status AS ENUM (
     'DRAFT',

@@ -1,5 +1,6 @@
 package vn.edu.smd.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,8 +26,11 @@ public class Department {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // --- QUAN TRỌNG: @JsonIgnore ---
+    // Ngăn chặn Jackson load Faculty (Lazy) gây lỗi "no Session"
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "faculty_id", nullable = false)
+    @JsonIgnore 
     private Faculty faculty;
 
     @Column(name = "code", nullable = false, unique = true, length = 50)

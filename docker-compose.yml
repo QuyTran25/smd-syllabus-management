@@ -8,14 +8,15 @@ services:
     image: pgvector/pgvector:pg15
     container_name: smd-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-smd_database}
-      POSTGRES_USER: ${POSTGRES_USER:-smd_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smd_password}
+      POSTGRES_DB: smd_database
+      POSTGRES_USER: smd_user
+      POSTGRES_PASSWORD: smd_password
+    # ... (các dòng ports, volumes giữ nguyên)
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      #- ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     networks:
       - smd-network
     healthcheck:

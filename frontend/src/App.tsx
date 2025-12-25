@@ -1,24 +1,37 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, ProtectedRoute } from './features/auth';
+
+// --- LAYOUTS ---
 import { MainLayout } from './shared/layouts/MainLayout';
-import { DashboardPage } from './features/dashboard/DashboardPage';
-import { SyllabusListPage } from './features/syllabus/SyllabusListPage';
-import { SyllabusDetailPage } from './features/syllabus/SyllabusDetailPage';
+import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
+// FIX: Trỏ đúng vào thư mục shared/layouts
+import AdminLayout from './shared/layouts/AdminLayout'; 
+
+// --- PAGES: ADMIN (Tất cả lấy từ features/admin) ---
+// FIX: Sửa đường dẫn từ ./pages/admin thành ./features/admin
+import AdminDashboard from './features/admin/AdminDashboard'; 
+import AdminSubjectsPage from './features/admin/AdminSubjectsPage'; 
 import { UserManagementPage } from './features/admin/UserManagementPage';
 import { SystemSettingsPage } from './features/admin/SystemSettingsPage';
 import { AuditLogPage } from './features/admin/AuditLogPage';
 import { StudentFeedbackPage } from './features/admin/StudentFeedbackPage';
-import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
-import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
-import { PLOManagementPage } from './features/aa/PLOManagementPage';
-import { CourseManagementPage } from './features/aa/CourseManagementPage';
+
+// --- PAGES: LECTURER ---
 import LecturerDashboard from './features/lecturer/DashboardPage';
 import ManageSyllabiPage from './features/lecturer/ManageSyllabiPage';
 import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
 import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
 import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
-import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
+
+// --- PAGES: OTHERS (Common/Principal/HoD/AA) ---
+import { DashboardPage } from './features/dashboard/DashboardPage';
+import { SyllabusListPage } from './features/syllabus/SyllabusListPage';
+import { SyllabusDetailPage } from './features/syllabus/SyllabusDetailPage';
+import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
+import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
+import { PLOManagementPage } from './features/aa/PLOManagementPage';
+import { CourseManagementPage } from './features/aa/CourseManagementPage';
 
 import { UserRole } from '@/types';
 
@@ -28,12 +41,61 @@ const App: React.FC = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Protected routes - Only 4 roles: Admin, Principal, HoD, AA */}
+      {/* ========================================================= */}
+      {/* 1. ADMIN ROUTES (Layout Riêng)                           */}
+      {/* ========================================================= */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        
+        {/* Trang CRUD Môn học mới */}
+        <Route path="subjects" element={<AdminSubjectsPage />} /> 
+
+        {/* Các trang Admin cũ chuyển vào đây */}
+        <Route path="users" element={<UserManagementPage />} />
+        <Route path="settings" element={<SystemSettingsPage />} />
+        <Route path="audit-logs" element={<AuditLogPage />} />
+        <Route path="student-feedback" element={<StudentFeedbackPage />} />
+        
+        {/* Fallback cho Admin */}
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      </Route>
+
+      {/* ========================================================= */}
+      {/* 2. LECTURER ROUTES (Layout Riêng)                        */}
+      {/* ========================================================= */}
+      <Route
+        path="/lecturer"
+        element={
+          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
+            <LecturerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<LecturerDashboard />} />
+        <Route path="syllabi" element={<ManageSyllabiPage />} />
+        <Route path="syllabi/create" element={<SyllabusFormPage />} />
+        <Route path="syllabi/edit/:id" element={<SyllabusFormPage />} />
+        <Route path="syllabi/:id" element={<LecturerSyllabusDetail />} />
+        <Route path="reviews" element={<CollaborativeReviewPage />} />
+        <Route path="*" element={<Navigate to="/lecturer" replace />} />
+      </Route>
+
+      {/* ========================================================= */}
+      {/* 3. OTHER ROLES (HoD, AA, Principal) - MainLayout         */}
+      {/* ========================================================= */}
       <Route
         path="/"
         element={
           <ProtectedRoute
-            allowedRoles={[UserRole.ADMIN, UserRole.HOD, UserRole.AA, UserRole.PRINCIPAL]}
+            allowedRoles={[UserRole.HOD, UserRole.AA, UserRole.PRINCIPAL]}
           >
             <MainLayout />
           </ProtectedRoute>
@@ -44,41 +106,7 @@ const App: React.FC = () => {
         <Route path="syllabi" element={<SyllabusListPage />} />
         <Route path="syllabi/:id" element={<SyllabusDetailPage />} />
 
-        {/* Admin only routes */}
-        <Route
-          path="users"
-          element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <UserManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="settings"
-          element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <SystemSettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="audit-logs"
-          element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <AuditLogPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="student-feedback"
-          element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <StudentFeedbackPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Principal only routes */}
+        {/* Principal only */}
         <Route
           path="batch-approval"
           element={
@@ -88,7 +116,7 @@ const App: React.FC = () => {
           }
         />
 
-        {/* HoD only routes */}
+        {/* HoD only */}
         <Route
           path="teaching-assignment"
           element={
@@ -98,7 +126,7 @@ const App: React.FC = () => {
           }
         />
 
-        {/* AA only routes */}
+        {/* AA only */}
         <Route
           path="plo-management"
           element={
@@ -119,24 +147,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
 
-      {/* Lecturer routes - GIAO DIỆN RIÊNG với LecturerLayout */}
-      <Route
-        path="/lecturer"
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.LECTURER]}>
-            <LecturerLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<LecturerDashboard />} />
-        <Route path="syllabi" element={<ManageSyllabiPage />} />
-        <Route path="syllabi/create" element={<SyllabusFormPage />} />
-        <Route path="syllabi/edit/:id" element={<SyllabusFormPage />} />
-        <Route path="syllabi/:id" element={<LecturerSyllabusDetail />} />
-        <Route path="reviews" element={<CollaborativeReviewPage />} />
-      </Route>
-
-      {/* Fallback */}
+      {/* Fallback chung */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

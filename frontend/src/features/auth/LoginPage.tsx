@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Space, Row, Col } from 'antd';
+import { Form, Input, Button, Card, Typography, Space, Row, Col, message } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -21,17 +21,34 @@ export const LoginPage: React.FC = () => {
     try {
       const user = await login(values.email, values.password);
       
-      // Redirect based on user role
-      if (user.role === UserRole.LECTURER) {
+      // --- FIX LOGIC ĐIỀU HƯỚNG TẠI ĐÂY ---
+      
+      // 1. Lấy role chính xác (đề phòng trường hợp string/enum lệch nhau)
+      const role = user.role || (user as any).primaryRole;
+
+      console.log("Login Success. Role:", role); // Debug log
+
+      // 2. Điều hướng dựa trên Role
+      if (role === UserRole.ADMIN || role === 'ADMIN') {
+        // QUAN TRỌNG: Admin phải vào layout riêng
+        navigate('/admin/dashboard'); 
+      } 
+      else if (role === UserRole.LECTURER || role === 'LECTURER') {
         navigate('/lecturer');
-      } else if (user.role === UserRole.STUDENT) {
-        navigate('/student');
-      } else {
-        // Admin, HoD, AA, Principal
-        navigate('/');
+      } 
+      else if (role === UserRole.STUDENT || role === 'STUDENT') {
+        navigate('/student'); // (Nếu có trang student)
+      } 
+      else {
+        // Các role còn lại: HOD, AA, PRINCIPAL
+        // Họ được phép truy cập MainLayout (/)
+        navigate('/'); 
       }
+
     } catch (error) {
-      // Error handled in AuthContext
+      // Error đã được handle trong AuthContext, 
+      // nhưng có thể thêm thông báo ở đây nếu cần
+      console.error("Login failed:", error);
     }
   };
 
@@ -47,6 +64,7 @@ export const LoginPage: React.FC = () => {
       }}
     >
       <Row gutter={[32, 32]} style={{ maxWidth: 1200, width: '100%' }}>
+        {/* Cột giới thiệu bên trái */}
         <Col xs={24} lg={12}>
           <div style={{ color: 'white', padding: '20px' }}>
             <Title level={1} style={{ color: 'white', fontSize: '3rem', marginBottom: '1rem' }}>
@@ -81,6 +99,7 @@ export const LoginPage: React.FC = () => {
           </div>
         </Col>
 
+        {/* Cột Form đăng nhập bên phải */}
         <Col xs={24} lg={12}>
           <Card
             style={{
@@ -116,10 +135,9 @@ export const LoginPage: React.FC = () => {
               >
                 <Input 
                   prefix={<UserOutlined />} 
-                  placeholder="lecturer@smd.edu.vn" 
+                  placeholder="user@smd.edu.vn" 
                   autoComplete="off"
                   onBlur={(e) => {
-                    // Trim spaces
                     const value = e.target.value.trim();
                     form.setFieldValue('email', value);
                   }}

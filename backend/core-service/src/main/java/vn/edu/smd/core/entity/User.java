@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import vn.edu.smd.shared.enums.AuthProvider;
 import vn.edu.smd.shared.enums.Gender;
 import vn.edu.smd.shared.enums.UserStatus;
+import vn.edu.smd.shared.enums.UserRole; // <--- QUAN TRỌNG: Nhớ Import cái này
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -34,8 +35,15 @@ public class User {
     @Column(name = "username", unique = true, length = 100)
     private String username;
 
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
+    @Column(name = "password", length = 255)
+    private String password;
+
+    // --- THÊM TRƯỜNG PRIMARY ROLE (GIẢI PHÁP LÂU DÀI) ---
+    // Trường này sẽ lưu quyền chính của user (VD: "LECTURER", "STUDENT")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "primary_role", length = 50) 
+    private UserRole primaryRole;
+    // ----------------------------------------------------
 
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false, length = 20)

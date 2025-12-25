@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'smd_auth_token';
 const REFRESH_TOKEN_KEY = 'smd_refresh_token';
+const USER_KEY = 'user'; // --- THÊM KEY NÀY ĐỂ LƯU USER ---
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -27,43 +29,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem(TOKEN_KEY);
+      const storedUser = localStorage.getItem(USER_KEY); // --- Đọc user từ bộ nhớ ---
 
       if (storedToken) {
-        try {
-          const currentUser = await authService.getCurrentUser(storedToken);
-          setUser(currentUser);
-          setToken(storedToken);
-        } catch (error) {
-          // Token invalid, clear storage
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        setToken(storedToken);
+        // Nếu có sẵn thông tin user trong LocalStorage thì lấy ra dùng luôn cho nhanh
+        if (storedUser) {
+           try {
+             setUser(JSON.parse(storedUser));
+           } catch (e) {
+             console.error("Lỗi parse user json", e);
+           }
+        } else {
+           // Nếu không có user (trường hợp hiếm), gọi API lấy lại
+           try {
+             const currentUser = await authService.getCurrentUser(storedToken);
+             setUser(currentUser);
+           } catch (error) {
+             localStorage.removeItem(TOKEN_KEY);
+             localStorage.removeItem(REFRESH_TOKEN_KEY);
+           }
         }
       }
-
       setIsLoading(false);
     };
 
     initAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await authService.login({ email, password });
+      const response = await axios.post('http://localhost:8081/api/auth/login', {
+        email: email,
+        password: password
+      });
 
-      setUser(response.user);
-      setToken(response.token);
+      const { user, accessToken } = response.data; 
 
-      // Store in localStorage
-      localStorage.setItem(TOKEN_KEY, response.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
+      // --- SỬA LỖI TẠI ĐÂY: MAPPING DỮ LIỆU ---
+      // Frontend cũ đang mong đợi trường 'role', nhưng Backend trả về 'primaryRole'
+      // Ta sẽ tạo ra một object user mới có cả 2 trường để "chiều lòng" cả 2 bên.
+      const userFixed = {
+        ...user,
+        role: user.primaryRole // Gán giá trị primaryRole sang role
+      };
+      // ----------------------------------------
 
-      message.success(`Chào mừng ${response.user.fullName}!`);
-      
-      return response.user;
+      localStorage.setItem(TOKEN_KEY, accessToken);
+      // Lưu userFixed (đã có role) vào bộ nhớ thay vì user gốc
+      localStorage.setItem(USER_KEY, JSON.stringify(userFixed)); 
+
+      setUser(userFixed);
+      setToken(accessToken);
+
+      return userFixed;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại';
-      message.error(errorMessage);
+      console.error("Login error:", error);
+      message.error("Đăng nhập thất bại. Kiểm tra email/mật khẩu.");
       throw error;
     } finally {
       setIsLoading(false);
@@ -72,12 +95,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await authService.logout();
+      // await authService.logout(); // Có thể comment tạm nếu API logout chưa xong
     } finally {
       setUser(null);
       setToken(null);
+      // Xóa sạch sẽ
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(USER_KEY); // --- Xóa luôn user key ---
       message.info('Đã đăng xuất');
     }
   };
@@ -95,7 +120,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {

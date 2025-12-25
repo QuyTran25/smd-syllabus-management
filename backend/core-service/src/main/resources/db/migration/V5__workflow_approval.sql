@@ -4,7 +4,6 @@
  * Updated: Thêm Indexes cho History
  */
 
-SET search_path TO core_service;
 
 CREATE TYPE decision_type AS ENUM ('APPROVED', 'REJECTED');
 
