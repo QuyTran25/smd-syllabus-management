@@ -126,8 +126,8 @@ export const DashboardPage: React.FC = () => {
 
   const tableData: SyllabusItem[] = (pendingSyllabi || []).map((s) => ({
     key: s.id,
-    courseName: s.courseName,
-    courseCode: s.courseCode,
+    courseName: s.subjectNameVi,
+    courseCode: s.subjectCode,
     status: s.status,
     owner: s.ownerName,
     updatedAt: s.updatedAt,

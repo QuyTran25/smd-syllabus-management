@@ -26,8 +26,10 @@ public class SyllabusController {
 
     @Operation(summary = "Get all syllabi", description = "Get list of syllabi with pagination and filtering")
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(Pageable pageable) {
-        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable);
+    public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(
+            Pageable pageable,
+            @RequestParam(required = false) List<String> status) {
+        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
     }
 

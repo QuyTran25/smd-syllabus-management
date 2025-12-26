@@ -29,6 +29,20 @@ public class SyllabusResponse {
     private String[] keywords;
     private Map<String, Object> content;
     
+    // Ownership and department info
+    private String ownerName;
+    private String department;
+    private String semester;
+    
+    // Approval workflow tracking
+    private LocalDateTime submittedAt;
+    private LocalDateTime hodApprovedAt;
+    private String hodApprovedByName;
+    private LocalDateTime aaApprovedAt;
+    private String aaApprovedByName;
+    private LocalDateTime principalApprovedAt;
+    private String principalApprovedByName;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private UUID createdBy;

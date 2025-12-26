@@ -157,6 +157,31 @@ public class SyllabusVersion {
     @Column(name = "student_tasks", columnDefinition = "TEXT")
     private String studentTasks;
 
+    // Approval workflow tracking
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
+    @Column(name = "hod_approved_at")
+    private LocalDateTime hodApprovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hod_approved_by")
+    private User hodApprovedBy;
+
+    @Column(name = "aa_approved_at")
+    private LocalDateTime aaApprovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "aa_approved_by")
+    private User aaApprovedBy;
+
+    @Column(name = "principal_approved_at")
+    private LocalDateTime principalApprovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "principal_approved_by")
+    private User principalApprovedBy;
+
     // Audit fields
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

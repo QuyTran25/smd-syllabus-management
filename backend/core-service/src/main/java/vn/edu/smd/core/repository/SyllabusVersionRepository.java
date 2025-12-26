@@ -1,5 +1,7 @@
 package vn.edu.smd.core.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +25,11 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
     
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
+    
+    @Query(value = "SELECT * FROM core_service.syllabus_versions WHERE status = ANY(CAST(:statuses AS core_service.syllabus_status[])) AND is_deleted = false ORDER BY created_at DESC", 
+           countQuery = "SELECT COUNT(*) FROM core_service.syllabus_versions WHERE status = ANY(CAST(:statuses AS core_service.syllabus_status[])) AND is_deleted = false",
+           nativeQuery = true)
+    Page<SyllabusVersion> findByStatusInWithPage(@Param("statuses") String[] statuses, Pageable pageable);
     
     List<SyllabusVersion> findByCreatedById(UUID createdById);
     

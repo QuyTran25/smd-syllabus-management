@@ -27,10 +27,17 @@ public class SyllabusService {
     private final AcademicTermRepository academicTermRepository;
     private final UserRepository userRepository;
 
-    public Page<SyllabusResponse> getAllSyllabi(Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
+        if (statusStrings != null && !statusStrings.isEmpty()) {
+            String[] statusArray = statusStrings.toArray(new String[0]);
+            return syllabusVersionRepository.findByStatusInWithPage(statusArray, pageable)
+                    .map(this::mapToResponse);
+        }
         return syllabusVersionRepository.findAll(pageable).map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
     public SyllabusResponse getSyllabusById(UUID id) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
@@ -293,15 +300,44 @@ public class SyllabusService {
         response.setKeywords(syllabus.getKeywords());
         response.setContent(syllabus.getContent());
 
-        response.setCreatedAt(syllabus.getCreatedAt());
-        response.setUpdatedAt(syllabus.getUpdatedAt());
-        
+        // Owner and department info
         if (syllabus.getCreatedBy() != null) {
             response.setCreatedBy(syllabus.getCreatedBy().getId());
+            response.setOwnerName(syllabus.getCreatedBy().getFullName());
         }
         if (syllabus.getUpdatedBy() != null) {
             response.setUpdatedBy(syllabus.getUpdatedBy().getId());
         }
+        
+        // Department from subject
+        if (syllabus.getSubject() != null && syllabus.getSubject().getDepartment() != null) {
+            response.setDepartment(syllabus.getSubject().getDepartment().getName());
+        }
+        
+        // Semester from academic term
+        if (syllabus.getAcademicTerm() != null) {
+            response.setSemester(syllabus.getAcademicTerm().getName());
+        }
+        
+        // Approval workflow tracking
+        response.setSubmittedAt(syllabus.getSubmittedAt());
+        response.setHodApprovedAt(syllabus.getHodApprovedAt());
+        if (syllabus.getHodApprovedBy() != null) {
+            response.setHodApprovedByName(syllabus.getHodApprovedBy().getFullName());
+        }
+        
+        response.setAaApprovedAt(syllabus.getAaApprovedAt());
+        if (syllabus.getAaApprovedBy() != null) {
+            response.setAaApprovedByName(syllabus.getAaApprovedBy().getFullName());
+        }
+        
+        response.setPrincipalApprovedAt(syllabus.getPrincipalApprovedAt());
+        if (syllabus.getPrincipalApprovedBy() != null) {
+            response.setPrincipalApprovedByName(syllabus.getPrincipalApprovedBy().getFullName());
+        }
+
+        response.setCreatedAt(syllabus.getCreatedAt());
+        response.setUpdatedAt(syllabus.getUpdatedAt());
 
         return response;
     }
