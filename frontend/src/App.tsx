@@ -11,8 +11,10 @@ import { AuditLogPage } from './features/admin/AuditLogPage';
 import { StudentFeedbackPage } from './features/admin/StudentFeedbackPage';
 import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
 import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
+import HodSyllabusReviewPage from './features/hod/SyllabusReviewPage';
 import { PLOManagementPage } from './features/aa/PLOManagementPage';
 import { CourseManagementPage } from './features/aa/CourseManagementPage';
+import AaSyllabusReviewPage from './features/aa/SyllabusReviewPage';
 import LecturerDashboard from './features/lecturer/DashboardPage';
 import ManageSyllabiPage from './features/lecturer/ManageSyllabiPage';
 import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
@@ -97,6 +99,14 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="syllabus-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.HOD]}>
+              <HodSyllabusReviewPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* AA only routes */}
         <Route
@@ -112,6 +122,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={[UserRole.AA]}>
               <CourseManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="aa-syllabus-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.AA]}>
+              <AaSyllabusReviewPage />
             </ProtectedRoute>
           }
         />

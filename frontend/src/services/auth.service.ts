@@ -1,5 +1,25 @@
-import { LoginCredentials, AuthResponse, User } from '@/types';
+import { LoginCredentials, AuthResponse, User, UserRole } from '@/types';
 import { apiClient } from '@/config/api-config';
+
+// Map backend role names to frontend UserRole enum
+const mapBackendRoleToFrontend = (backendRole: string): UserRole => {
+  const roleMapping: Record<string, UserRole> = {
+    'Principal': UserRole.PRINCIPAL,
+    'Academic Affairs': UserRole.AA,
+    'Head of Department': UserRole.HOD,
+    'Administrator': UserRole.ADMIN,
+    'Lecturer': UserRole.LECTURER,
+    'Student': UserRole.STUDENT,
+    // Also support uppercase versions
+    'PRINCIPAL': UserRole.PRINCIPAL,
+    'AA': UserRole.AA,
+    'HOD': UserRole.HOD,
+    'ADMIN': UserRole.ADMIN,
+    'LECTURER': UserRole.LECTURER,
+    'STUDENT': UserRole.STUDENT,
+  };
+  return roleMapping[backendRole] || UserRole.LECTURER;
+};
 
 // Real authentication service using backend API
 export const authService = {
@@ -15,13 +35,12 @@ export const authService = {
     const userInfo = userResponse.data.data;
     
     // Map backend user info to frontend User type
-    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
-    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'Lecturer';
     const user: User = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: rawRole.toUpperCase() as User['role'],
+      role: mapBackendRoleToFrontend(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -47,13 +66,12 @@ export const authService = {
     const userInfo = response.data.data;
     
     // Map backend user info to frontend User type
-    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
-    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'Lecturer';
     const user: User = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: rawRole.toUpperCase() as User['role'],
+      role: mapBackendRoleToFrontend(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -72,13 +90,13 @@ export const authService = {
     const userResponse = await apiClient.get('/api/auth/me');
     const userInfo = userResponse.data.data;
     
-    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
-    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    // Map backend user info to frontend User type
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'Lecturer';
     const user: User = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: rawRole.toUpperCase() as User['role'],
+      role: mapBackendRoleToFrontend(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),

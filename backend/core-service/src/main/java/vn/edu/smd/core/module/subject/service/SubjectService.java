@@ -39,28 +39,33 @@ public class SubjectService {
     private final SubjectRelationshipRepository relationshipRepository;
     private final SyllabusVersionRepository syllabusVersionRepository;
 
+    @Transactional(readOnly = true)
     public Page<SubjectResponse> getAllSubjects(Pageable pageable) {
         return subjectRepository.findAll(pageable).map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
     public List<SubjectResponse> getAllSubjects() {
         return subjectRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SubjectResponse getSubjectById(UUID id) {
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", id));
         return mapToResponse(subject);
     }
 
+    @Transactional(readOnly = true)
     public SubjectResponse getSubjectByCode(String code) {
         Subject subject = subjectRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject", "code", code));
         return mapToResponse(subject);
     }
 
+    @Transactional(readOnly = true)
     public List<SubjectResponse> getSubjectsByDepartment(UUID departmentId) {
         if (!departmentRepository.existsById(departmentId)) {
             throw new ResourceNotFoundException("Department", "id", departmentId);

@@ -23,6 +23,14 @@ public class PloService {
     private final PLORepository ploRepository;
     private final CurriculumRepository curriculumRepository;
 
+    @Transactional(readOnly = true)
+    public List<PloResponse> getAllPlos() {
+        return ploRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<PloResponse> getClosByCurriculum(UUID curriculumId) {
         if (!curriculumRepository.existsById(curriculumId)) {
             throw new ResourceNotFoundException("Curriculum", "id", curriculumId);

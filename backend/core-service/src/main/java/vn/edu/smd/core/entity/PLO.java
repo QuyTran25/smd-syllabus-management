@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import vn.edu.smd.core.converter.PloCategoryConverter;
 import vn.edu.smd.shared.enums.PloCategory;
 
 import java.time.LocalDateTime;
@@ -36,7 +37,7 @@ public class PLO {
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PloCategoryConverter.class)
     @Column(name = "category", length = 20)
     @Builder.Default
     private PloCategory category = PloCategory.KNOWLEDGE;
