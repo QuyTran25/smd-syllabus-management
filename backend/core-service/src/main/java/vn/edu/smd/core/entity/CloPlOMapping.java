@@ -3,6 +3,7 @@ package vn.edu.smd.core.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +36,9 @@ public class CloPlOMapping {
 
     @Column(name = "weight", precision = 5, scale = 2)
     private BigDecimal weight;
+    
+    @Column(name = "mapping_level", length = 10)
+    private String mappingLevel;  // H, M, L
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
@@ -43,4 +47,8 @@ public class CloPlOMapping {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

@@ -1,96 +1,93 @@
 import { LoginCredentials, AuthResponse, User } from '@/types';
-import { mockUsers } from '@/mock';
+import { apiClient } from '@/config/api-config';
 
-// Simulate API delay
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Mock JWT token generator
-const generateMockToken = (user: User): string => {
-  // In real app, this would be a proper JWT
-  const payload = {
-    userId: user.id,
-    role: user.role,
-    email: user.email,
-  };
-  return btoa(JSON.stringify(payload));
-};
-
-// Mock authentication service
+// Real authentication service using backend API
 export const authService = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    await delay(800); // Simulate network delay
-
-    // Find user by email
-    const user = mockUsers.find((u) => u.email === credentials.email);
-
-    if (!user) {
-      throw new Error('Email không tồn tại');
-    }
-
-    // In real app, validate password hash
-    // For mock: accept any password for demo, or password = "123456"
-    if (credentials.password !== '123456') {
-      throw new Error('Mật khẩu không đúng');
-    }
-
-    if (!user.isActive) {
-      throw new Error('Tài khoản đã bị khóa');
-    }
-
-    // Update last login
-    user.lastLogin = new Date().toISOString();
+    const response = await apiClient.post('/api/auth/login', credentials);
+    // Backend returns accessToken, not token
+    const { accessToken: token, refreshToken } = response.data.data;
+    
+    // Get user info using the token
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const userResponse = await apiClient.get('/api/auth/me');
+    const userInfo = userResponse.data.data;
+    
+    // Map backend user info to frontend User type
+    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    const user: User = {
+      id: userInfo.id,
+      email: userInfo.email,
+      fullName: userInfo.fullName,
+      role: rawRole.toUpperCase() as User['role'],
+      phone: userInfo.phoneNumber,
+      isActive: userInfo.status === 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    };
 
     return {
-      token: generateMockToken(user),
-      refreshToken: generateMockToken(user) + '_refresh',
+      token,
+      refreshToken,
       user,
     };
   },
 
   // Logout
   logout: async (): Promise<void> => {
-    await delay(300);
-    // In real app, would invalidate token on server
+    await apiClient.post('/api/auth/logout');
+    delete apiClient.defaults.headers.common['Authorization'];
   },
 
   // Verify token and get current user
   getCurrentUser: async (token: string): Promise<User> => {
-    await delay(300);
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const response = await apiClient.get('/api/auth/me');
+    const userInfo = response.data.data;
+    
+    // Map backend user info to frontend User type
+    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    const user: User = {
+      id: userInfo.id,
+      email: userInfo.email,
+      fullName: userInfo.fullName,
+      role: rawRole.toUpperCase() as User['role'],
+      phone: userInfo.phoneNumber,
+      isActive: userInfo.status === 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    };
 
-    try {
-      const payload = JSON.parse(atob(token));
-      const user = mockUsers.find((u) => u.id === payload.userId);
-
-      if (!user) {
-        throw new Error('Invalid token');
-      }
-
-      return user;
-    } catch {
-      throw new Error('Invalid token');
-    }
+    return user;
   },
 
   // Refresh token
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-    await delay(300);
+    const response = await apiClient.post('/api/auth/refresh-token', { refreshToken });
+    const { accessToken: newToken, refreshToken: newRefreshToken } = response.data.data;
+    
+    // Get updated user info
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    const userResponse = await apiClient.get('/api/auth/me');
+    const userInfo = userResponse.data.data;
+    
+    // Backend returns role as 'Principal', frontend needs 'PRINCIPAL'
+    const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
+    const user: User = {
+      id: userInfo.id,
+      email: userInfo.email,
+      fullName: userInfo.fullName,
+      role: rawRole.toUpperCase() as User['role'],
+      phone: userInfo.phoneNumber,
+      isActive: userInfo.status === 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    };
 
-    try {
-      const payload = JSON.parse(atob(refreshToken.replace('_refresh', '')));
-      const user = mockUsers.find((u) => u.id === payload.userId);
-
-      if (!user) {
-        throw new Error('Invalid refresh token');
-      }
-
-      return {
-        token: generateMockToken(user),
-        refreshToken: generateMockToken(user) + '_refresh',
-        user,
-      };
-    } catch {
-      throw new Error('Invalid refresh token');
-    }
+    return {
+      token: newToken,
+      refreshToken: newRefreshToken,
+      user,
+    };
   },
 };

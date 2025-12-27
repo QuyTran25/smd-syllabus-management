@@ -43,22 +43,22 @@ export const BatchApprovalPage: React.FC = () => {
   const columns: ColumnsType<Syllabus> = [
     {
       title: 'Mã môn',
-      dataIndex: 'courseCode',
-      key: 'courseCode',
+      dataIndex: 'subjectCode',
+      key: 'subjectCode',
       width: 100,
     },
     {
       title: 'Tên môn học',
-      dataIndex: 'courseName',
-      key: 'courseName',
+      dataIndex: 'subjectNameVi',
+      key: 'subjectNameVi',
       render: (text, record) => (
         <a onClick={() => navigate(`/syllabi/${record.id}`)}>{text}</a>
       ),
     },
     {
       title: 'Tín chỉ',
-      dataIndex: 'credits',
-      key: 'credits',
+      dataIndex: 'creditCount',
+      key: 'creditCount',
       width: 70,
       align: 'center',
     },

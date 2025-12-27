@@ -140,9 +140,9 @@ export const syllabusService = {
     ];
 
     const rows = data.map((s) => [
-      s.courseCode,
-      s.courseName,
-      s.credits,
+      s.subjectCode,
+      s.subjectNameVi,
+      s.creditCount,
       s.faculty,
       s.department,
       s.semester,

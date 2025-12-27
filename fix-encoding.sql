@@ -22,7 +22,12 @@ UPDATE core_service.subjects SET name_vi = 'Xử lý ảnh số' WHERE code = '1
 UPDATE core_service.subjects SET name_vi = 'Hệ thống thông tin quản lý' WHERE code = '126001';
 UPDATE core_service.subjects SET name_vi = 'Phân tích và thiết kế hệ thống' WHERE code = '126002';
 
+-- Fix academic terms
+UPDATE core_service.academic_terms SET name = 'Học kỳ 1 năm 2024-2025' WHERE code = 'HK1_2024';
+UPDATE core_service.academic_terms SET name = 'Học kỳ 2 năm 2024-2025' WHERE code = 'HK2_2024';
+
 -- Verify
 SELECT 'Users fixed:' as info, COUNT(*) as count FROM core_service.users WHERE full_name !~ '[?]';
 SELECT 'Departments fixed:' as info, COUNT(*) as count FROM core_service.departments WHERE name !~ '[?]';
 SELECT 'Subjects fixed:' as info, COUNT(*) as count FROM core_service.subjects WHERE name_vi !~ '[?]';
+SELECT 'Academic terms fixed:' as info, COUNT(*) as count FROM core_service.academic_terms WHERE name !~ '[?]';

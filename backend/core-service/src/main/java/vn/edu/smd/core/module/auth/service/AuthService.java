@@ -117,11 +117,13 @@ public class AuthService {
         throw new BadRequestException("Reset password feature not implemented yet");
     }
 
+    @Transactional(readOnly = true)
     public UserInfoResponse getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-        User user = userRepository.findById(userPrincipal.getId())
+        // Use findByIdWithRoles to eager load roles and avoid LazyInitializationException
+        User user = userRepository.findByIdWithRoles(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
 
         return new UserInfoResponse(

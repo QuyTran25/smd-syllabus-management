@@ -23,47 +23,47 @@ INSERT INTO roles (code, name, description, is_system) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- ==========================================
--- 1. INSERT USERS (với password: "password123" - BCrypt hash)
+-- 1. INSERT USERS (với password: "123456" - BCrypt hash)
 -- ==========================================
--- Password hash for "password123": $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy
+-- Password hash for "123456": $2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW
 
 INSERT INTO users (
     email, password_hash, full_name, phone, gender, status, auth_provider
 ) VALUES 
 -- ADMIN
-('admin@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('admin@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Nguyễn Văn Quản Trị', '0901234567', 'MALE', 'ACTIVE', 'LOCAL'),
 
 -- PRINCIPAL (Hiệu trưởng)
-('principal@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('principal@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Trần Thị Hiệu Trưởng', '0901234568', 'FEMALE', 'ACTIVE', 'LOCAL'),
 
 -- AA (Academic Affairs - Phòng Đào tạo)
-('aa1@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('aa1@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Lê Văn Đào Tạo', '0901234569', 'MALE', 'ACTIVE', 'LOCAL'),
-('aa2@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('aa2@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Phạm Thị Thu Hương', '0901234570', 'FEMALE', 'ACTIVE', 'LOCAL'),
 
 -- HOD (Head of Department - Trưởng Bộ môn)
-('hod.khmt@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('hod.khmt@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Nguyễn Văn Khoa', '0901234571', 'MALE', 'ACTIVE', 'LOCAL'),
-('hod.ktpm@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('hod.ktpm@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Trần Thị Mai', '0901234572', 'FEMALE', 'ACTIVE', 'LOCAL'),
-('hod.httt@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('hod.httt@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Lê Văn Hệ Thống', '0901234573', 'MALE', 'ACTIVE', 'LOCAL'),
 
 -- LECTURERS (Giảng viên)
-('gv.nguyen@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.nguyen@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Nguyễn Minh Tuấn', '0901234574', 'MALE', 'ACTIVE', 'LOCAL'),
-('gv.tran@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.tran@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Trần Thị Lan', '0901234575', 'FEMALE', 'ACTIVE', 'LOCAL'),
-('gv.le@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.le@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Lê Hoàng Nam', '0901234576', 'MALE', 'ACTIVE', 'LOCAL'),
-('gv.pham@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.pham@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Phạm Thị Hoa', '0901234577', 'FEMALE', 'ACTIVE', 'LOCAL'),
-('gv.hoang@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.hoang@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Hoàng Văn Đức', '0901234578', 'MALE', 'ACTIVE', 'LOCAL'),
-('gv.vo@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+('gv.vo@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Võ Thị Ngọc', '0901234579', 'FEMALE', 'ACTIVE', 'LOCAL')
 ON CONFLICT (email) DO NOTHING;
 
