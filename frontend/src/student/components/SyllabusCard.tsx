@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Progress, Typography, message } from 'antd';
+import { Card, Progress, Typography } from 'antd';
 import { StarOutlined, StarFilled, MoreOutlined } from '@ant-design/icons';
 import type { SyllabusListItem } from '../types';
 
@@ -12,140 +12,110 @@ type Props = {
 };
 
 export const SyllabusCard: React.FC<Props> = ({ item, onOpen, onToggleTrack }) => {
-  // Gradient theo majorShort
+  // Màu sắc Gradient tự động theo mã ngành (CS: Xanh/Tím, EE: Cam)
   const headerBg = useMemo(() => {
-    switch (item.majorShort) {
-      case 'EE':
-        return 'linear-gradient(90deg, rgba(255,153,102,0.95), rgba(255,214,102,0.95))';
-      case 'CS':
-      default:
-        return item.id === '2'
-          ? 'linear-gradient(90deg, rgba(102,255,179,0.95), rgba(119,255,204,0.95))'
-          : item.id === '3'
-          ? 'linear-gradient(90deg, rgba(255,102,204,0.90), rgba(255,153,102,0.90))'
-          : item.id === '5'
-          ? 'linear-gradient(90deg, rgba(92,110,235,0.90), rgba(114,73,160,0.90))'
-          : 'linear-gradient(90deg, rgba(80,155,255,0.92), rgba(102,214,255,0.92))';
-    }
-  }, [item.id, item.majorShort]);
+    const colors: Record<string, string> = {
+      CS: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
+      EE: 'linear-gradient(90deg, #f6d365 0%, #fda085 100%)',
+      IT: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+    };
+    // Nếu là CS và ID cụ thể, có thể đổi sang Tím hoặc Xanh lá như ảnh mẫu
+    if (item.majorShort === 'CS' && item.code === 'CS101')
+      return 'linear-gradient(90deg, #6a11cb 0%, #2575fc 100%)';
+    return colors[item.majorShort] || 'linear-gradient(90deg, #84fab0 0%, #8fd3f4 100%)';
+  }, [item.majorShort, item.code]);
 
   return (
     <Card
       hoverable
       onClick={() => onOpen(item.id)}
       style={{
-        borderRadius: 10,
+        borderRadius: 12,
         overflow: 'hidden',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-        height: '100%', // ⭐ QUAN TRỌNG: cho Col stretch
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        height: '100%',
       }}
-      bodyStyle={{
-        padding: 14,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 360, // ⭐ ép chiều cao card bằng nhau
+      // ✅ SỬA LỖI: Sử dụng styles.body thay cho bodyStyle bị khai tử
+      styles={{
+        body: {
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 360,
+        },
       }}
     >
-      {/* ===== Header màu ===== */}
+      {/* ===== Phần đầu Card (Mã ngành) ===== */}
       <div
         style={{
-          height: 86,
+          height: 80,
           borderRadius: 8,
-          padding: 12,
-          position: 'relative',
           background: headerBg,
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          marginBottom: 12,
         }}
       >
-        {/* Star trái */}
         <div
           onClick={(e) => {
             e.stopPropagation();
             onToggleTrack(item.id);
-            message.success(item.tracked ? 'Đã bỏ theo dõi' : 'Đã theo dõi');
           }}
           style={{
             position: 'absolute',
-            left: 10,
-            top: 10,
-            color: 'rgba(255,255,255,0.95)',
-            fontSize: 16,
+            left: 12,
+            top: 12,
+            color: 'white',
             cursor: 'pointer',
+            fontSize: 18,
           }}
         >
-          {item.tracked ? <StarFilled /> : <StarOutlined />}
+          {item.tracked ? <StarFilled style={{ color: '#fadb14' }} /> : <StarOutlined />}
         </div>
-
-        {/* More phải */}
-        <div
-          style={{
-            position: 'absolute',
-            right: 10,
-            top: 10,
-            color: 'rgba(255,255,255,0.95)',
-            fontSize: 16,
-          }}
-        >
-          <MoreOutlined />
-        </div>
-
-        <Title level={2} style={{ margin: 0, color: 'white', letterSpacing: 1 }}>
+        <Title level={2} style={{ margin: 0, color: 'white', fontWeight: 700 }}>
           {item.majorShort}
         </Title>
+        <MoreOutlined
+          style={{ position: 'absolute', right: 12, top: 12, color: 'white', fontSize: 18 }}
+        />
       </div>
 
-      {/* ===== Content ===== */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          marginTop: 10,
-          flex: 1, // ⭐ cho content chiếm hết chiều cao còn lại
-        }}
-      >
+      {/* ===== Nội dung chi tiết môn học ===== */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           [{item.code}] · {item.term}
         </Text>
 
-        <Title level={5} style={{ margin: 0 }} ellipsis={{ rows: 2 }}>
+        <Title level={5} style={{ margin: '2px 0 10px 0', minHeight: 48 }} ellipsis={{ rows: 2 }}>
           {item.nameVi}
         </Title>
 
-        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.8 }}>
           <div>
-            <Text type="secondary">Tín chỉ:</Text> <Text>{item.credits}</Text>
+            <Text type="secondary">Tín chỉ: </Text> <Text strong>{item.credits}</Text>
           </div>
           <div>
-            <Text type="secondary">Khoa:</Text> <Text>{item.faculty}</Text>
+            <Text type="secondary">Khoa: </Text> <Text>{item.faculty}</Text>
           </div>
           <div>
-            <Text type="secondary">Chương trình:</Text> <Text>{item.program}</Text>
+            <Text type="secondary">Chương trình: </Text> <Text>{item.program}</Text>
           </div>
           <div>
-            <Text type="secondary">TS.</Text> <Text>{item.lecturerName}</Text>
+            <Text type="secondary">TS. </Text> <Text>{item.lecturerName}</Text>
           </div>
         </div>
 
-        {/* ===== PHẦN ĐÁY – ÉP THẲNG HÀNG ===== */}
-        <div style={{ marginTop: 'auto' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 4,
-            }}
-          >
-            <Text type="secondary" style={{ fontSize: 12 }}>
+        {/* ===== Thanh tiến độ ở đáy Card ===== */}
+        <div style={{ marginTop: 'auto', paddingTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>
               Đã xuất bản
             </Text>
-            <Text style={{ fontSize: 12, color: '#52c41a' }}>{item.progress}% complete</Text>
+            <Text style={{ fontSize: 11, color: '#52c41a' }}>100% complete</Text>
           </div>
-
-          <Progress percent={item.progress} showInfo={false} strokeColor="#52c41a" />
+          <Progress percent={100} showInfo={false} strokeColor="#52c41a" size="small" />
         </div>
       </div>
     </Card>

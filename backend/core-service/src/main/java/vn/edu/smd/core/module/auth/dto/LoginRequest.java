@@ -1,4 +1,4 @@
-package vn.edu.smd.core.module.auth.dto;
+package vn.edu.smd.core.module.auth.dto; // ✅ Phải khớp chính xác với thư mục chứa nó
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

@@ -23,5 +23,12 @@ public class SyllabusRequest {
     private LocalDate effectiveDate;
 
     private String[] keywords;
+    
+    // Trường này dùng để chứa cấu trúc JSON linh hoạt nếu cần
     private Map<String, Object> content;
+
+    // FIX: Bổ sung các trường text để khớp với logic trong Service và Entity
+    private String description;
+    private String objectives;
+    private String studentTasks;
 }

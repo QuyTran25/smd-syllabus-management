@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /**
  * Class (Lớp học) Entity
- * Maps to table: classes
+ * Maps to table: classes trong schema core_service
  */
 @Entity
 @Table(name = "classes", schema = "core_service")
@@ -33,7 +33,7 @@ public class ClassEntity {
     @Column(name = "name", nullable = false, length = 200)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY) // ⭐ Dùng LAZY để tối ưu hiệu năng
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
@@ -62,11 +62,12 @@ public class ClassEntity {
         name = "class_students",
         schema = "core_service",
         joinColumns = @JoinColumn(name = "class_id"),
-        inverseJoinColumns = @JoinColumn(name = "student_id")
+        inverseJoinColumns = @JoinColumn(name = "student_id") // ⭐ Để student_id theo thiết kế của bạn
     )
-    @Builder.Default
+    @Builder.Default // ⭐ Rất quan trọng: Giúp HashSet không bị null khi dùng @Builder
     private Set<User> students = new HashSet<>();
 
+    // ⭐ Khôi phục các trường Meta-data bạn đã thiết kế
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;

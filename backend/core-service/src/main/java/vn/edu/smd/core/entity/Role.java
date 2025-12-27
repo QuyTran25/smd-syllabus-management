@@ -3,14 +3,10 @@ package vn.edu.smd.core.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
+import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Role Entity
- * Maps to table: roles
- */
 @Entity
 @Table(name = "roles", schema = "core_service")
 @Getter
@@ -19,28 +15,25 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Role {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "code", nullable = false, unique = true, length = 50)
+    @Column(unique = true, nullable = false)
     private String code;
 
-    @Column(name = "name", nullable = false, length = 100)
     private String name;
-
-    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "is_system", nullable = false)
-    @Builder.Default
+    @Column(name = "is_system")
     private Boolean isSystem = false;
 
+    // ✅ BỔ SUNG HOẶC KIỂM TRA 2 TRƯỜNG NÀY
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false) // ✅ Chỉ định rõ name bằng snake_case
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false) // ✅ Chỉ định rõ name bằng snake_case
     private LocalDateTime updatedAt;
 }

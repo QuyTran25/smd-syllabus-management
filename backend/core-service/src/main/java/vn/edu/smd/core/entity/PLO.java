@@ -5,21 +5,14 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import vn.edu.smd.shared.enums.PloCategory;
+import vn.edu.smd.core.converter.PloCategoryConverter; // ⭐ Import từ core.converter
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Program Learning Outcome (PLO) Entity
- * Maps to table: plos
- */
 @Entity
 @Table(name = "plos", schema = "core_service")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PLO {
 
     @Id
@@ -30,16 +23,15 @@ public class PLO {
     @JoinColumn(name = "curriculum_id", nullable = false)
     private Curriculum curriculum;
 
-    @Column(name = "code", nullable = false, length = 20)
     private String code;
 
-    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", length = 20)
-    @Builder.Default
-    private PloCategory category = PloCategory.KNOWLEDGE;
+    // ⭐ SỬA LỖI: Dùng @Convert để Hibernate hiểu được chữ "Knowledge"
+    @Convert(converter = PloCategoryConverter.class)
+    @Column(name = "category")
+    private PloCategory category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
@@ -50,10 +42,10 @@ public class PLO {
     private User updatedBy;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

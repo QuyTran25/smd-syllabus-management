@@ -1,33 +1,36 @@
 package vn.edu.smd.shared.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.stream.Stream;
+
 /**
  * PLO (Program Learning Outcome) category
- * Maps to database enum: plo_category
+ * Module: shared
  */
 public enum PloCategory {
-    /**
-     * Knowledge outcomes
-     */
     KNOWLEDGE,
-
-    /**
-     * Skill outcomes
-     */
     SKILLS,
-
-    /**
-     * Competence outcomes
-     */
     COMPETENCE,
-
-    /**
-     * Attitude outcomes
-     */
     ATTITUDE;
 
     /**
-     * Get display name in Vietnamese
+     * ⭐ QUAN TRỌNG: Hàm này phải là 'decode' để khớp với Converter
      */
+    @JsonCreator
+    public static PloCategory decode(String code) {
+        if (code == null || code.isEmpty()) return KNOWLEDGE;
+        return Stream.of(PloCategory.values())
+                .filter(targetEnum -> targetEnum.name().equalsIgnoreCase(code))
+                .findFirst()
+                .orElse(KNOWLEDGE);
+    }
+
+    @JsonValue
+    public String getCode() {
+        return name();
+    }
+
     public String getDisplayName() {
         return switch (this) {
             case KNOWLEDGE -> "Kiến thức";

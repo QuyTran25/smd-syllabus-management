@@ -34,17 +34,31 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        String email = request.getEmail().trim();
+        String rawPassword = request.getPassword().trim();
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        System.out.println("--- TIẾN TRÌNH RESET HASH ---");
+        
+        // BƯỚC 1: Tự tạo mã Hash chuẩn từ chính Encoder đang chạy
+        String currentServerHash = passwordEncoder.encode(rawPassword);
+        System.out.println("MÃ HASH CHUẨN CỦA SERVER CHO [" + rawPassword + "] LÀ:");
+        System.out.println(currentServerHash); 
+        System.out.println("-----------------------------");
 
-        String accessToken = tokenProvider.generateToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
-
-        return new AuthResponse(accessToken, refreshToken);
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, rawPassword)
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String accessToken = tokenProvider.generateToken(authentication);
+            String refreshToken = tokenProvider.generateRefreshToken(authentication);
+            return new AuthResponse(accessToken, refreshToken);
+        } catch (Exception e) {
+            System.out.println("Lỗi: " + e.getMessage());
+            throw e;
+        }
     }
+
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {

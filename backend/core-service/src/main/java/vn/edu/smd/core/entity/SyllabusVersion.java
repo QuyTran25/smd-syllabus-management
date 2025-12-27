@@ -52,7 +52,7 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING) // ✅ Lưu enum dưới dạng string
     @Column(name = "status", nullable = false, length = 30)
     @Builder.Default
     private SyllabusStatus status = SyllabusStatus.DRAFT;
@@ -209,4 +209,5 @@ public class SyllabusVersion {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 }

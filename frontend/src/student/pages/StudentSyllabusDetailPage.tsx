@@ -10,11 +10,13 @@ import {
   Table,
   Tag,
   Typography,
-  message,
   Skeleton,
+  App,
 } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
+import { RobotOutlined, TableOutlined, DownloadOutlined } from '@ant-design/icons';
 
+// Import Modals
 import { AISummaryModal } from '../components/AISummaryModal';
 import { CloPloModal } from '../components/CloPloModal';
 import { ReportIssueModal } from '../components/ReportIssueModal';
@@ -31,8 +33,10 @@ const { Title, Text } = Typography;
 export const StudentSyllabusDetailPage: React.FC = () => {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const { message } = App.useApp();
 
-  const { data, isLoading } = useStudentSyllabusDetail(id);
+  // Lấy dữ liệu chi tiết từ API
+  const { data, isLoading, isError } = useStudentSyllabusDetail(id);
 
   const toggleTrack = useToggleTrack();
   const downloadPdf = useDownloadPdf();
@@ -42,7 +46,7 @@ export const StudentSyllabusDetailPage: React.FC = () => {
   const [openCloPlo, setOpenCloPlo] = useState(false);
   const [openReport, setOpenReport] = useState(false);
 
-  // ===== AI summary object for modal (uses the inline summary + derived bullets) =====
+  // ===== 1. AI summary object for modal =====
   const aiSummary = useMemo(() => {
     if (!data) return { overview: '', highlights: [], recommendations: [] };
 
@@ -57,14 +61,14 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         'Kỹ năng đạt được: ánh xạ CLO tới PLO rõ ràng',
       ],
       recommendations: [
-        'Nên có kiến thức cơ bản về môn tiên quyết (nếu có)',
+        'Nên có kiến thức cơ bản về môn tiên quyết',
         'Chuẩn bị trước: ôn lại kiến thức nền',
         'Thời gian tự học: dành ít nhất 6 giờ/tuần',
       ],
     };
   }, [data]);
 
-  // ===== Tables columns =====
+  // ===== 2. Table columns for Assessment Matrix =====
   const assessmentColumns = useMemo(
     () => [
       { title: 'Phương pháp', dataIndex: 'method', key: 'method' },
@@ -84,18 +88,19 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           </Space>
         ),
       },
-      { title: 'Tiêu chí', dataIndex: 'criteria', key: 'criteria', width: 90 },
+      { title: 'Tiêu chí', dataIndex: 'criteria', key: 'criteria', width: 120 },
       {
         title: 'Trọng số',
         dataIndex: 'weight',
         key: 'weight',
-        width: 90,
-        render: (v: number) => `${v}%`,
+        width: 100,
+        render: (v: number) => <Text strong>{v}%</Text>,
       },
     ],
     []
   );
 
+  // ===== 3. Table columns for CLO =====
   const cloColumns = useMemo(
     () => [
       { title: 'Mã CLO', dataIndex: 'code', key: 'code', width: 100 },
@@ -116,7 +121,10 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         render: (plo: string[]) => (
           <Space wrap>
             {(plo ?? []).map((p) => (
-              <Tag key={p} color="green">
+              <Tag
+                key={p}
+                style={{ color: '#1677ff', borderColor: '#1677ff', background: '#e6f4ff' }}
+              >
                 {p}
               </Tag>
             ))}
@@ -127,19 +135,19 @@ export const StudentSyllabusDetailPage: React.FC = () => {
     []
   );
 
-  // ===== CLO - PLO Matrix (missing section you requested) =====
+  // ===== 4. CLO - PLO Matrix Logic (✓ marks) =====
   const ploMatrixColumns = useMemo(() => {
     if (!data?.ploList) return [];
-    const base: any[] = [{ title: 'CLO', dataIndex: 'clo', key: 'clo', width: 120, fixed: 'left' }];
+    const base: any[] = [{ title: 'CLO', dataIndex: 'clo', key: 'clo', width: 150, fixed: 'left' }];
 
     const dyn = data.ploList.map((plo: string) => ({
       title: plo,
       dataIndex: plo,
       key: plo,
       align: 'center' as const,
-      width: 90,
+      width: 100,
       render: (v: boolean) =>
-        v ? <span style={{ color: '#52c41a', fontWeight: 800 }}>✓</span> : null,
+        v ? <span style={{ color: '#52c41a', fontWeight: 800, fontSize: 20 }}>✓</span> : null,
     }));
 
     return [...base, ...dyn];
@@ -151,65 +159,45 @@ export const StudentSyllabusDetailPage: React.FC = () => {
     return data.clos.map((c: any) => {
       const row: Record<string, any> = { key: c.code, clo: c.code };
       const mapped = new Set((data.cloPloMap?.[c.code] ?? []) as string[]);
-      data.ploList.forEach((plo: string) => {
+      data!.ploList.forEach((plo: string) => {
         row[plo] = mapped.has(plo);
       });
       return row;
     });
   }, [data?.clos, data?.ploList, data?.cloPloMap]);
 
-  // ===== Render states =====
-  if (isLoading) {
+  // Loading state
+  if (isLoading)
     return (
       <div style={{ padding: 18 }}>
-        <Skeleton active />
+        <Skeleton active paragraph={{ rows: 15 }} />
       </div>
     );
-  }
 
-  if (!data) {
+  // Error state
+  if (isError || !data)
     return (
-      <div style={{ padding: 18 }}>
-        <Card
-          style={{
-            borderRadius: 14,
-            border: '1px solid rgba(0,0,0,0.06)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-          }}
-          bodyStyle={{ padding: 18 }}
-        >
-          <Title level={5} style={{ marginTop: 0 }}>
-            Không tìm thấy đề cương
-          </Title>
-          <Button onClick={() => navigate('/student/syllabi')}>Quay lại danh sách</Button>
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <Card style={{ maxWidth: 500, margin: '0 auto', borderRadius: 12 }}>
+          <Title level={4}>Dữ liệu không khả dụng</Title>
+          <Text type="secondary">Đã có lỗi xảy ra hoặc dữ liệu đề cương bị trống.</Text>
+          <Divider />
+          <Button type="primary" onClick={() => navigate('/syllabi')}>
+            Quay lại danh sách
+          </Button>
         </Card>
       </div>
     );
-  }
-
-  // ===== UI tokens =====
-  const cardStyle: React.CSSProperties = {
-    borderRadius: 14,
-    border: '1px solid rgba(0,0,0,0.06)',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    marginTop: 0,
-    marginBottom: 10,
-  };
 
   return (
-    <div style={{ padding: 18 }}>
-      {/* Breadcrumb */}
+    <div style={{ padding: 18, background: '#f5f7f9', minHeight: '100vh' }}>
       <Breadcrumb
         items={[
-          { title: <a onClick={() => navigate('/student/syllabi')}>Đề cương của tôi</a> },
+          { title: <a onClick={() => navigate('/syllabi')}>Đề cương của tôi</a> },
           { title: data.code },
         ]}
       />
 
-      {/* Header + actions */}
       <div
         style={{
           marginTop: 10,
@@ -233,16 +221,20 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         </Space>
 
         <Space wrap>
-          <Button onClick={() => setOpenAi(true)}>Tóm tắt AI</Button>
-          <Button onClick={() => setOpenCloPlo(true)}>Bản đồ CLO-PLO</Button>
-
+          <Button icon={<RobotOutlined />} onClick={() => setOpenAi(true)}>
+            🤖 Tóm tắt AI
+          </Button>
+          <Button icon={<TableOutlined />} onClick={() => setOpenCloPlo(true)}>
+            📊 Bản đồ CLO-PLO
+          </Button>
           <Button
             type="primary"
+            icon={<DownloadOutlined />}
             loading={downloadPdf.isPending}
             onClick={async () => {
               try {
                 await downloadPdf.mutateAsync(data.id);
-                message.success('Mock: Tải PDF thành công');
+                message.success('Tải PDF thành công');
               } catch {
                 message.error('Không thể tải PDF');
               }
@@ -250,31 +242,20 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           >
             Tải PDF
           </Button>
-
-          <Button
-            onClick={async () => {
-              try {
-                await toggleTrack.mutateAsync(data.id);
-                message.success(data.tracked ? 'Đã bỏ theo dõi' : 'Đã theo dõi');
-              } catch {
-                message.error('Không thể cập nhật theo dõi');
-              }
-            }}
-          >
+          <Button onClick={() => toggleTrack.mutate(data.id)}>
             {data.tracked ? 'Bỏ theo dõi' : 'Theo dõi'}
           </Button>
-
           <Button danger onClick={() => setOpenReport(true)}>
             Báo lỗi
           </Button>
         </Space>
       </div>
 
-      {/* Inline AI summary (subtle, clean) */}
       <div style={{ marginTop: 12 }}>
         <Alert
           type="info"
           showIcon
+          icon={<RobotOutlined />}
           message="Tóm tắt AI"
           description={data.summaryInline}
           style={{
@@ -285,174 +266,141 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         />
       </div>
 
-      {/* Main card */}
-      <Card style={{ marginTop: 12, ...cardStyle }} bodyStyle={{ padding: 18 }}>
-        {/* Info table */}
-        <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+      <Card
+        style={{ marginTop: 12, borderRadius: 14, boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}
+        styles={{ body: { padding: 18 } }}
+      >
+        <Descriptions
+          bordered
+          size="small"
+          column={{ xs: 1, sm: 2, md: 3 }}
+          labelStyle={{ fontWeight: 600, background: '#fafafa' }}
+        >
           <Descriptions.Item label="Mã học phần">{data.code}</Descriptions.Item>
           <Descriptions.Item label="Số tín chỉ">{data.credits}</Descriptions.Item>
           <Descriptions.Item label="Ngày xuất bản">{data.publishedAt}</Descriptions.Item>
-
-          <Descriptions.Item label="Tên học phần (Tiếng Việt)">{data.nameVi}</Descriptions.Item>
-          <Descriptions.Item label="Tên học phần (Tiếng Anh)">{data.nameEn}</Descriptions.Item>
+          <Descriptions.Item label="Tên tiếng Việt">{data.nameVi}</Descriptions.Item>
+          <Descriptions.Item label="Tên tiếng Anh">{data.nameEn}</Descriptions.Item>
           <Descriptions.Item label="Loại học phần">
             <Tag color="red">Bắt buộc</Tag>
           </Descriptions.Item>
-
           <Descriptions.Item label="Học kỳ">{data.term}</Descriptions.Item>
           <Descriptions.Item label="Khoa/Bộ môn">{data.faculty}</Descriptions.Item>
           <Descriptions.Item label="Chương trình">{data.program}</Descriptions.Item>
-
           <Descriptions.Item label="Giảng viên">
-            {data.lecturerName} {data.lecturerEmail ? `(${data.lecturerEmail})` : ''}
+            {data.lecturerName} ({data.lecturerEmail || 'N/A'})
           </Descriptions.Item>
-
-          <Descriptions.Item label="Học phần tiên quyết">
-            <a href="#" onClick={(e) => e.preventDefault()}>
-              {data.prerequisite?.text ?? 'Không'}
-            </a>
-          </Descriptions.Item>
-
           <Descriptions.Item label="Thang điểm">10</Descriptions.Item>
         </Descriptions>
 
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Time allocation */}
-        <Title level={5} style={sectionTitleStyle}>
-          Phân bổ Thời gian
-        </Title>
-        <Descriptions bordered size="small" column={3}>
-          <Descriptions.Item label="Lý thuyết">{data.timeAllocation.theory} tiết</Descriptions.Item>
-          <Descriptions.Item label="Thực hành">
-            {data.timeAllocation.practice} tiết
-          </Descriptions.Item>
-          <Descriptions.Item label="Tự học">{data.timeAllocation.selfStudy} tiết</Descriptions.Item>
-        </Descriptions>
-
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Description */}
-        <Title level={5} style={sectionTitleStyle}>
-          Mô tả học phần
-        </Title>
-        <Text>{data.description}</Text>
-
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Objectives */}
-        <Title level={5} style={sectionTitleStyle}>
-          Mục tiêu học phần
-        </Title>
-        <ol style={{ paddingLeft: 18, margin: 0 }}>
-          {(data.objectives ?? []).map((x: string, i: number) => (
-            <li key={i}>{x}</li>
-          ))}
-        </ol>
-
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Teaching methods */}
-        <Title level={5} style={sectionTitleStyle}>
-          Phương pháp giảng dạy
-        </Title>
-        <Text>{data.teachingMethods}</Text>
-
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Student tasks */}
-        <Title level={5} style={sectionTitleStyle}>
-          Nhiệm vụ của Sinh viên
-        </Title>
+        <Divider orientation="left" style={{ margin: '18px 0' }}>
+          <Text strong>Phân bổ Thời gian</Text>
+        </Divider>
         <div
           style={{
-            padding: 12,
-            borderRadius: 12,
-            border: '1px solid rgba(0,0,0,0.06)',
-            background: 'rgba(0,0,0,0.02)',
+            display: 'flex',
+            border: '1px solid #f0f0f0',
+            textAlign: 'center',
+            borderRadius: 8,
+            overflow: 'hidden',
           }}
         >
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {(data.studentTasks ?? []).map((x: string, i: number) => (
-              <li key={i}>{x}</li>
-            ))}
-          </ul>
+          <div style={{ flex: 1, padding: 12, background: '#fafafa' }}>
+            <Text type="secondary">Lý thuyết</Text>
+            <br />
+            <Text strong>{data.timeAllocation?.theory} tiết</Text>
+          </div>
+          <div
+            style={{
+              flex: 1,
+              padding: 12,
+              background: '#fafafa',
+              borderLeft: '1px solid #f0f0f0',
+              borderRight: '1px solid #f0f0f0',
+            }}
+          >
+            <Text type="secondary">Thực hành</Text>
+            <br />
+            <Text strong>{data.timeAllocation?.practice} tiết</Text>
+          </div>
+          <div style={{ flex: 1, padding: 12, background: '#fafafa' }}>
+            <Text type="secondary">Tự học</Text>
+            <br />
+            <Text strong>{data.timeAllocation?.selfStudy} tiết</Text>
+          </div>
         </div>
 
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Assessment matrix */}
-        <Title level={5} style={sectionTitleStyle}>
-          Ma trận Đánh giá
-        </Title>
+        <Divider orientation="left" style={{ margin: '18px 0' }}>
+          <Text strong>Ma trận Đánh giá</Text>
+        </Divider>
         <Table
           size="small"
+          bordered
+          pagination={false}
           columns={assessmentColumns as any}
           dataSource={(data.assessmentMatrix ?? []).map((x: any, idx: number) => ({
             ...x,
             key: idx,
           }))}
-          pagination={false}
-          bordered
+          summary={() => (
+            <Table.Summary.Row style={{ background: '#fafafa' }}>
+              <Table.Summary.Cell index={0} colSpan={4}>
+                <Text strong>Tổng</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={1}>
+                <Text strong>100%</Text>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          )}
         />
 
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* CLO table */}
-        <Title level={5} style={sectionTitleStyle}>
-          Chuẩn đầu ra học phần (CLO)
-        </Title>
+        <Divider orientation="left" style={{ margin: '18px 0' }}>
+          <Text strong>Chuẩn đầu ra học phần (CLO)</Text>
+        </Divider>
         <Table
           size="small"
+          bordered
+          pagination={false}
           columns={cloColumns as any}
           dataSource={(data.clos ?? []).map((x: any) => ({ ...x, key: x.code }))}
-          pagination={false}
-          bordered
         />
 
-        {/* ===== Missing section added here: CLO-PLO Matrix ===== */}
-        <Divider style={{ margin: '18px 0' }} />
-        <Title level={5} style={sectionTitleStyle}>
-          Ma trận CLO - PLO
-        </Title>
+        <Divider orientation="left" style={{ margin: '18px 0' }}>
+          <Text strong>Ma trận CLO - PLO</Text>
+        </Divider>
         <Table
           size="small"
+          bordered
+          pagination={false}
+          scroll={{ x: 'max-content' }}
           columns={ploMatrixColumns as any}
           dataSource={ploMatrixRows as any}
-          pagination={false}
-          bordered
-          scroll={{ x: 'max-content' }}
         />
 
-        <Divider style={{ margin: '18px 0' }} />
-
-        {/* Textbooks & references */}
-        <Title level={5} style={sectionTitleStyle}>
-          Giáo trình &amp; Tài liệu
-        </Title>
-
-        <Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
-          Giáo trình chính:
-        </Title>
-        <ol style={{ paddingLeft: 18, marginTop: 0 }}>
+        <Divider orientation="left" style={{ margin: '18px 0' }}>
+          <Text strong>Giáo trình & Tài liệu</Text>
+        </Divider>
+        <Text strong>Giáo trình chính:</Text>
+        <ol style={{ paddingLeft: 18 }}>
           {(data.textbooks ?? []).map((x: string, i: number) => (
             <li key={i}>{x}</li>
           ))}
         </ol>
-
-        <Title level={5} style={{ marginTop: 14, marginBottom: 8 }}>
+        <Text strong style={{ marginTop: 8, display: 'block' }}>
           Tài liệu tham khảo:
-        </Title>
-        <ol style={{ paddingLeft: 18, marginTop: 0 }}>
+        </Text>
+        <ol style={{ paddingLeft: 18 }}>
           {(data.references ?? []).map((x: string, i: number) => (
             <li key={i}>{x}</li>
           ))}
         </ol>
       </Card>
 
-      {/* Modals (keep existing features, no new feature) */}
-      <AISummaryModal open={openAi} onClose={() => setOpenAi(false)} summary={aiSummary} />
+      <div style={{ textAlign: 'center', padding: '20px 0', color: '#888' }}>
+        Bản quyền thuộc về © Trung tâm Thông tin - Thư viện
+      </div>
 
+      <AISummaryModal open={openAi} onClose={() => setOpenAi(false)} summary={aiSummary} />
       <CloPloModal
         open={openCloPlo}
         onClose={() => setOpenCloPlo(false)}
@@ -460,23 +408,17 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         ploList={data.ploList}
         cloPloMap={data.cloPloMap}
       />
-
       <ReportIssueModal
         open={openReport}
         onClose={() => setOpenReport(false)}
-        submitting={reportIssue.isPending}
         onSubmit={async (v: any) => {
-          try {
-            await reportIssue.mutateAsync({
-              syllabusId: data.id,
-              section: v.section,
-              description: v.description,
-            });
-            message.success('Đã gửi báo cáo (mock)');
-            setOpenReport(false);
-          } catch {
-            message.error('Không thể gửi báo cáo');
-          }
+          await reportIssue.mutateAsync({
+            syllabusId: data!.id,
+            section: v.section,
+            description: v.description,
+          });
+          message.success('Đã gửi báo cáo thành công');
+          setOpenReport(false);
         }}
       />
     </div>

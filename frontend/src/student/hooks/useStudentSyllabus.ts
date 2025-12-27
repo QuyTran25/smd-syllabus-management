@@ -5,21 +5,34 @@ import {
   listStudentSyllabi,
   reportIssue,
   toggleTrackSyllabus,
-} from '@/student/api/studentSyllabus.api';
+  ReportIssuePayload, // ⭐ THÊM: Import Interface từ file API
+} from '../api/studentSyllabus.api';
+import { StudentSyllabiFilters } from '../types';
 
-import { ReportIssuePayload, StudentSyllabiFilters } from '../types';
+// ❌ XÓA ĐOẠN ĐỊNH NGHĨA LOCAL NÀY ĐI ĐỂ TRÁNH XUNG ĐỘT
+// export interface ReportIssuePayload {
+//   syllabusId: string;
+//   section: string;
+//   description: string;
+// }
 
 export function useStudentSyllabi(filters: StudentSyllabiFilters) {
   return useQuery({
     queryKey: ['student-syllabi', filters],
-    queryFn: () => listStudentSyllabi(filters),
+    queryFn: async () => {
+      const data = await listStudentSyllabi(filters);
+      return Array.isArray(data) ? data : [];
+    },
   });
 }
 
 export function useStudentSyllabusDetail(id: string) {
   return useQuery({
     queryKey: ['student-syllabus-detail', id],
-    queryFn: () => getStudentSyllabusDetail(id),
+    queryFn: async () => {
+      const data = await getStudentSyllabusDetail(id);
+      return data;
+    },
     enabled: !!id,
   });
 }
@@ -27,22 +40,17 @@ export function useStudentSyllabusDetail(id: string) {
 export function useToggleTrack() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => toggleTrackSyllabus(id),
-    onSuccess: (_res, id) => {
+    mutationFn: toggleTrackSyllabus,
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['student-syllabi'] });
-      qc.invalidateQueries({ queryKey: ['student-syllabus-detail', id] });
     },
   });
 }
 
-export function useDownloadPdf() {
-  return useMutation({
-    mutationFn: (id: string) => downloadPdfMock(id),
-  });
-}
+export const useDownloadPdf = () => useMutation({ mutationFn: downloadPdfMock });
 
-export function useReportIssue() {
-  return useMutation({
-    mutationFn: (payload: ReportIssuePayload) => reportIssue(payload),
+// Sử dụng ReportIssuePayload đã import từ file API
+export const useReportIssue = () =>
+  useMutation<void, Error, ReportIssuePayload>({
+    mutationFn: reportIssue,
   });
-}
