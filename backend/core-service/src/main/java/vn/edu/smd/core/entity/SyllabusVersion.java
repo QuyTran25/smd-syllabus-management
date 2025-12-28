@@ -119,7 +119,7 @@ public class SyllabusVersion {
 
     // V8 additions - Frontend Detail Fields
     @Convert(converter = vn.edu.smd.core.converter.CourseTypeConverter.class)
-    @Column(name = "course_type", length = 20)
+    netstat -aon | findstr ":8080"    @Column(name = "course_type", length = 20)
     @Builder.Default
     private CourseType courseType = CourseType.REQUIRED;
 

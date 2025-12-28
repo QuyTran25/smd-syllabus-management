@@ -11,7 +11,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import vn.edu.smd.core.common.util.JwtUtils;
+import vn.edu.smd.core.security.JwtTokenProvider;
+import java.util.UUID;
 
 import java.io.IOException;
 
@@ -19,7 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
-    private JwtUtils jwtUtils;
+    private JwtTokenProvider tokenProvider;
 
     @Autowired
     private CustomUserDetailsService userDetailsService;
@@ -58,9 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         token = authHeader.substring(7);
         System.out.println("[DEBUG FILTER] ✅ Đã lấy được Token: " + token.substring(0, 10) + "...");
 
+        String userId;
         try {
-            email = jwtUtils.extractUsername(token);
-            System.out.println("[DEBUG FILTER] 📧 Email trong Token: " + email);
+            userId = tokenProvider.getUserIdFromToken(token);
+            System.out.println("[DEBUG FILTER] ✅ UserId trong Token: " + userId);
         } catch (Exception e) {
             System.err.println("[DEBUG FILTER] ❌ Lỗi giải mã Token: " + e.getMessage());
             filterChain.doFilter(request, response);
@@ -68,16 +70,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // 2. Xác thực
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(email);
+                UserDetails userDetails = this.userDetailsService.loadUserById(UUID.fromString(userId));
                 System.out.println("[DEBUG FILTER] 👤 Tìm thấy User trong DB. Quyền: " + userDetails.getAuthorities());
 
-                if (jwtUtils.validateToken(token)) {
+                if (tokenProvider.validateToken(token)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    
+
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     System.out.println("[DEBUG FILTER] 🔓 Đã xác thực thành công! User đã đăng nhập vào Context.");
                 } else {

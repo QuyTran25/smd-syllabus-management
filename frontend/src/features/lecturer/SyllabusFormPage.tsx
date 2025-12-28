@@ -279,7 +279,7 @@ const SyllabusFormPage: React.FC = () => {
         subjectId: values.subjectId,
         academicTermId: values.semesterId,
         versionNo: values.versionNo || '1.0',
-        status: status === 'DRAFT' ? 'DRAFT' : 'PENDING_APPROVAL',
+        status: status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
         // content - nested JSON to be stored as JSONB
         content: {
           description: values.description,
@@ -293,7 +293,7 @@ const SyllabusFormPage: React.FC = () => {
       };
 
       // Call backend create endpoint (plural path)
-      await axiosClient.post('/syllabus', payload);
+      await axiosClient.post('/syllabuses', payload);
 
       message.success(status === 'SUBMIT' ? 'Đã gửi đề cương thành công!' : 'Đã lưu nháp thành công!');
       navigate('/lecturer/syllabi');

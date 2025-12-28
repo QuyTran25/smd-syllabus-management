@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
 @RestController
-@RequestMapping("/api/syllabus")
+@RequestMapping("/api/syllabuses")
 @RequiredArgsConstructor
 public class SyllabusController {
 
