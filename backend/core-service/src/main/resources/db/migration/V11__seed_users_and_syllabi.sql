@@ -23,6 +23,7 @@ INSERT INTO roles (code, name, description, is_system) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- ==========================================
+<<<<<<< HEAD
 -- 1. INSERT USERS (với password: "password123" - BCrypt hash)
 -- ==========================================
 -- Password hash for "password123": $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy
@@ -64,6 +65,49 @@ INSERT INTO users (
 ('gv.hoang@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
  'Hoàng Văn Đức', '0901234578', 'MALE', 'ACTIVE', 'LOCAL'),
 ('gv.vo@smd.edu.vn', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhCy', 
+=======
+-- 1. INSERT USERS (với password: "123456" - BCrypt hash)
+-- ==========================================
+-- Password hash for "123456": $2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW
+
+INSERT INTO users (
+    email, password_hash, full_name, phone, gender, status, auth_provider
+) VALUES 
+-- ADMIN
+('admin@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Nguyễn Văn Quản Trị', '0901234567', 'MALE', 'ACTIVE', 'LOCAL'),
+
+-- PRINCIPAL (Hiệu trưởng)
+('principal@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Trần Thị Hiệu Trưởng', '0901234568', 'FEMALE', 'ACTIVE', 'LOCAL'),
+
+-- AA (Academic Affairs - Phòng Đào tạo)
+('aa1@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Lê Văn Đào Tạo', '0901234569', 'MALE', 'ACTIVE', 'LOCAL'),
+('aa2@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Phạm Thị Thu Hương', '0901234570', 'FEMALE', 'ACTIVE', 'LOCAL'),
+
+-- HOD (Head of Department - Trưởng Bộ môn)
+('hod.khmt@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Nguyễn Văn Khoa', '0901234571', 'MALE', 'ACTIVE', 'LOCAL'),
+('hod.ktpm@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Trần Thị Mai', '0901234572', 'FEMALE', 'ACTIVE', 'LOCAL'),
+('hod.httt@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Lê Văn Hệ Thống', '0901234573', 'MALE', 'ACTIVE', 'LOCAL'),
+
+-- LECTURERS (Giảng viên)
+('gv.nguyen@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Nguyễn Minh Tuấn', '0901234574', 'MALE', 'ACTIVE', 'LOCAL'),
+('gv.tran@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Trần Thị Lan', '0901234575', 'FEMALE', 'ACTIVE', 'LOCAL'),
+('gv.le@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Lê Hoàng Nam', '0901234576', 'MALE', 'ACTIVE', 'LOCAL'),
+('gv.pham@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Phạm Thị Hoa', '0901234577', 'FEMALE', 'ACTIVE', 'LOCAL'),
+('gv.hoang@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+ 'Hoàng Văn Đức', '0901234578', 'MALE', 'ACTIVE', 'LOCAL'),
+('gv.vo@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
+>>>>>>> origin/main
  'Võ Thị Ngọc', '0901234579', 'FEMALE', 'ACTIVE', 'LOCAL')
 ON CONFLICT (email) DO NOTHING;
 
@@ -155,15 +199,26 @@ WITH
         )
     )
 INSERT INTO syllabus_versions (
+<<<<<<< HEAD
     subject_id, academic_term_id, version_no, status,
     created_by, snap_subject_code, snap_subject_name_vi, snap_subject_name_en, snap_credit_count,
     keywords, content, review_deadline, published_at
 )
 SELECT
+=======
+    subject_id, academic_term_id, version_no, status, 
+    created_by, snap_subject_code, snap_subject_name_vi, snap_subject_name_en, snap_credit_count,
+    theory_hours, practice_hours, self_study_hours,
+    keywords, objectives, student_tasks,
+    review_deadline, effective_date
+)
+SELECT 
+>>>>>>> origin/main
     s.subject_id,
     (SELECT id FROM term_id),
     'v1.0',
     -- Phân bố trạng thái:
+<<<<<<< HEAD
     CASE
         WHEN s.rn <= 5 THEN 'PENDING_PRINCIPAL'::core_service.syllabus_status
         WHEN s.rn <= 8 THEN 'PENDING_AA'::core_service.syllabus_status
@@ -171,12 +226,22 @@ SELECT
         WHEN s.rn <= 16 THEN 'PUBLISHED'::core_service.syllabus_status
         WHEN s.rn <= 18 THEN 'DRAFT'::core_service.syllabus_status
         ELSE 'PENDING_PRINCIPAL'::core_service.syllabus_status
+=======
+    CASE 
+        WHEN s.rn <= 5 THEN 'PENDING_PRINCIPAL'::core_service.syllabus_status  -- 5 chờ Hiệu trưởng
+        WHEN s.rn <= 8 THEN 'PENDING_AA'::core_service.syllabus_status         -- 3 chờ AA
+        WHEN s.rn <= 12 THEN 'PENDING_HOD'::core_service.syllabus_status       -- 4 chờ HOD
+        WHEN s.rn <= 16 THEN 'PUBLISHED'::core_service.syllabus_status         -- 4 đã xuất bản
+        WHEN s.rn <= 18 THEN 'DRAFT'::core_service.syllabus_status             -- 2 nháp
+        ELSE 'PENDING_PRINCIPAL'::core_service.syllabus_status                 -- Còn lại chờ Principal
+>>>>>>> origin/main
     END,
     l.id, -- created_by (owner)
     s.code, -- snap_subject_code
     s.current_name_vi, -- snap_subject_name_vi
     'Subject ' || s.code, -- snap_subject_name_en
     3, -- snap_credit_count
+<<<<<<< HEAD
     -- keywords
     ARRAY['Lập trình', 'Phần mềm', 'Công nghệ'],
     -- content: embed detailed fields as JSONB to match schema
@@ -189,6 +254,14 @@ SELECT
     ),
     CURRENT_DATE + INTERVAL '30 days', -- review_deadline
     CURRENT_DATE + INTERVAL '60 days'  -- published_at / effective_date
+=======
+    30, 45, 60, -- hours
+    ARRAY['Lập trình', 'Phần mềm', 'Công nghệ'], -- keywords as array
+    'Sinh viên nắm vững kiến thức nền tảng về ' || s.current_name_vi,
+    'Bài tập tuần, Đồ án giữa kỳ, Bài thi cuối kỳ',
+    CURRENT_DATE + INTERVAL '30 days',
+    CURRENT_DATE + INTERVAL '60 days'
+>>>>>>> origin/main
 FROM subjects_sample s
 CROSS JOIN LATERAL (
     SELECT id FROM lecturer_ids 

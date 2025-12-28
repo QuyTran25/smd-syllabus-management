@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+<<<<<<< HEAD
 import org.springframework.security.core.AuthenticationException;
+=======
+>>>>>>> origin/main
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -15,7 +18,10 @@ import vn.edu.smd.core.common.exception.ResourceNotFoundException;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.auth.dto.*;
 import vn.edu.smd.core.repository.UserRepository;
+<<<<<<< HEAD
 import vn.edu.smd.core.repository.RoleRepository;
+=======
+>>>>>>> origin/main
 import vn.edu.smd.core.security.JwtTokenProvider;
 import vn.edu.smd.core.security.UserPrincipal;
 import vn.edu.smd.shared.enums.AuthProvider;
@@ -31,12 +37,16 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
+<<<<<<< HEAD
     private final RoleRepository roleRepository;
+=======
+>>>>>>> origin/main
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+<<<<<<< HEAD
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
@@ -46,18 +56,27 @@ public class AuthService {
             log.warn("Login failed for user {}", request.getEmail());
             throw ex;
         }
+=======
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+>>>>>>> origin/main
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
+<<<<<<< HEAD
         // Load user info to include in response
         User user = userRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
         log.info("User {} logged in successfully", user.getEmail());
         return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
+=======
+        return new AuthResponse(accessToken, refreshToken);
+>>>>>>> origin/main
     }
 
     @Transactional
@@ -74,20 +93,31 @@ public class AuthService {
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setStatus(UserStatus.ACTIVE);
 
+<<<<<<< HEAD
         // Assign default role LECTURER if present in DB
         roleRepository.findByCode("LECTURER").ifPresent(role -> user.setRoles(java.util.Set.of(role)));
 
+=======
+>>>>>>> origin/main
         userRepository.save(user);
 
         // Auto login after registration
         Authentication authentication = authenticationManager.authenticate(
+<<<<<<< HEAD
             new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+=======
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+>>>>>>> origin/main
         );
 
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
+<<<<<<< HEAD
         return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
+=======
+        return new AuthResponse(accessToken, refreshToken);
+>>>>>>> origin/main
     }
 
     public void logout() {
@@ -114,7 +144,11 @@ public class AuthService {
         String newAccessToken = tokenProvider.generateToken(authentication);
         String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
 
+<<<<<<< HEAD
         return new AuthResponse(newAccessToken, newRefreshToken, mapToUserInfo(user));
+=======
+        return new AuthResponse(newAccessToken, newRefreshToken);
+>>>>>>> origin/main
     }
 
     @Transactional
@@ -134,6 +168,7 @@ public class AuthService {
         throw new BadRequestException("Reset password feature not implemented yet");
     }
 
+<<<<<<< HEAD
     public UserInfoResponse getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getPrincipal() == null) {
@@ -167,12 +202,26 @@ public class AuthService {
     }
 
     private UserInfoResponse mapToUserInfo(User user) {
+=======
+    @Transactional(readOnly = true)
+    public UserInfoResponse getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        // Use findByIdWithRoles to eager load roles and avoid LazyInitializationException
+        User user = userRepository.findByIdWithRoles(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
+
+>>>>>>> origin/main
         return new UserInfoResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhoneNumber(),
+<<<<<<< HEAD
                 user.getPrimaryRole() != null ? user.getPrimaryRole().name() : null,
+=======
+>>>>>>> origin/main
                 user.getRoles().stream().map(role -> role.getName()).collect(Collectors.toSet()),
                 user.getStatus().name()
         );

@@ -4,8 +4,12 @@
  * Updated: Thêm Password Hash (Hybrid Auth Support)
  */
 
+<<<<<<< HEAD
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+=======
+SET search_path TO core_service;
+>>>>>>> origin/main
 
 -- ==========================================
 -- 1. ENUMS
@@ -22,7 +26,11 @@ CREATE TYPE auth_provider AS ENUM ('LOCAL', 'GOOGLE', 'MICROSOFT');
 
 -- Faculties (Khoa)
 CREATE TABLE faculties (
+<<<<<<< HEAD
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+=======
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>>>>>>> origin/main
     code VARCHAR(50) NOT NULL UNIQUE, -- VD: CNTT
     name VARCHAR(255) NOT NULL,
     
@@ -32,7 +40,11 @@ CREATE TABLE faculties (
 
 -- Departments (Bộ môn)
 CREATE TABLE departments (
+<<<<<<< HEAD
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+=======
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>>>>>>> origin/main
     faculty_id UUID NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
     code VARCHAR(50) NOT NULL UNIQUE, -- VD: SE (Software Engineering)
     name VARCHAR(255) NOT NULL,
@@ -45,7 +57,11 @@ CREATE TABLE departments (
 -- 3. USERS (Người dùng)
 -- ==========================================
 CREATE TABLE users (
+<<<<<<< HEAD
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+=======
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>>>>>>> origin/main
     
     -- Định danh
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -80,7 +96,11 @@ CREATE TABLE users (
 
 -- Roles (Vai trò hệ thống)
 CREATE TABLE roles (
+<<<<<<< HEAD
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+=======
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>>>>>>> origin/main
     code VARCHAR(50) NOT NULL UNIQUE, -- VD: ADMIN, DEAN, LECTURER
     name VARCHAR(100) NOT NULL,
     description TEXT,
@@ -89,7 +109,11 @@ CREATE TABLE roles (
 
 -- User Roles (Mapping User - Role theo phạm vi)
 CREATE TABLE user_roles (
+<<<<<<< HEAD
     id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+=======
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>>>>>>> origin/main
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     

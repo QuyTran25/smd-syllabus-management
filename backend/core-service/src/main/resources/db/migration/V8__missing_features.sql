@@ -4,6 +4,10 @@
  * Updated: FIX SYNTAX ERROR & ADD MISSING INDEXES
  */
 
+<<<<<<< HEAD
+=======
+SET search_path TO core_service;
+>>>>>>> origin/main
 
 -- ==========================================
 -- 0. ENUMS BỔ SUNG

@@ -111,6 +111,7 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+<<<<<<< HEAD
     // Helper methods for backward compatibility
     public String getPassword() {
         return this.password;
@@ -118,6 +119,16 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+=======
+
+    // Helper methods for backward compatibility
+    public String getPassword() {
+        return this.passwordHash;
+    }
+
+    public void setPassword(String password) {
+        this.passwordHash = password;
+>>>>>>> origin/main
     }
 
     public String getPhoneNumber() {
@@ -128,13 +139,21 @@ public class User {
         this.phone = phoneNumber;
     }
 
+<<<<<<< HEAD
     public java.util.Set<Role> getRoles() {
+=======
+    public Set<Role> getRoles() {
+>>>>>>> origin/main
         return this.userRoles.stream()
                 .map(UserRole::getRole)
                 .collect(Collectors.toSet());
     }
 
+<<<<<<< HEAD
     public void setRoles(java.util.Set<Role> roles) {
+=======
+    public void setRoles(Set<Role> roles) {
+>>>>>>> origin/main
         this.userRoles.clear();
         if (roles != null) {
             roles.forEach(role -> {

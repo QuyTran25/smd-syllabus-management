@@ -9,6 +9,10 @@
 
 BEGIN;
 
+<<<<<<< HEAD
+=======
+SET search_path TO core_service;
+>>>>>>> origin/main
 
 -- Log start
 DO $$BEGIN RAISE NOTICE 'Starting V10 Migration: Seeding Full Curriculum...'; END$$;

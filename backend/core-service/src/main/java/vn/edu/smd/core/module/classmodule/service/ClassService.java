@@ -131,11 +131,14 @@ public class ClassService {
                 .collect(Collectors.toList());
     }
 
+<<<<<<< HEAD
     public Page<ClassResponse> getClassesBySemester(UUID semesterId, Pageable pageable) {
         return classRepository.findAllBySemesterId(semesterId, pageable)
                 .map(this::mapToResponse);
     }
 
+=======
+>>>>>>> origin/main
     @Transactional
     public void addStudentToClass(UUID classId, UUID studentId) {
         ClassEntity classEntity = classRepository.findById(classId)
@@ -172,7 +175,11 @@ public class ClassService {
                 .name(classEntity.getName())
                 .subjectId(classEntity.getSubject().getId())
                 .subjectCode(classEntity.getSubject().getCode())
+<<<<<<< HEAD
                 .subjectName(classEntity.getSubject().getCurrentNameVi())
+=======
+                .subjectName(classEntity.getSubject().getName())
+>>>>>>> origin/main
                 .semesterId(classEntity.getSemester() != null ? classEntity.getSemester().getId() : null)
                 .semesterName(classEntity.getSemester() != null ? classEntity.getSemester().getName() : null)
                 .lecturerId(classEntity.getLecturer() != null ? classEntity.getLecturer().getId() : null)

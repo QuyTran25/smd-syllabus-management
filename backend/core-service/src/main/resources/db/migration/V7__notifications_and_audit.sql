@@ -4,6 +4,10 @@
  * Cập nhật: System Settings dùng JSONB, Notification hỗ trợ payload
  */
 
+<<<<<<< HEAD
+=======
+SET search_path TO core_service;
+>>>>>>> origin/main
 
 -- ==========================================
 -- 1. SYSTEM SETTINGS (Cấu hình động)

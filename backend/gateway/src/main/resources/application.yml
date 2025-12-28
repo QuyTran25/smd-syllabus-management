@@ -11,7 +11,10 @@ spring:
           uri: http://localhost:8081
           predicates:
             - Path=/api/**
+<<<<<<< HEAD
           # Đảm bảo giữ nguyên /api/ khi chuyển tiếp sang backend
+=======
+>>>>>>> origin/main
           filters:
             - StripPrefix=0
       globalcors:
@@ -22,8 +25,11 @@ spring:
               - "http://localhost:3001"
               - "http://localhost:3002"
               - "http://localhost:3003"
+<<<<<<< HEAD
               - "http://localhost:3004"
               - "http://localhost:3005" # THÊM DÒNG NÀY ĐỂ FIX LỖI
+=======
+>>>>>>> origin/main
             allowedMethods:
               - GET
               - POST
@@ -31,6 +37,22 @@ spring:
               - PATCH
               - DELETE
               - OPTIONS
+<<<<<<< HEAD
             allowedHeaders: "*"
             allowCredentials: true
             maxAge: 3600
+=======
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+>>>>>>> origin/main

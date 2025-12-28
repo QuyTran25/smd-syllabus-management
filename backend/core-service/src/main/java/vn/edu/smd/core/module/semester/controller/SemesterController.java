@@ -4,7 +4,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+<<<<<<< HEAD
 import org.springframework.beans.factory.annotation.Autowired;
+=======
+>>>>>>> origin/main
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +20,11 @@ import vn.edu.smd.core.module.semester.service.SemesterService;
 
 import java.util.List;
 import java.util.UUID;
+<<<<<<< HEAD
 import org.springframework.context.ApplicationContext;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+=======
+>>>>>>> origin/main
 
 @Tag(name = "Semester Management", description = "Semester management APIs")
 @RestController
@@ -27,7 +33,10 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 public class SemesterController {
 
     private final SemesterService semesterService;
+<<<<<<< HEAD
     private final ApplicationContext applicationContext;
+=======
+>>>>>>> origin/main
 
     @Operation(summary = "Get all semesters with pagination", description = "Get list of semesters with pagination")
     @GetMapping
@@ -75,6 +84,7 @@ public class SemesterController {
 
     @Operation(summary = "Get classes in semester", description = "Get list of classes in a specific semester")
     @GetMapping("/{id}/classes")
+<<<<<<< HEAD
     public ResponseEntity<ApiResponse<List<Object>>> getClassesInSemester(@PathVariable UUID id, Pageable pageable) {
         try {
             Object classService = applicationContext.getBean("classService");
@@ -104,5 +114,10 @@ public class SemesterController {
             // If reflection fails, fall back to empty list to keep API stable
             return ResponseEntity.ok(ApiResponse.success(List.of()));
         }
+=======
+    public ResponseEntity<ApiResponse<List<Object>>> getClassesInSemester(@PathVariable UUID id) {
+        // TODO: Implement when Class module is created
+        return ResponseEntity.ok(ApiResponse.success(List.of()));
+>>>>>>> origin/main
     }
 }

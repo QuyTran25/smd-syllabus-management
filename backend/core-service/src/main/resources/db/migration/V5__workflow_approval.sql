@@ -4,6 +4,10 @@
  * Updated: Thêm Indexes cho History
  */
 
+<<<<<<< HEAD
+=======
+SET search_path TO core_service;
+>>>>>>> origin/main
 
 CREATE TYPE decision_type AS ENUM ('APPROVED', 'REJECTED');
 

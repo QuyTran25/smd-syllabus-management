@@ -114,4 +114,13 @@ public class Subject {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+<<<<<<< HEAD
 }
+=======
+
+    // Helper method for backward compatibility
+    public String getName() {
+        return this.currentNameVi;
+    }
+}
+>>>>>>> origin/main

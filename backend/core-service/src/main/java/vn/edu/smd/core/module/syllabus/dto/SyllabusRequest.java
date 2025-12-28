@@ -19,9 +19,12 @@ public class SyllabusRequest {
     @NotBlank(message = "Version number is required")
     private String versionNo;
 
+<<<<<<< HEAD
     /** Optional status string (e.g. DRAFT or PENDING_APPROVAL) */
     private String status;
 
+=======
+>>>>>>> origin/main
     private LocalDateTime reviewDeadline;
     private LocalDate effectiveDate;
 

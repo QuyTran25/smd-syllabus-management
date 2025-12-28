@@ -2,9 +2,7 @@ package vn.edu.smd.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -36,6 +34,7 @@ public class Role {
     @Column(name = "is_system", nullable = false)
     @Builder.Default
     private Boolean isSystem = false;
+<<<<<<< HEAD
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -43,4 +42,6 @@ public class Role {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+=======
+>>>>>>> origin/main
 }

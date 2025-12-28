@@ -13,7 +13,10 @@ public class UserInfoResponse {
     private String email;
     private String fullName;
     private String phoneNumber;
+<<<<<<< HEAD
     private String primaryRole;
+=======
+>>>>>>> origin/main
     private Set<String> roles;
     private String status;
 }

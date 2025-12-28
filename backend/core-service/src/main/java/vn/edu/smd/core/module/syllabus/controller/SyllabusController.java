@@ -18,7 +18,11 @@ import java.util.UUID;
 
 @Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
 @RestController
+<<<<<<< HEAD
 @RequestMapping("/api/syllabuses")
+=======
+@RequestMapping("/api/syllabi")
+>>>>>>> origin/main
 @RequiredArgsConstructor
 public class SyllabusController {
 
@@ -124,4 +128,8 @@ public class SyllabusController {
         byte[] pdfData = syllabusService.exportSyllabusToPdf(id);
         return ResponseEntity.ok(ApiResponse.success("PDF exported successfully", pdfData));
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/main

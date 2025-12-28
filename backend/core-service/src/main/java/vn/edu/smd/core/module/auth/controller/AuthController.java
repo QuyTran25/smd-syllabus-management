@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.smd.core.common.dto.ApiResponse;
+<<<<<<< HEAD
 import vn.edu.smd.core.module.auth.dto.AuthResponse;
 import vn.edu.smd.core.module.auth.dto.ForgotPasswordRequest;
 import vn.edu.smd.core.module.auth.dto.ResetPasswordRequest;
@@ -14,6 +15,9 @@ import vn.edu.smd.core.module.auth.dto.UserInfoResponse;
 import vn.edu.smd.core.module.auth.dto.LoginRequest;
 import vn.edu.smd.core.module.auth.dto.RegisterRequest;
 import vn.edu.smd.core.module.auth.dto.RefreshTokenRequest;
+=======
+import vn.edu.smd.core.module.auth.dto.*;
+>>>>>>> origin/main
 import vn.edu.smd.core.module.auth.service.AuthService;
 
 @Tag(name = "Authentication", description = "Authentication & Authorization APIs")
@@ -26,6 +30,7 @@ public class AuthController {
 
     @Operation(summary = "Login", description = "User login with email and password")
     @PostMapping("/login")
+<<<<<<< HEAD
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse authResponse = authService.login(request);
 
@@ -37,6 +42,11 @@ public class AuthController {
             "accessToken", authResponse.getAccessToken(),
             "refreshToken", authResponse.getRefreshToken()
         ));
+=======
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+>>>>>>> origin/main
     }
 
     @Operation(summary = "Register", description = "Register new user account")

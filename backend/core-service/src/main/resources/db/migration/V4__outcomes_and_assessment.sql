@@ -4,6 +4,11 @@
  * Updated: Thêm Index hiệu năng & Trigger Audit
  */
 
+<<<<<<< HEAD
+=======
+SET search_path TO core_service;
+
+>>>>>>> origin/main
 -- 1. PLOs
 CREATE TABLE plos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
