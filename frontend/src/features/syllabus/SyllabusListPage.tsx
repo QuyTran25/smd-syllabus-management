@@ -149,7 +149,7 @@ export const SyllabusListPage: React.FC = () => {
       content: (
         <Space direction="vertical">
           <Text>Bạn có chắc muốn gỡ bỏ đề cương này?</Text>
-          <Text strong>{selectedSyllabus.courseCode} - {selectedSyllabus.courseName}</Text>
+          <Text strong>{selectedSyllabus.subjectCode} - {selectedSyllabus.subjectNameVi}</Text>
           <Text type="danger">Đề cương sẽ không còn hiển thị cho sinh viên.</Text>
         </Space>
       ),
@@ -359,8 +359,8 @@ export const SyllabusListPage: React.FC = () => {
   const columns: ColumnsType<Syllabus> = [
     {
       title: 'Mã môn',
-      dataIndex: 'courseCode',
-      key: 'courseCode',
+      dataIndex: 'subjectCode',
+      key: 'subjectCode',
       width: 100,
       fixed: 'left',
       sorter: true,
@@ -368,8 +368,8 @@ export const SyllabusListPage: React.FC = () => {
     },
     {
       title: 'Tên môn học',
-      dataIndex: 'courseName',
-      key: 'courseName',
+      dataIndex: 'subjectNameVi',
+      key: 'subjectNameVi',
       width: 180,
       sorter: true,
       align: 'center',
@@ -379,15 +379,15 @@ export const SyllabusListPage: React.FC = () => {
             {text}
           </a>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.courseNameEn}
+            {record.subjectNameEn}
           </Text>
         </Space>
       ),
     },
     {
       title: 'Tín chỉ',
-      dataIndex: 'credits',
-      key: 'credits',
+      dataIndex: 'creditCount',
+      key: 'creditCount',
       width: 80,
       align: 'center',
     },
@@ -671,15 +671,15 @@ export const SyllabusListPage: React.FC = () => {
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="Mã HP" span={1}>
-                {selectedSyllabus.courseCode}
+                {selectedSyllabus.subjectCode}
               </Descriptions.Item>
               <Descriptions.Item label="Tín chỉ" span={1}>
-                {selectedSyllabus.credits}
+                {selectedSyllabus.creditCount}
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần" span={2}>
                 <Space direction="vertical" size={0}>
-                  <Text strong>{selectedSyllabus.courseName}</Text>
-                  <Text type="secondary">{selectedSyllabus.courseNameEn}</Text>
+                  <Text strong>{selectedSyllabus.subjectNameVi}</Text>
+                  <Text type="secondary">{selectedSyllabus.subjectNameEn}</Text>
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Giảng viên" span={1}>
@@ -761,10 +761,10 @@ export const SyllabusListPage: React.FC = () => {
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="Mã HP">
-                {selectedSyllabus.courseCode}
+                {selectedSyllabus.subjectCode}
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần">
-                {selectedSyllabus.courseName}
+                {selectedSyllabus.subjectNameVi}
               </Descriptions.Item>
               <Descriptions.Item label="Giảng viên">
                 {selectedSyllabus.ownerName}
@@ -828,13 +828,13 @@ export const SyllabusListPage: React.FC = () => {
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="Mã HP" span={1}>
-                {selectedSyllabus.courseCode}
+                {selectedSyllabus.subjectCode}
               </Descriptions.Item>
               <Descriptions.Item label="Phiên bản" span={1}>
                 <Tag color="blue">v{selectedSyllabus.version}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần" span={2}>
-                {selectedSyllabus.courseName}
+                {selectedSyllabus.subjectNameVi}
               </Descriptions.Item>
             </Descriptions>
 
@@ -869,13 +869,13 @@ export const SyllabusListPage: React.FC = () => {
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="Mã HP" span={1}>
-                {selectedSyllabus.courseCode}
+                {selectedSyllabus.subjectCode}
               </Descriptions.Item>
               <Descriptions.Item label="Phiên bản hiện tại" span={1}>
                 <Tag color="blue">v{selectedSyllabus.version}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần" span={2}>
-                {selectedSyllabus.courseName}
+                {selectedSyllabus.subjectNameVi}
               </Descriptions.Item>
             </Descriptions>
 

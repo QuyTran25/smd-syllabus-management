@@ -29,10 +29,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
+            // ⭐ QUAN TRỌNG: Nếu đang gọi API đăng nhập/đăng ký -> CHO QUA LUÔN
+            // Không check token ở đây để tránh lỗi 401 nếu Frontend gửi nhầm token cũ
+            String requestPath = request.getRequestURI();
+            if (requestPath.contains("/api/auth/") || requestPath.contains("/api/v1/auth/")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromToken(jwt);
+                
                 UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -42,7 +51,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
+            // Nếu có lỗi xác thực, log lại và vẫn cho request đi tiếp
+            // SecurityConfig sẽ chặn lại ở bước sau nếu cần thiết
+            log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

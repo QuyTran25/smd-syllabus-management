@@ -28,12 +28,4 @@ public class Role {
     @Column(name = "is_system")
     private Boolean isSystem = false;
 
-    // ✅ BỔ SUNG HOẶC KIỂM TRA 2 TRƯỜNG NÀY
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false, nullable = false) // ✅ Chỉ định rõ name bằng snake_case
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false) // ✅ Chỉ định rõ name bằng snake_case
-    private LocalDateTime updatedAt;
 }

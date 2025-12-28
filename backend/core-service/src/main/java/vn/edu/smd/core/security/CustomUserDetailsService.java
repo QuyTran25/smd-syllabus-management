@@ -16,11 +16,10 @@ import java.util.UUID;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
-
-    @Override
     @Transactional
+    @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
                 System.out.println("--- KIEM TRA MAT KHAU DB ---");
@@ -31,7 +30,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Transactional
     public UserDetails loadUserById(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdWithRoles(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
         return UserPrincipal.create(user);
     }

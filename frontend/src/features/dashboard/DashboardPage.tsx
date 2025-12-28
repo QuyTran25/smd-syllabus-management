@@ -17,8 +17,8 @@ const { Title, Text } = Typography;
 
 interface SyllabusItem {
   key: string;
-  courseName: string;
-  courseCode: string;
+  subjectNameVi: string;
+  subjectCode: string;
   status: SyllabusStatus;
   owner: string;
   updatedAt: string;
@@ -77,14 +77,14 @@ export const DashboardPage: React.FC = () => {
   const columns: ColumnsType<SyllabusItem> = [
     {
       title: 'Mã môn',
-      dataIndex: 'courseCode',
-      key: 'courseCode',
+      dataIndex: 'subjectCode',
+      key: 'subjectCode',
       width: 100,
     },
     {
       title: 'Tên môn học',
-      dataIndex: 'courseName',
-      key: 'courseName',
+      dataIndex: 'subjectNameVi',
+      key: 'subjectNameVi',
     },
     {
       title: 'Giảng viên',
@@ -126,8 +126,8 @@ export const DashboardPage: React.FC = () => {
 
   const tableData: SyllabusItem[] = (pendingSyllabi || []).map((s) => ({
     key: s.id,
-    courseName: s.subjectNameVi,
-    courseCode: s.subjectCode,
+    subjectNameVi: s.subjectNameVi,
+    subjectCode: s.subjectCode,
     status: s.status,
     owner: s.ownerName,
     updatedAt: s.updatedAt,

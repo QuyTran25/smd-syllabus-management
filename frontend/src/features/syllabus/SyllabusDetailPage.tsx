@@ -216,10 +216,10 @@ export const SyllabusDetailPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <Title level={2} style={{ margin: 0 }}>
-              {syllabus.courseName}
+              {syllabus.subjectNameVi}
             </Title>
             <Space style={{ marginTop: 8 }}>
-              <Text type="secondary">Mã môn: {syllabus.courseCode}</Text>
+              <Text type="secondary">Mã môn: {syllabus.subjectCode}</Text>
               <Tag color={currentStatus.color}>{currentStatus.text}</Tag>
             </Space>
           </div>
@@ -260,7 +260,7 @@ export const SyllabusDetailPage: React.FC = () => {
                     content: (
                       <Space direction="vertical">
                         <Text>Bạn có chắc muốn duyệt đề cương này?</Text>
-                        <Text strong>{syllabus.courseCode} - {syllabus.courseName}</Text>
+                        <Text strong>{syllabus.subjectCode} - {syllabus.subjectNameVi}</Text>
                         {isRevision ? (
                           <Text type="secondary">Đề cương sẽ được gửi cho Admin để xuất hành lại.</Text>
                         ) : (
@@ -347,7 +347,7 @@ export const SyllabusDetailPage: React.FC = () => {
                     content: (
                       <Space direction="vertical">
                         <Text>Bạn có chắc muốn duyệt đề cương này?</Text>
-                        <Text strong>{syllabus.courseCode} - {syllabus.courseName}</Text>
+                        <Text strong>{syllabus.subjectCode} - {syllabus.subjectNameVi}</Text>
                         <Text type="secondary">Đề cương sẽ được gửi lên Hiệu trưởng để phê duyệt cuối cùng.</Text>
                       </Space>
                     ),
@@ -437,13 +437,13 @@ export const SyllabusDetailPage: React.FC = () => {
               <Card>
                 <Descriptions bordered column={2}>
                   <Descriptions.Item label="Tên môn học (Tiếng Việt)" span={2}>
-                    {syllabus.courseName}
+                    {syllabus.subjectNameVi}
                   </Descriptions.Item>
                   <Descriptions.Item label="Tên môn học (Tiếng Anh)" span={2}>
-                    {syllabus.courseNameEn || <Text type="secondary">Chưa cập nhật</Text>}
+                    {syllabus.subjectNameEn || <Text type="secondary">Chưa cập nhật</Text>}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Mã môn học">{syllabus.courseCode}</Descriptions.Item>
-                  <Descriptions.Item label="Số tín chỉ">{syllabus.credits}</Descriptions.Item>
+                  <Descriptions.Item label="Mã môn học">{syllabus.subjectCode}</Descriptions.Item>
+                  <Descriptions.Item label="Số tín chỉ">{syllabus.creditCount}</Descriptions.Item>
                   <Descriptions.Item label="Loại học phần">
                     {syllabus.courseType === 'required' && <Tag color="red">Bắt buộc</Tag>}
                     {syllabus.courseType === 'elective' && <Tag color="blue">Tự chọn</Tag>}
@@ -482,7 +482,7 @@ export const SyllabusDetailPage: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Mục tiêu" span={2}>
                     <ul>
-                      {syllabus.objectives.map((obj, idx) => (
+                      {(syllabus.objectives || []).map((obj, idx) => (
                         <li key={idx}>{obj}</li>
                       ))}
                     </ul>
@@ -524,7 +524,7 @@ export const SyllabusDetailPage: React.FC = () => {
                 <Title level={4}>Chuẩn đầu ra môn học (CLO)</Title>
                 <Table
                   columns={cloColumns}
-                  dataSource={syllabus.clos}
+                  dataSource={syllabus.clos || []}
                   rowKey="id"
                   pagination={false}
                   style={{ marginBottom: 24 }}
@@ -532,19 +532,20 @@ export const SyllabusDetailPage: React.FC = () => {
 
                 <Title level={4}>Ánh xạ CLO - PLO</Title>
                 <Table
-                  dataSource={syllabus.ploMappings}
-                  rowKey={(record) => `${record.cloId}-${record.ploId}`}
+                  dataSource={syllabus.ploMappings || []}
+                  rowKey={(record) => `${record.cloCode}-${record.ploCode}`}
                   pagination={false}
                   columns={[
-                    { title: 'CLO', dataIndex: 'cloId', key: 'cloId' },
-                    { title: 'PLO', dataIndex: 'ploId', key: 'ploId' },
+                    { title: 'CLO', dataIndex: 'cloCode', key: 'cloCode' },
+                    { title: 'PLO', dataIndex: 'ploCode', key: 'ploCode' },
                     {
                       title: 'Mức độ đóng góp',
                       dataIndex: 'contributionLevel',
                       key: 'contributionLevel',
                       render: (level: string) => {
-                        const colors = { LOW: 'default', MEDIUM: 'orange', HIGH: 'green' };
-                        return <Tag color={colors[level as keyof typeof colors]}>{level}</Tag>;
+                        const colors = { I: 'blue', R: 'orange', M: 'green' };
+                        const labels = { I: 'I - Giới thiệu', R: 'R - Củng cố', M: 'M - Thành thạo' };
+                        return <Tag color={colors[level as keyof typeof colors] || 'default'}>{labels[level as keyof typeof labels] || level}</Tag>;
                       },
                     },
                   ]}
@@ -572,7 +573,7 @@ export const SyllabusDetailPage: React.FC = () => {
                         key: 'clos',
                         render: (clos: string[]) => (
                           <Space size="small" wrap>
-                            {clos.map((clo) => (
+                            {(clos || []).map((clo) => (
                               <Tag key={clo} color="blue">{clo}</Tag>
                             ))}
                           </Space>
@@ -607,7 +608,7 @@ export const SyllabusDetailPage: React.FC = () => {
                     <Title level={4}>Tiêu chí đánh giá (Cũ)</Title>
                     <Table
                       columns={assessmentColumns}
-                      dataSource={syllabus.assessmentCriteria}
+                      dataSource={syllabus.assessmentCriteria || []}
                       rowKey="id"
                       pagination={false}
                     />

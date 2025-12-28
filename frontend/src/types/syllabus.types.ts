@@ -82,10 +82,16 @@ export interface TimeAllocation {
 // Syllabus main entity
 export interface Syllabus {
   id: string;
-  courseCode: string;
-  courseName: string;
-  courseNameEn: string; // Tên tiếng Anh (bắt buộc theo template)
-  credits: number;
+  subjectCode: string;  // Mapped from backend snap_subject_code
+  subjectNameVi: string;  // Mapped from backend snap_subject_name_vi
+  subjectNameEn: string; // Mapped from backend snap_subject_name_en
+  creditCount: number;  // Mapped from backend snap_credit_count
+  
+  // Deprecated fields for backward compatibility
+  courseCode?: string;
+  courseName?: string;
+  courseNameEn?: string;
+  credits?: number;
   
   // Academic info
   semester: string; // HK1-2024, HK2-2024

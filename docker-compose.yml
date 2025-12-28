@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ============================================
@@ -8,18 +8,20 @@ services:
     image: pgvector/pgvector:pg15
     container_name: smd-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-smd_database}
-      POSTGRES_USER: ${POSTGRES_USER:-smd_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smd_password}
+      # ⭐ FIX CỨNG: Để khớp với application.properties
+      POSTGRES_DB: smd_database
+      POSTGRES_USER: smd_user
+      POSTGRES_PASSWORD: smd_password
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     networks:
       - smd-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smd_user}"]
+      # ⭐ FIX CỨNG: User healthcheck
+      test: ["CMD-SHELL", "pg_isready -U smd_user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -97,7 +99,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -106,7 +108,13 @@ services:
     networks:
       - smd-network
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -120,12 +128,12 @@ services:
       dockerfile: ../../infrastructure/docker/gateway/Dockerfile
     container_name: smd-gateway
     environment:
-      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
-      - JWT_SECRET=${JWT_SECRET}
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8888 # ⭐ Ép chạy port 8888
       - CORE_SERVICE_URL=http://core-service:8081
       - AI_SERVICE_URL=http://ai-service:8082
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      - "8888:8888" # ⭐ Map ra ngoài port 8888 cho Frontend gọi
     depends_on:
       - core-service
     networks:
@@ -142,9 +150,10 @@ services:
     container_name: smd-core-service
     environment:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smd_database}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-smd_user}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-smd_password}
+      # ⭐ FIX CỨNG: Cập nhật connection string để khớp với Postgres
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/smd_database
+      - SPRING_DATASOURCE_USERNAME=smd_user
+      - SPRING_DATASOURCE_PASSWORD=smd_password
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_RABBITMQ_HOST=rabbitmq
@@ -181,7 +190,8 @@ services:
     container_name: smd-ai-service
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-smd_user}:${POSTGRES_PASSWORD:-smd_password}@postgres:5432/${POSTGRES_DB:-smd_database}
+      # ⭐ FIX CỨNG: Cập nhật connection string cho AI service luôn
+      - DATABASE_URL=postgresql://smd_user:smd_password@postgres:5432/smd_database
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
