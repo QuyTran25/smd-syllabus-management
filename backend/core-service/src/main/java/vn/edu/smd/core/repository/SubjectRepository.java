@@ -23,4 +23,7 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
     List<Subject> findByIsActive(Boolean isActive);
     
     boolean existsByCode(String code);
+    
+    List<Subject> findByCodeContainingIgnoreCaseOrCurrentNameViContainingIgnoreCaseOrCurrentNameEnContainingIgnoreCase(
+        String code, String nameVi, String nameEn);
 }

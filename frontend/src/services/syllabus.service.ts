@@ -7,10 +7,7 @@ import {
   ApprovalAction,
   SyllabusComment,
 } from '@/types';
-import { mockSyllabi } from '@/mock';
-
-// Simulate API delay
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { apiClient } from '@/config/api-config';
 
 export const syllabusService = {
   // Get paginated syllabi with filters
@@ -18,238 +15,109 @@ export const syllabusService = {
     filters: SyllabusFilters = {},
     pagination: PaginationParams = { page: 1, pageSize: 10 }
   ): Promise<PaginatedResponse<Syllabus>> => {
-    await delay(500);
+    const params: Record<string, any> = {
+      page: pagination.page - 1, // Backend uses 0-based index
+      size: pagination.pageSize,
+    };
 
-    let filtered = [...mockSyllabi];
-
-    // Apply filters
+    // Add filters to params
     if (filters.status && filters.status.length > 0) {
-      filtered = filtered.filter((s) => filters.status?.includes(s.status));
+      params.status = filters.status.join(',');
     }
-
     if (filters.department && filters.department.length > 0) {
-      filtered = filtered.filter((s) => filters.department?.includes(s.department));
+      params.department = filters.department.join(',');
     }
-
     if (filters.faculty && filters.faculty.length > 0) {
-      filtered = filtered.filter((s) => filters.faculty?.includes(s.faculty));
+      params.faculty = filters.faculty.join(',');
     }
-
     if (filters.semester && filters.semester.length > 0) {
-      filtered = filtered.filter((s) => filters.semester?.includes(s.semester));
+      params.semester = filters.semester.join(',');
     }
-
     if (filters.ownerId) {
-      filtered = filtered.filter((s) => s.ownerId === filters.ownerId);
+      params.ownerId = filters.ownerId;
     }
-
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (s) =>
-          s.courseName.toLowerCase().includes(searchLower) ||
-          s.courseCode.toLowerCase().includes(searchLower) ||
-          s.ownerName.toLowerCase().includes(searchLower)
-      );
+      params.search = filters.search;
     }
-
-    // Apply sorting
     if (pagination.sortBy) {
-      filtered.sort((a, b) => {
-        const aValue = a[pagination.sortBy as keyof Syllabus];
-        const bValue = b[pagination.sortBy as keyof Syllabus];
-
-        if (!aValue || !bValue) return 0;
-
-        if (pagination.sortOrder === 'DESC') {
-          return aValue > bValue ? -1 : 1;
-        }
-        return aValue > bValue ? 1 : -1;
-      });
+      params.sort = `${pagination.sortBy},${pagination.sortOrder || 'ASC'}`;
     }
 
-    // Calculate pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pagination.pageSize);
-    const start = (pagination.page - 1) * pagination.pageSize;
-    const end = start + pagination.pageSize;
-    const data = filtered.slice(start, end);
-
+    const response = await apiClient.get('/api/syllabi', { params });
+    
     return {
-      data,
-      total,
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      totalPages,
+      data: response.data.data.content,
+      total: response.data.data.totalElements,
+      page: response.data.data.number + 1, // Convert back to 1-based
+      pageSize: response.data.data.size,
+      totalPages: response.data.data.totalPages,
     };
   },
 
   // Get single syllabus by ID
   getSyllabusById: async (id: string): Promise<Syllabus> => {
-    await delay(300);
-
-    const syllabus = mockSyllabi.find((s) => s.id === id);
-    if (!syllabus) {
-      throw new Error('Syllabus not found');
-    }
-
-    return syllabus;
+    const response = await apiClient.get(`/api/syllabi/${id}`);
+    return response.data.data;
   },
 
   // Create new syllabus
   createSyllabus: async (data: Partial<Syllabus>): Promise<Syllabus> => {
-    await delay(800);
-
-    const newSyllabus: Syllabus = {
-      id: `syllabus-${Date.now()}`,
-      ...data,
-      status: SyllabusStatus.DRAFT,
-      version: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as Syllabus;
-
-    mockSyllabi.push(newSyllabus);
-    return newSyllabus;
+    const response = await apiClient.post('/api/syllabi', data);
+    return response.data.data;
   },
 
   // Update syllabus
   updateSyllabus: async (id: string, data: Partial<Syllabus>): Promise<Syllabus> => {
-    await delay(800);
-
-    const index = mockSyllabi.findIndex((s) => s.id === id);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    const updated = {
-      ...mockSyllabi[index],
-      ...data,
-      updatedAt: new Date().toISOString(),
-    };
-
-    mockSyllabi[index] = updated;
-    return updated;
+    const response = await apiClient.put(`/api/syllabi/${id}`, data);
+    return response.data.data;
   },
 
   // Delete syllabus
   deleteSyllabus: async (id: string): Promise<void> => {
-    await delay(500);
-
-    const index = mockSyllabi.findIndex((s) => s.id === id);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    mockSyllabi.splice(index, 1);
+    await apiClient.delete(`/api/syllabi/${id}`);
   },
 
   // Approval actions
   approveSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
-    await delay(1000);
+    const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/approve`, {
+      comment: action.reason,
+    });
+    return response.data.data;
+  },
 
-    const index = mockSyllabi.findIndex((s) => s.id === action.syllabusId);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    const syllabus = mockSyllabi[index];
-    const now = new Date().toISOString();
-
-    // State machine logic
-    let newStatus: SyllabusStatus;
-    
-    if (action.action === 'REJECT') {
-      newStatus = SyllabusStatus.DRAFT;
-    } else {
-      // APPROVE logic
-      switch (syllabus.status) {
-        case SyllabusStatus.PENDING_HOD:
-          newStatus = SyllabusStatus.PENDING_AA;
-          syllabus.hodApprovedAt = now;
-          break;
-        case SyllabusStatus.PENDING_AA:
-          newStatus = SyllabusStatus.PENDING_PRINCIPAL;
-          syllabus.aaApprovedAt = now;
-          break;
-        case SyllabusStatus.PENDING_PRINCIPAL:
-          newStatus = SyllabusStatus.APPROVED;
-          syllabus.principalApprovedAt = now;
-          break;
-        case SyllabusStatus.APPROVED:
-          newStatus = SyllabusStatus.PUBLISHED;
-          syllabus.publishedAt = now;
-          break;
-        default:
-          throw new Error('Invalid status for approval');
-      }
-    }
-
-    const updated = {
-      ...syllabus,
-      status: newStatus,
-      updatedAt: now,
-    };
-
-    mockSyllabi[index] = updated;
-    return updated;
+  // Reject syllabus
+  rejectSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
+    const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/reject`, {
+      reason: action.reason,
+    });
+    return response.data.data;
   },
 
   // Get comments for syllabus
   getComments: async (syllabusId: string): Promise<SyllabusComment[]> => {
-    await delay(300);
-
-    // Mock comments
-    return [
-      {
-        id: 'comment-1',
-        syllabusId,
-        userId: 'hod-001',
-        userName: 'TS. Nguyễn Văn Trưởng Bộ Môn',
-        userRole: 'HOD',
-        content: 'Nội dung CLO cần bổ sung thêm chi tiết về kỹ năng thực hành.',
-        type: 'INLINE',
-        section: 'CLO',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 'comment-2',
-        syllabusId,
-        userId: 'aa-001',
-        userName: 'TS. Phạm Thị Phòng Đào Tạo',
-        userRole: 'AA',
-        content: 'Ánh xạ PLO cần được kiểm tra lại theo chuẩn đầu ra của chương trình.',
-        type: 'INLINE',
-        section: 'PLO Mapping',
-        createdAt: new Date(Date.now() - 43200000).toISOString(),
-        updatedAt: new Date(Date.now() - 43200000).toISOString(),
-      },
-    ];
+    const response = await apiClient.get(`/api/review-comments/syllabus/${syllabusId}`);
+    return response.data.data;
   },
 
   // Add comment
   addComment: async (comment: Omit<SyllabusComment, 'id' | 'createdAt' | 'updatedAt'>): Promise<SyllabusComment> => {
-    await delay(500);
-
-    const newComment: SyllabusComment = {
-      ...comment,
-      id: `comment-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    return newComment;
+    const response = await apiClient.post('/api/review-comments', comment);
+    return response.data.data;
   },
 
   // Get statistics
   getStatistics: async (): Promise<Record<string, number>> => {
-    await delay(300);
-
+    // This would need a custom stats endpoint in backend
+    // For now, we'll fetch all syllabi and count locally
+    const response = await apiClient.get('/api/syllabi', {
+      params: { page: 0, size: 1000 }
+    });
+    
+    const syllabi = response.data.data.content;
     const stats: Record<string, number> = {};
     
     Object.values(SyllabusStatus).forEach((status) => {
-      stats[status] = mockSyllabi.filter((s) => s.status === status).length;
+      stats[status] = syllabi.filter((s: Syllabus) => s.status === status).length;
     });
 
     return stats;
@@ -257,8 +125,6 @@ export const syllabusService = {
 
   // Export to CSV
   exportToCSV: async (filters: SyllabusFilters = {}): Promise<Blob> => {
-    await delay(1000);
-
     const { data } = await syllabusService.getSyllabi(filters, { page: 1, pageSize: 1000 });
 
     const headers = [
@@ -292,71 +158,20 @@ export const syllabusService = {
 
   // Unpublish syllabus (Admin only)
   unpublishSyllabus: async (id: string, reason: string): Promise<Syllabus> => {
-    await delay(800);
-
-    const index = mockSyllabi.findIndex((s) => s.id === id);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    const syllabus = mockSyllabi[index];
-    if (syllabus.status !== SyllabusStatus.PUBLISHED) {
-      throw new Error('Only published syllabi can be unpublished');
-    }
-
-    const now = new Date().toISOString();
-
-    const updated = {
-      ...syllabus,
-      status: SyllabusStatus.ARCHIVED,
-      archivedAt: now,
-      archivedBy: 'Admin User',
-      unpublishReason: reason,
-      updatedAt: now,
-    };
-
-    mockSyllabi[index] = updated;
-    return updated;
+    const response = await apiClient.patch(`/api/syllabi/${id}/unpublish`, { reason });
+    return response.data.data;
   },
 
   // Archive syllabus (Admin only)
   archiveSyllabus: async (id: string): Promise<Syllabus> => {
-    await delay(800);
-
-    const index = mockSyllabi.findIndex((s) => s.id === id);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    const updated = {
-      ...mockSyllabi[index],
-      status: SyllabusStatus.ARCHIVED,
-      archivedAt: new Date().toISOString(),
-      archivedBy: 'Admin User',
-      updatedAt: new Date().toISOString(),
-    };
-
-    mockSyllabi[index] = updated;
-    return updated;
+    const response = await apiClient.patch(`/api/syllabi/${id}/archive`);
+    return response.data.data;
   },
 
   // Update effective date (Admin only)
   updateEffectiveDate: async (id: string, effectiveDate: string): Promise<Syllabus> => {
-    await delay(500);
-
-    const index = mockSyllabi.findIndex((s) => s.id === id);
-    if (index === -1) {
-      throw new Error('Syllabus not found');
-    }
-
-    const updated = {
-      ...mockSyllabi[index],
-      effectiveDate,
-      updatedAt: new Date().toISOString(),
-    };
-
-    mockSyllabi[index] = updated;
-    return updated;
+    const response = await apiClient.patch(`/api/syllabi/${id}/effective-date`, { effectiveDate });
+    return response.data.data;
   },
 };
 

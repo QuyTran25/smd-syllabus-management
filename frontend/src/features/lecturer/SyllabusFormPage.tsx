@@ -122,13 +122,45 @@ const SyllabusFormPage: React.FC = () => {
         // axiosClient đã có baseURL và tự động gắn Token
         const [deptRes, courseRes, semRes] = await Promise.all([
           axiosClient.get('/departments'),
-          axiosClient.get('/subjects'),
-          axiosClient.get('/academic-terms')
+          // Use public endpoints provided by backend
+          axiosClient.get('/public/subjects'),
+          axiosClient.get('/public/semesters')
         ]);
+        // Debug: show full responses to help diagnose empty lists
+        console.log('DEPARTMENTS RESPONSE (full):', deptRes);
+        console.log('SUBJECTS RESPONSE (full):', courseRes);
+        console.log('SEMESTERS RESPONSE (full):', semRes);
 
-        setDbDepartments(deptRes.data);
-        setDbCourses(courseRes.data);
-        setDbSemesters(semRes.data);
+        // 1) Departments: API may return paged result { success, data: { content: [...] } }
+        const deptContent = Array.isArray(deptRes?.data?.data?.content)
+          ? deptRes.data.data.content
+          : Array.isArray(deptRes?.data)
+            ? deptRes.data
+            : [];
+        setDbDepartments(deptContent);
+        console.log('Đã load danh sách bộ môn (normalized):', deptContent);
+
+        // 2) Subjects (courses): handle either paged ({ success, data: { content }}) or plain list
+        const courseContent = Array.isArray(courseRes?.data?.data?.content)
+          ? courseRes.data.data.content
+          : Array.isArray(courseRes?.data)
+            ? courseRes.data
+            : Array.isArray(courseRes?.data?.data)
+              ? courseRes.data.data
+              : [];
+        setDbCourses(courseContent);
+        console.log('Đã load danh sách môn học (normalized):', courseContent);
+
+        // 3) Semesters: similar handling
+        const semContent = Array.isArray(semRes?.data?.data?.content)
+          ? semRes.data.data.content
+          : Array.isArray(semRes?.data)
+            ? semRes.data
+            : Array.isArray(semRes?.data?.data)
+              ? semRes.data.data
+              : [];
+        setDbSemesters(semContent);
+        console.log('Đã load danh sách học kỳ (normalized):', semContent);
       } catch (error) {
         console.error("Lỗi tải dữ liệu danh mục:", error);
         // Không spam message error ở đây để tránh khó chịu khi load trang
@@ -137,15 +169,15 @@ const SyllabusFormPage: React.FC = () => {
     fetchMetadata();
   }, []);
 
-  // 2. Logic chọn môn học
-  const handleCourseSelect = (courseCode: string) => {
-    const course = dbCourses.find((c: any) => c.code === courseCode);
+  // 2. Logic chọn môn học (Select trả về subjectId UUID)
+  const handleCourseSelect = (subjectId: string) => {
+    const course = dbCourses.find((c: any) => c.id === subjectId);
     if (course) {
       form.setFieldsValue({
         subjectName: course.currentNameVi || course.name,
-        credits: course.credits
+        credits: course.defaultCredits || course.credits,
       });
-      setPrerequisites([]); 
+      setPrerequisites([]);
     }
   };
 
@@ -155,8 +187,10 @@ const SyllabusFormPage: React.FC = () => {
     if (selected) {
       message.success(`Đã copy từ ${selected.subjectCode}`);
       setCopyModalVisible(false);
+      // Try to find subject by code and set subjectId if available
+      const found = dbCourses.find((c: any) => c.code === selected.subjectCode);
       form.setFieldsValue({
-        subjectCode: selected.subjectCode,
+        subjectId: found ? found.id : undefined,
         subjectName: selected.subjectName,
         description: 'Nội dung được copy từ đề cương cũ...',
       });
@@ -240,17 +274,25 @@ const SyllabusFormPage: React.FC = () => {
         setLoading(false); return;
       }
 
-      // Payload
+      // Build payload matching backend SyllabusRequest
       const payload = {
-        ...values,
-        status: status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
-        clos: clos,
-        assessmentMethods: assessmentMethods,
-        prerequisites: prerequisites,
-        subjectId: dbCourses.find((c: any) => c.code === values.subjectCode)?.id 
+        subjectId: values.subjectId,
+        academicTermId: values.semesterId,
+        versionNo: values.versionNo || '1.0',
+        status: status === 'DRAFT' ? 'DRAFT' : 'PENDING_APPROVAL',
+        // content - nested JSON to be stored as JSONB
+        content: {
+          description: values.description,
+          objectives: values.objectives,
+          programId: values.programId,
+          academicYear: values.academicYear,
+          clos: clos,
+          assessmentMethods: assessmentMethods,
+          prerequisites: prerequisites,
+        }
       };
 
-      // --- SỬA 2: Dùng axiosClient gọi POST (Tự động kèm Token) ---
+      // Call backend create endpoint (plural path)
       await axiosClient.post('/syllabus', payload);
 
       message.success(status === 'SUBMIT' ? 'Đã gửi đề cương thành công!' : 'Đã lưu nháp thành công!');
@@ -384,7 +426,7 @@ const SyllabusFormPage: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item label="Mã học phần" name="subjectCode" rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}>
+              <Form.Item label="Mã học phần" name="subjectId" rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}>
                 <Select 
                   placeholder="Chọn môn học" 
                   onChange={handleCourseSelect} 
@@ -394,10 +436,13 @@ const SyllabusFormPage: React.FC = () => {
                   }
                 >
                   {dbCourses
-                    .filter((c: any) => c.departmentId === selectedDepartment || !selectedDepartment)
+                    // Include courses when no department selected, or when departmentId matches,
+                    // also include courses with null/undefined departmentId to avoid empty lists.
+                    .filter((c: any) => !selectedDepartment || c.departmentId === selectedDepartment || c.departmentId == null)
                     .map((course: any) => (
-                      <Option key={course.id} value={course.code}>
-                        {course.code} - {course.currentNameVi}
+                      // IMPORTANT: value is course.id (UUID)
+                      <Option key={course.id} value={course.id}>
+                        {course.code} - {course.currentNameVi || course.name}
                       </Option>
                   ))}
                 </Select>
@@ -421,7 +466,7 @@ const SyllabusFormPage: React.FC = () => {
                 <Select placeholder="Chọn học kỳ">
                   {dbSemesters.map((sem: any) => (
                     <Option key={sem.id} value={sem.id}>
-                      {sem.termName || sem.name}
+                      {sem.name || sem.termName || sem.code} {sem.academicYear ? `(${sem.academicYear})` : ''}
                     </Option>
                   ))}
                 </Select>

@@ -3,6 +3,7 @@ package vn.edu.smd.core.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod; // <--- Import quan trọng
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -13,7 +14,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder; 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,7 +27,8 @@ import vn.edu.smd.core.security.JwtAuthenticationFilter;
 
 import java.util.List;
 
-@Configuration
+@Configuration("legacySecurityConfig")
+@Profile("legacy")
 @EnableWebSecurity
 @EnableMethodSecurity // <--- Bật tính năng phân quyền chi tiết (Production Ready)
 public class SecurityConfig {
@@ -40,7 +43,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // CORS is handled by the API Gateway (globalcors). Disable backend CORS here
+            .cors(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 // 1. --- QUAN TRỌNG: MỞ CỬA CHO CORS PRE-FLIGHT ---
                 // Trình duyệt sẽ gửi request OPTIONS để check trước khi gửi request thật.
@@ -71,7 +75,8 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance(); 
+        // Passwords in DB are BCrypt-hashed; use BCryptPasswordEncoder to verify them.
+        return new BCryptPasswordEncoder();
     }
 
     @Bean

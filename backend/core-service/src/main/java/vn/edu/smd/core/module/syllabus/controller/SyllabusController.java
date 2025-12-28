@@ -1,147 +1,127 @@
 package vn.edu.smd.core.module.syllabus.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.smd.core.common.dto.ApiResponse;
+import vn.edu.smd.core.common.dto.PageResponse;
+import vn.edu.smd.core.module.syllabus.dto.*;
+import vn.edu.smd.core.module.syllabus.service.SyllabusService;
 
-import vn.edu.smd.core.entity.AcademicTerm;
-import vn.edu.smd.core.entity.Subject;
-import vn.edu.smd.core.entity.SyllabusVersion;
-import vn.edu.smd.core.entity.User;
-import vn.edu.smd.core.repository.AcademicTermRepository;
-import vn.edu.smd.core.repository.SubjectRepository;
-import vn.edu.smd.core.repository.SyllabusVersionRepository;
-import vn.edu.smd.core.repository.UserRepository;
-import vn.edu.smd.shared.enums.SyllabusStatus;
-
-import java.time.LocalDateTime;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
 @RestController
 @RequestMapping("/api/syllabus")
+@RequiredArgsConstructor
 public class SyllabusController {
 
-    @Autowired
-    private SyllabusVersionRepository syllabusVersionRepository;
+    private final SyllabusService syllabusService;
 
-    @Autowired
-    private SubjectRepository subjectRepository;
+    @Operation(summary = "Get all syllabi", description = "Get list of syllabi with pagination and filtering")
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(
+            Pageable pageable,
+            @RequestParam(required = false) List<String> status) {
+        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
+    }
 
-    @Autowired
-    private UserRepository userRepository;
+    @Operation(summary = "Get syllabus by ID", description = "Get syllabus details by ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> getSyllabusById(@PathVariable UUID id) {
+        SyllabusResponse syllabus = syllabusService.getSyllabusById(id);
+        return ResponseEntity.ok(ApiResponse.success(syllabus));
+    }
 
-    @Autowired
-    private AcademicTermRepository academicTermRepository;
-
+    @Operation(summary = "Create syllabus", description = "Create new syllabus")
     @PostMapping
-    @Transactional
-    public ResponseEntity<?> createSyllabus(@RequestBody Map<String, Object> payload) {
-        try {
-            SyllabusVersion syllabus = new SyllabusVersion();
-
-            // 1. Map Subject & Snapshot Data
-            String subjectIdStr = (String) payload.get("subjectId");
-            if (subjectIdStr != null) {
-                Subject subject = subjectRepository.findById(UUID.fromString(subjectIdStr))
-                        .orElseThrow(() -> new RuntimeException("Subject not found"));
-                syllabus.setSubject(subject);
-                
-                syllabus.setSnapSubjectCode(subject.getCode());
-                syllabus.setSnapSubjectNameVi(subject.getCurrentNameVi());
-                syllabus.setSnapSubjectNameEn(subject.getCurrentNameEn());
-                syllabus.setSnapCreditCount(subject.getDefaultCredits()); 
-            }
-
-            // 2. Map Academic Term
-            String semesterId = (String) payload.get("semesterId");
-            if (semesterId != null) {
-                AcademicTerm term = academicTermRepository.findById(UUID.fromString(semesterId)).orElse(null);
-                syllabus.setAcademicTerm(term);
-            }
-
-            // 3. Map Creator
-            User currentUser = getCurrentUser();
-            syllabus.setCreatedBy(currentUser);
-
-            // 4. Map Basic Fields
-            syllabus.setVersionNo("1.0.0");
-            syllabus.setDescription((String) payload.get("description"));
-            syllabus.setObjectives((String) payload.get("objectives"));
-            syllabus.setStudentTasks((String) payload.get("studentDuties"));
-
-            // 5. Xử lý Time Allocation
-            Object timeAllocObj = payload.get("timeAllocation");
-            if (timeAllocObj instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> timeAlloc = (Map<String, Object>) timeAllocObj;
-                
-                syllabus.setTheoryHours(parseIntSafely(timeAlloc.get("theory")));
-                syllabus.setPracticeHours(parseIntSafely(timeAlloc.get("practice")));
-                syllabus.setSelfStudyHours(parseIntSafely(timeAlloc.get("selfStudy")));
-            }
-
-            // 6. Map Status
-            String statusStr = (String) payload.get("status");
-            try {
-                syllabus.setStatus(SyllabusStatus.valueOf(statusStr));
-            } catch (Exception e) {
-                syllabus.setStatus(SyllabusStatus.DRAFT);
-            }
-
-            // 7. Lưu Content JSON & Cờ
-            syllabus.setContent(payload);
-            syllabus.setIsEditEnabled(true);
-            syllabus.setIsDeleted(false);
-            
-            syllabus.setCreatedAt(LocalDateTime.now());
-            syllabus.setUpdatedAt(LocalDateTime.now());
-
-            // Lưu DB
-            syllabusVersionRepository.save(syllabus);
-
-            return ResponseEntity.ok().body("Lưu thành công Syllabus ID: " + syllabus.getId());
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Lỗi Backend: " + e.getMessage());
-        }
+    public ResponseEntity<ApiResponse<SyllabusResponse>> createSyllabus(@Valid @RequestBody SyllabusRequest request) {
+        SyllabusResponse syllabus = syllabusService.createSyllabus(request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus created successfully", syllabus));
     }
 
-    private User getCurrentUser() {
-        try {
-            Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            String email = null;
-            if (principal instanceof UserDetails) {
-                email = ((UserDetails) principal).getUsername();
-            } else if (principal instanceof String && !"anonymousUser".equals(principal)) {
-                email = (String) principal;
-            }
-
-            if (email != null) {
-                // FIX: Dùng biến finalEmail để truyền vào lambda
-                String finalEmail = email;
-                return userRepository.findByEmail(finalEmail)
-                        .orElseThrow(() -> new RuntimeException("User not found: " + finalEmail));
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-
-        return userRepository.findByEmail("lecturer@smd.edu.vn")
-                .orElseGet(() -> userRepository.findAll().stream().findFirst()
-                        .orElseThrow(() -> new RuntimeException("DB trống! Hãy chạy lệnh SQL tạo User trước.")));
+    @Operation(summary = "Update syllabus", description = "Update syllabus (only DRAFT status)")
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> updateSyllabus(@PathVariable UUID id, @Valid @RequestBody SyllabusRequest request) {
+        SyllabusResponse syllabus = syllabusService.updateSyllabus(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus updated successfully", syllabus));
     }
 
-    private Integer parseIntSafely(Object obj) {
-        if (obj == null) return 0;
-        try {
-            return Integer.parseInt(obj.toString());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+    @Operation(summary = "Delete syllabus", description = "Delete syllabus (only DRAFT status)")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteSyllabus(@PathVariable UUID id) {
+        syllabusService.deleteSyllabus(id);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus deleted successfully", null));
+    }
+
+    @Operation(summary = "Submit syllabus for approval", description = "Submit syllabus to approval workflow")
+    @PatchMapping("/{id}/submit")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> submitSyllabus(
+            @PathVariable UUID id, 
+            @RequestBody(required = false) SyllabusApprovalRequest request) {
+        SyllabusResponse syllabus = syllabusService.submitSyllabus(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus submitted for approval", syllabus));
+    }
+
+    @Operation(summary = "Approve syllabus", description = "Approve syllabus (moves to next approval stage)")
+    @PatchMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> approveSyllabus(
+            @PathVariable UUID id, 
+            @RequestBody(required = false) SyllabusApprovalRequest request) {
+        SyllabusResponse syllabus = syllabusService.approveSyllabus(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus approved successfully", syllabus));
+    }
+
+    @Operation(summary = "Reject syllabus", description = "Reject syllabus with reason")
+    @PatchMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> rejectSyllabus(
+            @PathVariable UUID id, 
+            @RequestBody SyllabusApprovalRequest request) {
+        SyllabusResponse syllabus = syllabusService.rejectSyllabus(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus rejected", syllabus));
+    }
+
+    @Operation(summary = "Clone syllabus", description = "Create new version by cloning existing syllabus")
+    @PostMapping("/{id}/clone")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> cloneSyllabus(@PathVariable UUID id) {
+        SyllabusResponse syllabus = syllabusService.cloneSyllabus(id);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus cloned successfully", syllabus));
+    }
+
+    @Operation(summary = "Get syllabus versions", description = "Get all versions of a syllabus")
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<ApiResponse<List<SyllabusResponse>>> getSyllabusVersions(@PathVariable UUID id) {
+        List<SyllabusResponse> versions = syllabusService.getSyllabusVersions(id);
+        return ResponseEntity.ok(ApiResponse.success(versions));
+    }
+
+    @Operation(summary = "Compare two syllabi", description = "Compare two syllabus versions")
+    @GetMapping("/{id}/compare/{otherId}")
+    public ResponseEntity<ApiResponse<SyllabusCompareResponse>> compareSyllabi(
+            @PathVariable UUID id, 
+            @PathVariable UUID otherId) {
+        SyllabusCompareResponse comparison = syllabusService.compareSyllabi(id, otherId);
+        return ResponseEntity.ok(ApiResponse.success(comparison));
+    }
+
+    @Operation(summary = "Get syllabi by subject", description = "Get all syllabi for a specific subject")
+    @GetMapping("/subject/{subjectId}")
+    public ResponseEntity<ApiResponse<List<SyllabusResponse>>> getSyllabiBySubject(@PathVariable UUID subjectId) {
+        List<SyllabusResponse> syllabi = syllabusService.getSyllabiBySubject(subjectId);
+        return ResponseEntity.ok(ApiResponse.success(syllabi));
+    }
+
+    @Operation(summary = "Export syllabus to PDF", description = "Export syllabus to PDF format")
+    @PostMapping("/{id}/export/pdf")
+    public ResponseEntity<ApiResponse<byte[]>> exportSyllabusToPdf(@PathVariable UUID id) {
+        byte[] pdfData = syllabusService.exportSyllabusToPdf(id);
+        return ResponseEntity.ok(ApiResponse.success("PDF exported successfully", pdfData));
     }
 }

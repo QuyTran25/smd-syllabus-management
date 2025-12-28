@@ -1,4 +1,5 @@
 import axios from 'axios';
+import axiosClient from '@/api/axiosClient';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
@@ -60,7 +61,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
-      const response = await axios.post('http://localhost:8081/api/auth/login', {
+      // Use gateway axios client so requests go via http://localhost:8080/api
+      const response = await axiosClient.post('/auth/login', {
         email: email,
         password: password
       });

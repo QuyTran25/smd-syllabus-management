@@ -6,6 +6,7 @@ import vn.edu.smd.core.entity.SubjectRelationship;
 import vn.edu.smd.shared.enums.SubjectRelationType;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -19,4 +20,7 @@ public interface SubjectRelationshipRepository extends JpaRepository<SubjectRela
     List<SubjectRelationship> findByRelatedSubjectId(UUID relatedSubjectId);
     
     List<SubjectRelationship> findBySubjectIdAndType(UUID subjectId, SubjectRelationType type);
+    
+    Optional<SubjectRelationship> findBySubjectIdAndRelatedSubjectIdAndType(
+        UUID subjectId, UUID relatedSubjectId, SubjectRelationType type);
 }

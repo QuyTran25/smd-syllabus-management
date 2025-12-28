@@ -9,7 +9,7 @@ import vn.edu.smd.core.repository.AcademicTermRepository;
 
 import java.util.List;
 
-@RestController
+@RestController("syllabusAcademicTermController")
 @RequestMapping("/api/academic-terms")
 public class AcademicTermController {
 

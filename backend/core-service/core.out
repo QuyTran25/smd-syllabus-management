@@ -1,0 +1,12 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+2025-12-28T02:40:51.749+07:00  INFO 17072 --- [smd-core-service] [           main] vn.edu.smd.core.CoreServiceApplication   : Starting CoreServiceApplication v1.0.0 using Java 17.0.17 with PID 17072 (D:\SMD_F1\smd-syllabus-management\backend\core-service\target\core-service-1.0.0.jar started by Admin in D:\SMD_F1\smd-syllabus-management\backend\core-service)
+2025-12-28T02:40:51.753+07:00 DEBUG 17072 --- [smd-core-service] [           main] vn.edu.smd.core.CoreServiceApplication   : Running with Spring Boot v3.2.0, Spring v6.1.1
+2025-12-28T02:40:51.754+07:00  INFO 17072 --- [smd-core-service] [           main] vn.edu.smd.core.CoreServiceApplication   : No active profile set, falling back to 1 default profile: "default"

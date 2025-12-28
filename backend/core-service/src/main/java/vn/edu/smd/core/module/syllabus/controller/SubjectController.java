@@ -5,8 +5,8 @@ import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.core.repository.SubjectRepository;
 import java.util.List;
 
-@RestController
-@RequestMapping("/api/subjects")
+@RestController("syllabusSubjectController")
+@RequestMapping("/api/syllabus/subjects")
 public class SubjectController {
 
     @Autowired

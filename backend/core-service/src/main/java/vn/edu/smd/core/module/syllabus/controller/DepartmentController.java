@@ -9,8 +9,8 @@ import vn.edu.smd.core.repository.DepartmentRepository;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/api/departments")
+@RestController("syllabusDepartmentController")
+@RequestMapping("/api/syllabus/departments")
 public class DepartmentController {
 
     @Autowired

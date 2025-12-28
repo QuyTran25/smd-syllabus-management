@@ -28,6 +28,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // For preflight (OPTIONS) requests, don't write CORS headers here.
+        // Let the configured CORS filter (or API Gateway) handle CORS response headers.
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
         // Không log các request login hoặc public để đỡ rối
         if (path.contains("/api/auth")) {

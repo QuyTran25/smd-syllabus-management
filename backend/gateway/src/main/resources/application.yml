@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: smd-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: core-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/**
+          # Đảm bảo giữ nguyên /api/ khi chuyển tiếp sang backend
+          filters:
+            - StripPrefix=0
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:3001"
+              - "http://localhost:3002"
+              - "http://localhost:3003"
+              - "http://localhost:3004"
+              - "http://localhost:3005" # THÊM DÒNG NÀY ĐỂ FIX LỖI
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
