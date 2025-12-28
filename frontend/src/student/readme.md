@@ -47,7 +47,7 @@ Bash
 
 cd frontend
 npm install
-npm start
+npm run dev:student
 Trang web sẽ tự mở tại: http://localhost:3000
 
 🔑 6. Tài khoản đăng nhập (Có sẵn)
