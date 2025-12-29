@@ -5,3 +5,4 @@ export * from './ai.service';
 export * from './course.service';
 export * from './semester.service';
 export * from './feedback.service';
+export * from './auditlog.service';

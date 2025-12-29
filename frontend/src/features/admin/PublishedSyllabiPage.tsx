@@ -14,6 +14,7 @@ import {
   Timeline,
   Badge,
   Tabs,
+  Select,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -21,6 +22,7 @@ import {
   HistoryOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +33,49 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { Option } = Select;
+
+// Các trạng thái đề cương cần quản lý
+const ADMIN_SYLLABUS_STATUSES = [
+  SyllabusStatus.APPROVED,
+  SyllabusStatus.PUBLISHED,
+  SyllabusStatus.REJECTED,
+  SyllabusStatus.REVISION_IN_PROGRESS,
+  SyllabusStatus.PENDING_ADMIN_REPUBLISH,
+  SyllabusStatus.INACTIVE,
+  SyllabusStatus.ARCHIVED,
+];
+
+// Label và màu cho các trạng thái
+const STATUS_LABELS: Record<SyllabusStatus, string> = {
+  [SyllabusStatus.DRAFT]: 'Bản nháp',
+  [SyllabusStatus.PENDING_HOD]: 'Chờ TBM duyệt',
+  [SyllabusStatus.PENDING_AA]: 'Chờ ĐT duyệt',
+  [SyllabusStatus.PENDING_PRINCIPAL]: 'Chờ HT duyệt',
+  [SyllabusStatus.APPROVED]: 'Đã phê duyệt',
+  [SyllabusStatus.PUBLISHED]: 'Đã xuất bản',
+  [SyllabusStatus.REJECTED]: 'Bị từ chối',
+  [SyllabusStatus.REVISION_IN_PROGRESS]: 'Đang chỉnh sửa',
+  [SyllabusStatus.PENDING_HOD_REVISION]: 'Chờ TBM duyệt lại',
+  [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: 'Chờ xuất bản lại',
+  [SyllabusStatus.INACTIVE]: 'Không hoạt động',
+  [SyllabusStatus.ARCHIVED]: 'Đã lưu trữ',
+};
+
+const STATUS_COLORS: Record<SyllabusStatus, string> = {
+  [SyllabusStatus.DRAFT]: 'default',
+  [SyllabusStatus.PENDING_HOD]: 'processing',
+  [SyllabusStatus.PENDING_AA]: 'processing',
+  [SyllabusStatus.PENDING_PRINCIPAL]: 'processing',
+  [SyllabusStatus.APPROVED]: 'success',
+  [SyllabusStatus.PUBLISHED]: 'green',
+  [SyllabusStatus.REJECTED]: 'error',
+  [SyllabusStatus.REVISION_IN_PROGRESS]: 'warning',
+  [SyllabusStatus.PENDING_HOD_REVISION]: 'processing',
+  [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: 'gold',
+  [SyllabusStatus.INACTIVE]: 'default',
+  [SyllabusStatus.ARCHIVED]: 'default',
+};
 
 export const PublishedSyllabiPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -38,20 +83,16 @@ export const PublishedSyllabiPage: React.FC = () => {
   const [unpublishModalVisible, setUnpublishModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [selectedSyllabus, setSelectedSyllabus] = useState<Syllabus | null>(null);
+  const [statusFilter, setStatusFilter] = useState<SyllabusStatus[]>([]);
   const [form] = Form.useForm();
 
-  // Fetch published and archived syllabi
-  const { data: publishedSyllabi, isLoading: loadingPublished } = useQuery({
-    queryKey: ['syllabi', SyllabusStatus.PUBLISHED],
-    queryFn: () =>
-      syllabusService.getSyllabi({ status: [SyllabusStatus.PUBLISHED] }),
-    select: (response) => response.data,
-  });
-
-  const { data: archivedSyllabi, isLoading: loadingArchived } = useQuery({
-    queryKey: ['syllabi', SyllabusStatus.ARCHIVED],
-    queryFn: () =>
-      syllabusService.getSyllabi({ status: [SyllabusStatus.ARCHIVED] }),
+  // Fetch all syllabi with admin statuses
+  const { data: allSyllabi, isLoading } = useQuery({
+    queryKey: ['syllabi', 'admin', statusFilter],
+    queryFn: () => {
+      const statuses = statusFilter.length > 0 ? statusFilter : ADMIN_SYLLABUS_STATUSES;
+      return syllabusService.getSyllabi({ status: statuses });
+    },
     select: (response) => response.data,
   });
 
@@ -163,6 +204,20 @@ export const PublishedSyllabiPage: React.FC = () => {
       dataIndex: 'semester',
       key: 'semester',
       width: 100,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      render: (status: SyllabusStatus) => (
+        <Tag color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Tag>
+      ),
+      filters: ADMIN_SYLLABUS_STATUSES.map((status) => ({
+        text: STATUS_LABELS[status],
+        value: status,
+      })),
+      onFilter: (value, record) => record.status === value,
     },
     {
       title: 'Hành động',
@@ -278,63 +333,47 @@ export const PublishedSyllabiPage: React.FC = () => {
     <div style={{ padding: '24px' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Card>
-          <Title level={4} style={{ margin: 0 }}>
-            <FileTextOutlined /> Quản lý Đề cương Đã xuất hành
-          </Title>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} style={{ margin: 0 }}>
+              <FileTextOutlined /> Quản lý Đề cương
+            </Title>
+            <Space>
+              <FilterOutlined />
+              <Select
+                mode="multiple"
+                placeholder="Lọc theo trạng thái"
+                style={{ minWidth: 300 }}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                allowClear
+                maxTagCount={2}
+              >
+                {ADMIN_SYLLABUS_STATUSES.map((status) => (
+                  <Option key={status} value={status}>
+                    <Tag color={STATUS_COLORS[status]} style={{ margin: 0 }}>
+                      {STATUS_LABELS[status]}
+                    </Tag>
+                  </Option>
+                ))}
+              </Select>
+            </Space>
+          </div>
         </Card>
 
-        <Tabs
-          items={[
-            {
-              key: 'published',
-              label: (
-                <Badge count={publishedSyllabi?.length || 0} showZero>
-                  <span style={{ marginRight: 8 }}>Đang xuất hành</span>
-                </Badge>
-              ),
-              children: (
-                <Card>
-                  <Table
-                    columns={columns}
-                    dataSource={publishedSyllabi}
-                    rowKey="id"
-                    loading={loadingPublished}
-                    pagination={{
-                      pageSize: 10,
-                      showSizeChanger: true,
-                      showTotal: (total) => `Tổng ${total} đề cương`,
-                    }}
-                    scroll={{ x: 1400 }}
-                  />
-                </Card>
-              ),
-            },
-            {
-              key: 'archived',
-              label: (
-                <Badge count={archivedSyllabi?.length || 0} showZero color="#d9d9d9">
-                  <span style={{ marginRight: 8 }}>Đã gỡ bỏ</span>
-                </Badge>
-              ),
-              children: (
-                <Card>
-                  <Table
-                    columns={columns}
-                    dataSource={archivedSyllabi}
-                    rowKey="id"
-                    loading={loadingArchived}
-                    pagination={{
-                      pageSize: 10,
-                      showSizeChanger: true,
-                      showTotal: (total) => `Tổng ${total} đề cương`,
-                    }}
-                    scroll={{ x: 1400 }}
-                  />
-                </Card>
-              ),
-            },
-          ]}
-        />
+        <Card>
+          <Table
+            columns={columns}
+            dataSource={allSyllabi}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Tổng ${total} đề cương`,
+            }}
+            scroll={{ x: 1500 }}
+          />
+        </Card>
       </Space>
 
       {/* Unpublish Modal */}

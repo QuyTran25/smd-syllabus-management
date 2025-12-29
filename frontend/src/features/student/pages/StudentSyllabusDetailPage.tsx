@@ -176,7 +176,7 @@ export const StudentSyllabusDetailPage: React.FC = () => {
             border: '1px solid rgba(0,0,0,0.06)',
             boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
           }}
-          bodyStyle={{ padding: 18 }}
+          styles={{ body: { padding: 18 } }}
         >
           <Title level={5} style={{ marginTop: 0 }}>
             Không tìm thấy đề cương
@@ -286,7 +286,7 @@ export const StudentSyllabusDetailPage: React.FC = () => {
       </div>
 
       {/* Main card */}
-      <Card style={{ marginTop: 12, ...cardStyle }} bodyStyle={{ padding: 18 }}>
+      <Card style={{ marginTop: 12, ...cardStyle }} styles={{ body: { padding: 18 } }}>
         {/* Info table */}
         <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
           <Descriptions.Item label="Mã học phần">{data.code}</Descriptions.Item>

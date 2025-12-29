@@ -9,6 +9,8 @@ export enum SyllabusStatus {
   PENDING_ADMIN_REPUBLISH = 'PENDING_ADMIN_REPUBLISH', // Đã HoD duyệt revision, chờ Admin xuất hành lại
   PUBLISHED = 'PUBLISHED',
   REJECTED = 'REJECTED',
+  REVISION_IN_PROGRESS = 'REVISION_IN_PROGRESS', // Đang chỉnh sửa
+  INACTIVE = 'INACTIVE', // Không hoạt động
   ARCHIVED = 'ARCHIVED',
 }
 

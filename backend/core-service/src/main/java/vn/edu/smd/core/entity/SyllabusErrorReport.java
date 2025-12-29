@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import vn.edu.smd.core.config.ErrorReportSectionConverter;
 import vn.edu.smd.shared.enums.ErrorReportSection;
 import vn.edu.smd.shared.enums.FeedbackType;
 
@@ -46,7 +47,7 @@ public class SyllabusErrorReport {
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ErrorReportSectionConverter.class)
     @Column(name = "section")
     @Builder.Default
     private ErrorReportSection section = ErrorReportSection.OTHER;

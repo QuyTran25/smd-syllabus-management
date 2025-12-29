@@ -39,6 +39,19 @@ public class AuthService {
 
         System.out.println("=== LOGIN ATTEMPT ===");
         System.out.println("Email: " + email);
+        System.out.println("Password length: " + rawPassword.length());
+        
+        // Debug: Check password directly
+        User dbUser = userRepository.findByEmail(email).orElse(null);
+        if (dbUser != null) {
+            System.out.println("DB User found: " + dbUser.getEmail());
+            System.out.println("DB Hash: " + dbUser.getPasswordHash());
+            System.out.println("DB Hash length: " + (dbUser.getPasswordHash() != null ? dbUser.getPasswordHash().length() : 0));
+            boolean matches = passwordEncoder.matches(rawPassword, dbUser.getPasswordHash());
+            System.out.println("Direct password match: " + matches);
+        } else {
+            System.out.println("User NOT found in DB!");
+        }
 
         try {
             System.out.println("Step 1: Calling authenticationManager.authenticate()");

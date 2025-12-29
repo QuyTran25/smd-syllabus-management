@@ -274,7 +274,7 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           bordered
           size="small"
           column={{ xs: 1, sm: 2, md: 3 }}
-          labelStyle={{ fontWeight: 600, background: '#fafafa' }}
+          styles={{ label: { fontWeight: 600, background: '#fafafa' } }}
         >
           <Descriptions.Item label="Mã học phần">{data.code}</Descriptions.Item>
           <Descriptions.Item label="Số tín chỉ">{data.credits}</Descriptions.Item>

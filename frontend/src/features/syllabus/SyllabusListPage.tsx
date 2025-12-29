@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -60,6 +60,24 @@ export const SyllabusListPage: React.FC = () => {
   const [selectedSyllabus, setSelectedSyllabus] = useState<Syllabus | null>(null);
   const [publishForm] = Form.useForm();
   const [unpublishForm] = Form.useForm();
+
+  // Admin statuses that should be shown by default
+  const ADMIN_ALLOWED_STATUSES = [
+    SyllabusStatus.APPROVED,
+    SyllabusStatus.PUBLISHED,
+    SyllabusStatus.REJECTED,
+    SyllabusStatus.REVISION_IN_PROGRESS,
+    SyllabusStatus.PENDING_ADMIN_REPUBLISH,
+    SyllabusStatus.INACTIVE,
+    SyllabusStatus.ARCHIVED,
+  ];
+
+  // Set default filter for Admin role
+  useEffect(() => {
+    if (user?.role === UserRole.ADMIN && filters.status === undefined) {
+      setFilters({ ...filters, status: ADMIN_ALLOWED_STATUSES });
+    }
+  }, [user?.role]);
 
   // Fetch syllabi with filters and pagination
   const { data, isLoading } = useQuery({
@@ -231,8 +249,12 @@ export const SyllabusListPage: React.FC = () => {
         status: values.map(v => v as SyllabusStatus)
       });
     } else {
-      // No filter
-      setFilters({ ...filters, status: undefined });
+      // No filter - but Admin still restricted to allowed statuses
+      if (user?.role === UserRole.ADMIN) {
+        setFilters({ ...filters, status: ADMIN_ALLOWED_STATUSES });
+      } else {
+        setFilters({ ...filters, status: undefined });
+      }
     }
     
     setPagination({ ...pagination, page: 1 });
@@ -433,25 +455,18 @@ export const SyllabusListPage: React.FC = () => {
           [SyllabusStatus.PENDING_HOD_REVISION]: { color: 'gold', text: 'Chờ TBM (Sửa lỗi)' },
           [SyllabusStatus.PENDING_AA]: { color: 'blue', text: 'Chờ Phòng ĐT' },
           [SyllabusStatus.PENDING_PRINCIPAL]: { color: 'purple', text: 'Chờ Hiệu trưởng' },
-          [SyllabusStatus.APPROVED]: { color: 'green', text: 'Đã duyệt' },
-          [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: { color: 'lime', text: 'Chờ xuất hành lại' },
-          [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất hành' },
-          [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
-          [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Đã gỡ bỏ' },
+          [SyllabusStatus.APPROVED]: { color: 'green', text: 'Đã phê duyệt' },
+          [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: { color: 'lime', text: 'Chờ xuất bản lại' },
+          [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất bản' },
+          [SyllabusStatus.REJECTED]: { color: 'red', text: 'Bị từ chối' },
+          [SyllabusStatus.REVISION_IN_PROGRESS]: { color: 'volcano', text: 'Đang chỉnh sửa' },
+          [SyllabusStatus.INACTIVE]: { color: 'default', text: 'Không hoạt động' },
+          [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Đã lưu trữ' },
         };
         const config = statusConfig[status];
         
-        const hasPendingFeedback = needsEditSyllabiIds.has(record.id);
-        
         return (
-          <Space direction="vertical" size={2}>
-            <Tag color={config.color}>{config.text}</Tag>
-            {hasPendingFeedback && (
-              <Tag icon={<EditOutlined />} color="warning" style={{ fontSize: '11px' }}>
-                Cần chỉnh sửa
-              </Tag>
-            )}
-          </Space>
+          <Tag color={config.color}>{config.text}</Tag>
         );
       },
     },
@@ -579,7 +594,17 @@ export const SyllabusListPage: React.FC = () => {
               onChange={handleStatusFilterChange}
               allowClear
             >
-              {user?.role === UserRole.PRINCIPAL ? (
+              {user?.role === UserRole.ADMIN ? (
+                <>
+                  <Option value={SyllabusStatus.APPROVED}>Đã phê duyệt</Option>
+                  <Option value={SyllabusStatus.PUBLISHED}>Đã xuất bản</Option>
+                  <Option value={SyllabusStatus.REJECTED}>Bị từ chối</Option>
+                  <Option value={SyllabusStatus.REVISION_IN_PROGRESS}>Đang chỉnh sửa</Option>
+                  <Option value={SyllabusStatus.PENDING_ADMIN_REPUBLISH}>Chờ xuất bản lại</Option>
+                  <Option value={SyllabusStatus.INACTIVE}>Không hoạt động</Option>
+                  <Option value={SyllabusStatus.ARCHIVED}>Đã lưu trữ</Option>
+                </>
+              ) : user?.role === UserRole.PRINCIPAL ? (
                 <>
                   <Option value={SyllabusStatus.PENDING_PRINCIPAL}>Chưa xử lý</Option>
                   <Option value={SyllabusStatus.APPROVED}>Đã duyệt</Option>

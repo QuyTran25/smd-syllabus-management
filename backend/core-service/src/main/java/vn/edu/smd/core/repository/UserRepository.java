@@ -1,5 +1,8 @@
 package vn.edu.smd.core.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,4 +39,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.id = :id")
     Optional<User> findByIdWithRoles(@Param("id") UUID id);
+    
+    @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
+    @Query("SELECT u FROM User u")
+    Page<User> findAllWithRoles(Pageable pageable);
 }
