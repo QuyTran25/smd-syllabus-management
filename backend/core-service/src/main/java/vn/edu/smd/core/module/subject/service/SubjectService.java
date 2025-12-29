@@ -23,10 +23,14 @@ import vn.edu.smd.core.repository.SubjectRelationshipRepository;
 import vn.edu.smd.core.repository.SubjectRepository;
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.shared.enums.SubjectComponent;
+import vn.edu.smd.shared.enums.SubjectRelationType;
 import vn.edu.smd.shared.enums.SubjectType;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,8 +50,36 @@ public class SubjectService {
 
     @Transactional(readOnly = true)
     public List<SubjectResponse> getAllSubjects() {
-        return subjectRepository.findAll().stream()
-                .map(this::mapToResponse)
+        List<Subject> subjects = subjectRepository.findAllWithDepartmentAndFaculty();
+        
+        // Load all prerequisites in one query
+        List<UUID> subjectIds = subjects.stream().map(Subject::getId).collect(Collectors.toList());
+        System.out.println("DEBUG: Loading prerequisites for " + subjectIds.size() + " subjects");
+        
+        List<SubjectRelationship> allPrerequisites = Collections.emptyList();
+        if (!subjectIds.isEmpty()) {
+            try {
+                allPrerequisites = relationshipRepository
+                        .findBySubjectIdsAndTypeWithRelatedSubject(subjectIds, SubjectRelationType.PREREQUISITE);
+                System.out.println("DEBUG: Found " + allPrerequisites.size() + " prerequisites");
+            } catch (Exception e) {
+                System.out.println("DEBUG: Error loading prerequisites: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        
+        // Group prerequisites by subject ID
+        Map<UUID, String> prerequisitesMap = allPrerequisites.stream()
+                .collect(Collectors.groupingBy(
+                        rel -> rel.getSubject().getId(),
+                        Collectors.mapping(
+                                rel -> rel.getRelatedSubject().getCode(),
+                                Collectors.joining(", ")
+                        )
+                ));
+        
+        return subjects.stream()
+                .map(subject -> mapToResponse(subject, prerequisitesMap.get(subject.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -248,12 +280,48 @@ public class SubjectService {
     }
 
     private SubjectResponse mapToResponse(Subject subject) {
+        return mapToResponse(subject, null);
+    }
+    
+    private SubjectResponse mapToResponse(Subject subject, String prerequisites) {
         SubjectResponse response = new SubjectResponse();
         response.setId(subject.getId());
         response.setCode(subject.getCode());
-        response.setDepartmentId(subject.getDepartment().getId());
-        response.setDepartmentCode(subject.getDepartment().getCode());
-        response.setDepartmentName(subject.getDepartment().getName());
+        
+        try {
+            if (subject.getDepartment() != null) {
+                response.setDepartmentId(subject.getDepartment().getId());
+                response.setDepartmentCode(subject.getDepartment().getCode());
+                response.setDepartmentName(subject.getDepartment().getName());
+                
+                if (subject.getDepartment().getFaculty() != null) {
+                    response.setFacultyName(subject.getDepartment().getFaculty().getName());
+                }
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading errors
+        }
+        
+        // Get semester from latest syllabus
+        try {
+            var latestSyllabus = syllabusVersionRepository.findBySubjectId(subject.getId())
+                    .stream()
+                    .findFirst();
+            if (latestSyllabus.isPresent() && latestSyllabus.get().getAcademicTerm() != null) {
+                String termCode = latestSyllabus.get().getAcademicTerm().getCode();
+                if (termCode != null && termCode.startsWith("HK")) {
+                    response.setSemester(termCode.substring(2, 3));
+                }
+            }
+        } catch (Exception e) {
+            // Ignore if no syllabus found
+        }
+        
+        // Set prerequisites if provided
+        if (prerequisites != null && !prerequisites.isEmpty()) {
+            response.setPrerequisites(prerequisites);
+        }
+        
         if (subject.getCurriculum() != null) {
             response.setCurriculumId(subject.getCurriculum().getId());
             response.setCurriculumCode(subject.getCurriculum().getCode());

@@ -1,6 +1,7 @@
 package vn.edu.smd.core.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.Subject;
 
@@ -13,6 +14,9 @@ import java.util.UUID;
  */
 @Repository
 public interface SubjectRepository extends JpaRepository<Subject, UUID> {
+    
+    @Query("SELECT s FROM Subject s LEFT JOIN FETCH s.department d LEFT JOIN FETCH d.faculty")
+    List<Subject> findAllWithDepartmentAndFaculty();
     
     Optional<Subject> findByCode(String code);
     

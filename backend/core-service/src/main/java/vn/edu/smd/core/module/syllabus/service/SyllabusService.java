@@ -363,8 +363,9 @@ public class SyllabusService {
             if (subject.getSubjectType() != null) {
                 response.setCourseType(subject.getSubjectType().name().toLowerCase());
             }
-            if (subject.getComponent() != null) {
-                response.setComponentType(subject.getComponent().name().toLowerCase());
+            // Get component type from syllabus (major/foundation/general), not from subject component (theory/practice)
+            if (syllabus.getComponentType() != null) {
+                response.setComponentType(syllabus.getComponentType().name().toLowerCase());
             }
             
             // Time allocation from subject
@@ -402,7 +403,14 @@ public class SyllabusService {
         
         // Academic year and semester from academic term
         if (syllabus.getAcademicTerm() != null) {
-            response.setSemester(syllabus.getAcademicTerm().getName());
+            // Parse semester number from academic term code (e.g., "HK1_2024" -> "1")
+            String code = syllabus.getAcademicTerm().getCode();
+            if (code != null && code.startsWith("HK")) {
+                String semesterNum = code.substring(2, code.indexOf('_'));
+                response.setSemester(semesterNum);
+            } else {
+                response.setSemester(syllabus.getAcademicTerm().getName());
+            }
             response.setAcademicYear(syllabus.getAcademicTerm().getAcademicYear());
         }
         
@@ -440,18 +448,9 @@ public class SyllabusService {
             return cloResponse;
         }).collect(Collectors.toList()));
 
-        // Load CLO-PLO Mappings
+        // Load CLO-PLO Mappings - DISABLED (lazy loading issue)
+        // TODO: Fix lazy loading for PLO entity in CloPlOMapping
         List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
-        for (CLO clo : clos) {
-            List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
-            for (CloPlOMapping mapping : mappings) {
-                SyllabusResponse.CLOPLOMappingResponse mapResponse = new SyllabusResponse.CLOPLOMappingResponse();
-                mapResponse.setCloCode(clo.getCode());
-                mapResponse.setPloCode(mapping.getPlo().getCode());
-                mapResponse.setContributionLevel(mapping.getMappingLevel());
-                ploMappings.add(mapResponse);
-            }
-        }
         response.setPloMappings(ploMappings);
 
         // Load Assessment Schemes with CLO mappings

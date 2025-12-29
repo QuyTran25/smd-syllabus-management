@@ -9,9 +9,15 @@ import {
   Descriptions,
   Modal,
   Typography,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  message,
+  Popconfirm,
 } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, LinkOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
 import { subjectService, Subject } from '../../services/subject.service';
 
@@ -24,7 +30,10 @@ interface CourseDisplay {
   code: string;
   name: string;
   credits: number;
+  semester?: string;
   departmentName?: string;
+  facultyName?: string;
+  prerequisites?: string;
   subjectType?: string;
   component?: string;
   theoryHours: number;
@@ -37,11 +46,51 @@ export const CourseManagementPage: React.FC = () => {
   const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
   const [selectedCourse, setSelectedCourse] = useState<CourseDisplay | null>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [isFormModalVisible, setIsFormModalVisible] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<CourseDisplay | null>(null);
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
 
   // Fetch courses from API
   const { data: subjectsRaw, isLoading, error } = useQuery({
     queryKey: ['subjects'],
     queryFn: () => subjectService.getAllSubjects(),
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (values: any) => subjectService.createSubject(values),
+    onSuccess: () => {
+      message.success('Thêm môn học thành công');
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      setIsFormModalVisible(false);
+      form.resetFields();
+    },
+    onError: () => message.error('Thêm môn học thất bại'),
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: any }) => 
+      subjectService.updateSubject(id, values),
+    onSuccess: () => {
+      message.success('Cập nhật môn học thành công');
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      setIsFormModalVisible(false);
+      setEditingCourse(null);
+      form.resetFields();
+    },
+    onError: () => message.error('Cập nhật môn học thất bại'),
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => subjectService.deleteSubject(id),
+    onSuccess: () => {
+      message.success('Xóa môn học thành công');
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+    },
+    onError: () => message.error('Xóa môn học thất bại'),
   });
 
   // Map API response to display format
@@ -52,7 +101,10 @@ export const CourseManagementPage: React.FC = () => {
       code: s.code,
       name: s.currentNameVi,
       credits: s.defaultCredits,
+      semester: s.semester,
       departmentName: s.departmentName,
+      facultyName: s.facultyName,
+      prerequisites: s.prerequisites,
       subjectType: s.subjectType,
       component: s.component,
       theoryHours: s.defaultTheoryHours,
@@ -89,7 +141,15 @@ export const CourseManagementPage: React.FC = () => {
       title: 'Tên môn học',
       dataIndex: 'name',
       key: 'name',
-      width: 280,
+      width: 200,
+    },
+    {
+      title: 'Học kỳ',
+      dataIndex: 'semester',
+      key: 'semester',
+      width: 80,
+      align: 'center',
+      render: (text) => text || <span style={{ color: '#999' }}>-</span>,
     },
     {
       title: 'Tín chỉ',
@@ -132,6 +192,13 @@ export const CourseManagementPage: React.FC = () => {
       },
     },
     {
+      title: 'Khoa',
+      dataIndex: 'facultyName',
+      key: 'facultyName',
+      width: 150,
+      render: (text) => text || <span style={{ color: '#999' }}>-</span>,
+    },
+    {
       title: 'Bộ môn',
       dataIndex: 'departmentName',
       key: 'departmentName',
@@ -139,42 +206,56 @@ export const CourseManagementPage: React.FC = () => {
       render: (text) => text || <span style={{ color: '#999' }}>-</span>,
     },
     {
-      title: 'Số tiết',
-      key: 'hours',
-      width: 180,
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            LT: {record.theoryHours} | TH: {record.practiceHours} | TH: {record.selfStudyHours}
-          </Text>
-        </Space>
-      ),
+      title: 'Môn tiên quyết',
+      dataIndex: 'prerequisites',
+      key: 'prerequisites',
+      width: 150,
+      render: (text) => text || <span style={{ color: '#999' }}>-</span>,
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      width: 100,
-      render: (isActive) => (
-        <Tag color={isActive ? 'green' : 'default'}>
-          {isActive ? 'Hoạt động' : 'Ẩn'}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Chi tiết',
+      title: 'Hành động',
       key: 'actions',
-      width: 100,
+      width: 150,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <EyeOutlined
-            style={{ cursor: 'pointer', color: '#1890ff', fontSize: 16 }}
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
             onClick={() => {
-              setSelectedCourse(record);
-              setIsDetailModalVisible(true);
+              setEditingCourse(record);
+              form.setFieldsValue({
+                code: record.code,
+                name: record.name,
+                credits: record.credits,
+              });
+              setIsFormModalVisible(true);
             }}
-          />
+          >
+            Sửa
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<LinkOutlined />}
+            onClick={() => {
+              // TODO: Open relationship modal
+              message.info('Chức năng Quan hệ đang phát triển');
+            }}
+          >
+            Quan hệ
+          </Button>
+          <Popconfirm
+            title="Xóa môn học"
+            description="Bạn có chắc muốn xóa môn học này?"
+            onConfirm={() => deleteMutation.mutate(record.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -196,7 +277,17 @@ export const CourseManagementPage: React.FC = () => {
     <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Quản lý Môn học</h2>
-        <Tag color="blue">Chế độ xem - Read Only</Tag>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditingCourse(null);
+            form.resetFields();
+            setIsFormModalVisible(true);
+          }}
+        >
+          Thêm Môn học
+        </Button>
       </div>
 
       <Card>
@@ -224,7 +315,7 @@ export const CourseManagementPage: React.FC = () => {
           dataSource={filteredCourses || []}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1300 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
@@ -262,6 +353,56 @@ export const CourseManagementPage: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      {/* Add/Edit Form Modal */}
+      <Modal
+        title={editingCourse ? 'Chỉnh sửa môn học' : 'Thêm môn học mới'}
+        open={isFormModalVisible}
+        onOk={() => form.submit()}
+        onCancel={() => {
+          setIsFormModalVisible(false);
+          setEditingCourse(null);
+          form.resetFields();
+        }}
+        confirmLoading={createMutation.isPending || updateMutation.isPending}
+        width={500}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) => {
+            if (editingCourse) {
+              updateMutation.mutate({ id: editingCourse.id, values });
+            } else {
+              createMutation.mutate(values);
+            }
+          }}
+        >
+          <Form.Item
+            label="Mã môn học"
+            name="code"
+            rules={[{ required: true, message: 'Vui lòng nhập mã môn học' }]}
+          >
+            <Input placeholder="Ví dụ: CS101" disabled={!!editingCourse} />
+          </Form.Item>
+
+          <Form.Item
+            label="Tên môn học"
+            name="name"
+            rules={[{ required: true, message: 'Vui lòng nhập tên môn học' }]}
+          >
+            <Input placeholder="Nhập tên môn học" />
+          </Form.Item>
+
+          <Form.Item
+            label="Số tín chỉ"
+            name="credits"
+            rules={[{ required: true, message: 'Vui lòng nhập số tín chỉ' }]}
+          >
+            <InputNumber min={1} max={10} style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

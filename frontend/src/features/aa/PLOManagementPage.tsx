@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Card, Table, Space, Select, Tag, Alert, Spin } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Card, Table, Space, Select, Tag, Alert, Button, Modal, Form, Input, message, Popconfirm } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
 import { ploService, PLO } from '../../services/plo.service';
 
 const { Option } = Select;
+const { TextArea } = Input;
 
 // Interface for display (mapped from API)
 interface PLODisplay {
@@ -30,11 +32,56 @@ const mapCategory = (apiCategory: PLO['category']): PLODisplay['category'] => {
 
 export const PLOManagementPage: React.FC = () => {
   const [curriculumFilter, setCurriculumFilter] = useState<string | undefined>(undefined);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPLO, setEditingPLO] = useState<PLODisplay | null>(null);
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
 
   // Fetch PLOs from API
   const { data: plosRaw, isLoading, error } = useQuery({
     queryKey: ['plos'],
     queryFn: () => ploService.getAllPLOs(),
+  });
+
+  // Create PLO mutation
+  const createPLOMutation = useMutation({
+    mutationFn: (values: any) => ploService.createPLO(values),
+    onSuccess: () => {
+      message.success('Thêm PLO thành công');
+      queryClient.invalidateQueries({ queryKey: ['plos'] });
+      setIsModalOpen(false);
+      form.resetFields();
+    },
+    onError: () => {
+      message.error('Thêm PLO thất bại');
+    },
+  });
+
+  // Update PLO mutation
+  const updatePLOMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: any }) => ploService.updatePLO(id, values),
+    onSuccess: () => {
+      message.success('Cập nhật PLO thành công');
+      queryClient.invalidateQueries({ queryKey: ['plos'] });
+      setIsModalOpen(false);
+      setEditingPLO(null);
+      form.resetFields();
+    },
+    onError: () => {
+      message.error('Cập nhật PLO thất bại');
+    },
+  });
+
+  // Delete PLO mutation
+  const deletePLOMutation = useMutation({
+    mutationFn: (id: string) => ploService.deletePLO(id),
+    onSuccess: () => {
+      message.success('Xóa PLO thành công');
+      queryClient.invalidateQueries({ queryKey: ['plos'] });
+    },
+    onError: () => {
+      message.error('Xóa PLO thất bại');
+    },
   });
 
   // Map API response to display format
@@ -106,6 +153,43 @@ export const PLOManagementPage: React.FC = () => {
         return <Tag color={cfg.color}>{cfg.text}</Tag>;
       },
     },
+    {
+      title: 'Hành động',
+      key: 'action',
+      width: 150,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingPLO(record);
+              form.setFieldsValue({
+                curriculumId: record.curriculumId,
+                code: record.code,
+                description: record.description,
+                category: record.category.toUpperCase(),
+              });
+              setIsModalOpen(true);
+            }}
+          >
+            Sửa
+          </Button>
+          <Popconfirm
+            title="Xóa PLO"
+            description="Bạn có chắc muốn xóa PLO này?"
+            onConfirm={() => deletePLOMutation.mutate(record.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   // Filter PLOs by curriculum
@@ -129,7 +213,9 @@ export const PLOManagementPage: React.FC = () => {
     <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Quản lý PLO (Chuẩn đầu ra)</h2>
-        <Tag color="blue">Chế độ xem - Read Only</Tag>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+          Thêm PLO
+        </Button>
       </div>
 
       <Card>
@@ -168,6 +254,75 @@ export const PLOManagementPage: React.FC = () => {
           }}
         />
       </Card>
+
+      {/* Modal thêm/sửa PLO */}
+      <Modal
+        title={editingPLO ? 'Chỉnh sửa PLO' : 'Thêm PLO mới'}
+        open={isModalOpen}
+        onOk={() => form.submit()}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setEditingPLO(null);
+          form.resetFields();
+        }}
+        confirmLoading={createPLOMutation.isPending || updatePLOMutation.isPending}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) => {
+            if (editingPLO) {
+              updatePLOMutation.mutate({ id: editingPLO.id, values });
+            } else {
+              createPLOMutation.mutate(values);
+            }
+          }}
+        >
+          <Form.Item
+            label="Môn học"
+            name="curriculumId"
+            rules={[{ required: true, message: 'Vui lòng chọn chương trình đào tạo' }]}
+          >
+            <Select placeholder="Chọn chương trình đào tạo">
+              {curriculums.map((c) => (
+                <Option key={c.id} value={c.id}>
+                  {c.code} - {c.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Mã PLO"
+            name="code"
+            rules={[{ required: true, message: 'Vui lòng nhập mã PLO' }]}
+          >
+            <Input placeholder="Ví dụ: PLO1" />
+          </Form.Item>
+
+          <Form.Item
+            label="Mô tả"
+            name="description"
+            rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
+          >
+            <TextArea rows={4} placeholder="Mô tả chuẩn đầu ra..." />
+          </Form.Item>
+
+          <Form.Item
+            label="Danh mục"
+            name="category"
+            rules={[{ required: true, message: 'Vui lòng chọn danh mục' }]}
+          >
+            <Select placeholder="Chọn danh mục">
+              <Option value="KNOWLEDGE">Kiến thức</Option>
+              <Option value="SKILLS">Kỹ năng</Option>
+              <Option value="COMPETENCE">Năng lực</Option>
+              <Option value="ATTITUDE">Thái độ</Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

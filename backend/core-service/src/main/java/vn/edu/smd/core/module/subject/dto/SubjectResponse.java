@@ -14,6 +14,10 @@ public class SubjectResponse {
     private UUID departmentId;
     private String departmentCode;
     private String departmentName;
+    private String facultyName;
+    private String semester;
+    private String prerequisites;
+
     private UUID curriculumId;
     private String curriculumCode;
     private String curriculumName;

@@ -15,6 +15,11 @@ export interface Subject {
   departmentId?: string;
   departmentCode?: string;
   departmentName?: string;
+  facultyName?: string;
+  semester?: string;
+  prerequisites?: string;
+
+  recommendedTerm?: number;
   curriculumId?: string;
   curriculumCode?: string;
   isActive: boolean;
