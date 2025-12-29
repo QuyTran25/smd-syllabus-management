@@ -73,17 +73,13 @@ public class RoleService {
     private RoleResponse mapToResponse(Role role) {
         RoleResponse response = new RoleResponse();
         response.setId(role.getId());
-<<<<<<< HEAD
-        response.setName(role.getName());
-        response.setDescription(role.getDescription());
-        response.setCreatedAt(role.getCreatedAt());
-        response.setUpdatedAt(role.getUpdatedAt());
-=======
+        // populate all known fields
         response.setCode(role.getCode());
         response.setName(role.getName());
         response.setDescription(role.getDescription());
         response.setIsSystem(role.getIsSystem());
->>>>>>> origin/main
+        response.setCreatedAt(role.getCreatedAt());
+        response.setUpdatedAt(role.getUpdatedAt());
         return response;
     }
 }

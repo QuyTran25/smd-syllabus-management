@@ -8,28 +8,25 @@ spring:
     gateway:
       routes:
         - id: core-service
-          uri: http://localhost:8081
+          uri: http://127.0.0.1:8081
           predicates:
             - Path=/api/**
-<<<<<<< HEAD
-          # Đảm bảo giữ nguyên /api/ khi chuyển tiếp sang backend
-=======
->>>>>>> origin/main
+          # StripPrefix=0 giúp giữ nguyên /api/ khi chuyển tiếp sang backend port 8081
           filters:
             - StripPrefix=0
+            - PreserveHostHeader
+            - SetRequestHeader=Content-Type, application/json
       globalcors:
-        corsConfigurations:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations: # Thêm dấu gạch ngang ở đây
           '[/**]':
             allowedOrigins:
               - "http://localhost:3000"
               - "http://localhost:3001"
               - "http://localhost:3002"
               - "http://localhost:3003"
-<<<<<<< HEAD
               - "http://localhost:3004"
-              - "http://localhost:3005" # THÊM DÒNG NÀY ĐỂ FIX LỖI
-=======
->>>>>>> origin/main
+              - "http://localhost:3005"
             allowedMethods:
               - GET
               - POST
@@ -37,16 +34,11 @@ spring:
               - PATCH
               - DELETE
               - OPTIONS
-<<<<<<< HEAD
             allowedHeaders: "*"
             allowCredentials: true
             maxAge: 3600
-=======
-            allowedHeaders:
-              - "*"
-            allowCredentials: true
-            maxAge: 3600
 
+# Giữ cấu hình Management từ Team để hỗ trợ giám sát hệ thống
 management:
   endpoints:
     web:
@@ -55,4 +47,11 @@ management:
   endpoint:
     health:
       show-details: always
->>>>>>> origin/main
+
+# Enable detailed gateway/reactor/netty logging to trace header/body changes
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty.http.client: DEBUG

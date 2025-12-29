@@ -1,5 +1,6 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8081';
+// Default to Gateway (port 8080) so frontend talks to Gateway which handles CORS/routing
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
 export const API_TIMEOUT = 10000;
 
 // Storage Keys

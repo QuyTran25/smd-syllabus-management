@@ -112,7 +112,6 @@ public class NotificationService {
 
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-<<<<<<< HEAD
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new ResourceNotFoundException("User", "authentication", "anonymous");
         }
@@ -133,10 +132,5 @@ public class NotificationService {
         }
 
         throw new ResourceNotFoundException("User", "principalType", principal.getClass().getName());
-=======
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        return userRepository.findById(userPrincipal.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
->>>>>>> origin/main
     }
 }

@@ -1,6 +1,8 @@
 package vn.edu.smd.core.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;         // THÊM DÒNG NÀY
+import org.springframework.data.repository.query.Param;    // THÊM DÒNG NÀY
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.shared.enums.UserStatus;
@@ -17,6 +19,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     Optional<User> findByEmail(String email);
     
+    // JOIN FETCH giúp nạp Roles ngay lập tức, tránh lỗi LazyInitializationException
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.email = :email")
     Optional<User> findByEmailWithRoles(@Param("email") String email);
     

@@ -18,24 +18,18 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-<<<<<<< HEAD
-        User user = userRepository.findByEmail(email)
-=======
+        // Sử dụng phương thức của team để nạp kèm Roles, tránh lỗi Lazy loading
         User user = userRepository.findByEmailWithRoles(email)
->>>>>>> origin/main
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
         return UserPrincipal.create(user);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public UserDetails loadUserById(UUID id) {
-<<<<<<< HEAD
-        User user = userRepository.findById(id)
-=======
+        // Sử dụng phương thức của team để nạp kèm Roles bằng ID
         User user = userRepository.findByIdWithRoles(id)
->>>>>>> origin/main
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
         return UserPrincipal.create(user);
     }

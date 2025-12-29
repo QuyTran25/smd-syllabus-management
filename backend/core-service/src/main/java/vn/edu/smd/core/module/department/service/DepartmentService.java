@@ -33,48 +33,33 @@ public class DepartmentService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public Page<DepartmentResponse> getAllDepartments(Pageable pageable) {
         return departmentRepository.findAll(pageable).map(this::mapToResponse);
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public List<DepartmentResponse> getAllDepartments() {
         return departmentRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public DepartmentResponse getDepartmentById(UUID id) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
         return mapToResponse(department);
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public DepartmentResponse getDepartmentByCode(String code) {
         Department department = departmentRepository.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "code", code));
         return mapToResponse(department);
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public List<DepartmentResponse> getDepartmentsByFaculty(UUID facultyId) {
         if (!facultyRepository.existsById(facultyId)) {
             throw new ResourceNotFoundException("Faculty", "id", facultyId);
@@ -132,10 +117,7 @@ public class DepartmentService {
         departmentRepository.deleteById(id);
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public List<SubjectResponse> getSubjectsOfDepartment(UUID id) {
         if (!departmentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Department", "id", id);
@@ -145,10 +127,7 @@ public class DepartmentService {
                 .collect(Collectors.toList());
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
-=======
->>>>>>> origin/main
     public List<UserResponse> getLecturersOfDepartment(UUID id) {
         if (!departmentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Department", "id", id);

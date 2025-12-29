@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -29,75 +29,17 @@ import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import VersionComparisonModal from './VersionComparisonModal';
 import RejectionReasonModal from './dashboard/components/RejectionReasonModal';
+import { syllabusService } from '@/services/syllabus.service';
+import { semesterService } from '@/services/semester.service';
+import { Syllabus } from '@/types';
 
 const { Search } = Input;
 const { Option } = Select;
 const { Title } = Typography;
 
-interface Syllabus {
-  id: string;
-  subjectCode: string;
-  subjectName: string;
-  semester: string;
-  status: string;
-  currentVersion: string;
-  totalVersions: number;
-  lastModified: string;
-  submittedAt?: string;
-  approvedBy?: string;
-  isFollowing?: boolean;
-  rejectionReason?: string;
-  rejectionType?: 'HOD' | 'AA' | 'PRINCIPAL';
-}
+// Đã xóa interface cục bộ để dùng Syllabus global
 
-// Mock data
-const mockSyllabi: Syllabus[] = [
-  {
-    id: '1',
-    subjectCode: 'CS301',
-    subjectName: 'Cơ sở dữ liệu',
-    semester: 'HK2 2024-2025',
-    status: 'DRAFT',
-    currentVersion: 'v1.0',
-    totalVersions: 3,
-    lastModified: '2024-12-08 14:30',
-  },
-  {
-    id: '2',
-    subjectCode: 'CS401',
-    subjectName: 'Trí tuệ nhân tạo',
-    semester: 'HK2 2024-2025',
-    status: 'WAITING_HOD',
-    currentVersion: 'v2.1',
-    totalVersions: 5,
-    lastModified: '2024-12-07 10:15',
-    submittedAt: '2024-12-07 10:30',
-  },
-  {
-    id: '3',
-    subjectCode: 'CS201',
-    subjectName: 'Cấu trúc dữ liệu',
-    semester: 'HK1 2024-2025',
-    status: 'PUBLISHED',
-    currentVersion: 'v3.0',
-    totalVersions: 8,
-    lastModified: '2024-09-15 09:00',
-    approvedBy: 'TS. Nguyễn Văn A',
-  },
-  {
-    id: '4',
-    subjectCode: 'CS501',
-    subjectName: 'Học máy',
-    semester: 'HK2 2024-2025',
-    status: 'HOD_REJECTED',
-    currentVersion: 'v1.2',
-    totalVersions: 2,
-    lastModified: '2024-12-05 16:45',
-    rejectionReason: 'CLO số 3 không rõ ràng về phương pháp đánh giá. Vui lòng bổ sung thang điểm chi tiết và phân bổ % điểm cho từng hoạt động đánh giá.',
-    rejectionType: 'HOD',
-  },
-];
-
+// Status mappings: support both old and new enum strings from backend
 const statusColors: Record<string, string> = {
   DRAFT: 'default',
   WAITING_HOD: 'processing',
@@ -105,6 +47,7 @@ const statusColors: Record<string, string> = {
   HOD_REJECTED: 'error',
   WAITING_AA: 'processing',
   AA_APPROVED: 'success',
+  AA_REJECTED: 'error',
   WAITING_PRINCIPAL: 'processing',
   PUBLISHED: 'success',
 };
@@ -116,14 +59,40 @@ const statusLabels: Record<string, string> = {
   HOD_REJECTED: 'TBM từ chối',
   WAITING_AA: 'Chờ AA duyệt',
   AA_APPROVED: 'AA đã duyệt',
+  AA_REJECTED: 'AA từ chối',
   WAITING_PRINCIPAL: 'Chờ Hiệu trưởng',
   PUBLISHED: 'Đã xuất bản',
 };
 
+// Normalize backend status values to the keys used above. Backend may return PENDING_HOD / REJECTED / APPROVED etc.
+const normalizeStatusKey = (raw?: string) => {
+  if (!raw) return '';
+  const s = String(raw).toUpperCase();
+  if (s === 'DRAFT') return 'DRAFT';
+  if (s.includes('PENDING') || s.includes('WAITING')) {
+    if (s.includes('AA')) return 'WAITING_AA';
+    if (s.includes('PRINCIPAL')) return 'WAITING_PRINCIPAL';
+    return 'WAITING_HOD';
+  }
+  if (s.includes('REJECT')) {
+    // map generic REJECTED to HOD_REJECTED as a safe default; specific ones like AA_REJECTED are preserved
+    if (s.includes('AA')) return 'AA_REJECTED';
+    if (s.includes('PRINCIPAL')) return 'HOD_REJECTED';
+    return s === 'REJECTED' ? 'HOD_REJECTED' : s;
+  }
+  if (s.includes('APPROV')) {
+    if (s.includes('AA')) return 'AA_APPROVED';
+    return 'HOD_APPROVED';
+  }
+  if (s === 'PUBLISHED') return 'PUBLISHED';
+  return s;
+};
+
 const ManageSyllabiPage: React.FC = () => {
   const navigate = useNavigate();
-  const [syllabi, setSyllabi] = useState<Syllabus[]>(mockSyllabi);
+  const [syllabi, setSyllabi] = useState<Syllabus[]>([]);
   const [loading, setLoading] = useState(false);
+  const [semesters, setSemesters] = useState<any[]>([]);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [semesterFilter, setSemesterFilter] = useState<string>('');
@@ -147,22 +116,51 @@ const ManageSyllabiPage: React.FC = () => {
   });
 
   const handleViewRejectionReason = (syllabus: Syllabus) => {
-    if (syllabus.rejectionReason && syllabus.rejectionType) {
+    // Ép kiểu as any để tránh lỗi TS nếu type thiếu trường
+    const s = syllabus as any;
+    if (s.rejectionReason && s.rejectionType) {
       setRejectionModal({
         open: true,
-        syllabusId: Number(syllabus.id),
-        syllabusCode: syllabus.subjectCode,
-        syllabusName: syllabus.subjectName,
-        reason: syllabus.rejectionReason,
-        type: syllabus.rejectionType,
+        syllabusId: Number(s.id),
+        syllabusCode: s.subjectCode,
+        syllabusName: s.subjectNameVi || s.subjectName || '',
+        reason: s.rejectionReason,
+        type: s.rejectionType,
       });
     }
   };
 
   const handleSearch = (value: string) => {
     setSearchText(value);
-    // Mock search
   };
+
+  // Hoisted reusable fetchData: tải syllabi và semesters, chịu lỗi cho semesters
+  async function fetchData() {
+    setLoading(true);
+    try {
+      const syllabiRes = await syllabusService.getMySyllabuses();
+      setSyllabi(syllabiRes || []);
+    } catch (err) {
+      console.error('Lỗi tải Syllabi:', err);
+      message.error('Không thể tải danh sách đề cương');
+    }
+
+    try {
+      const semestersRes = await semesterService.getSemesters();
+      if (Array.isArray(semestersRes)) setSemesters(semestersRes);
+      else setSemesters((semestersRes as any)?.data || (semestersRes as any)?.rows || []);
+    } catch (err) {
+      console.error('Lỗi tải Semester (Backend đang lỗi 500):', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    // Hàm fetch dữ liệu độc lập
+
+    fetchData(); // Call the hoisted fetchData function
+  }, []);
 
   const handleSubmit = (id: string) => {
     Modal.confirm({
@@ -170,18 +168,22 @@ const ManageSyllabiPage: React.FC = () => {
       content: 'Bạn có chắc muốn gửi đề cương này cho Trưởng Bộ môn phê duyệt?',
       onOk: async () => {
         setLoading(true);
-        // Mock submit
-        setTimeout(() => {
-          setSyllabi(
-            syllabi.map((s) =>
-              s.id === id
-                ? { ...s, status: 'WAITING_HOD', submittedAt: new Date().toLocaleString() }
-                : s
-            )
-          );
+        try {
+          const updated = await (syllabusService as any).submitSyllabus(id);
+          if (updated) {
+            setSyllabi((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
+          } else {
+            // Fallback reload nếu API không trả về object
+            const syllabiRes = await syllabusService.getMySyllabuses();
+            setSyllabi(syllabiRes || []);
+          }
           message.success('Đã gửi đề cương thành công!');
+        } catch (error) {
+          console.error(error);
+          message.error('Lỗi khi gửi đề cương');
+        } finally {
           setLoading(false);
-        }, 500);
+        }
       },
     });
   };
@@ -193,11 +195,16 @@ const ManageSyllabiPage: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         setLoading(true);
-        setTimeout(() => {
-          setSyllabi(syllabi.filter((s) => s.id !== id));
+        try {
+          await syllabusService.deleteSyllabus(id);
+          setSyllabi((prev) => prev.filter((s) => s.id !== id));
           message.success('Đã xóa đề cương!');
+        } catch (error) {
+          console.error(error);
+          message.error('Lỗi khi xóa đề cương');
+        } finally {
           setLoading(false);
-        }, 500);
+        }
       },
     });
   };
@@ -210,11 +217,11 @@ const ManageSyllabiPage: React.FC = () => {
   const toggleFollow = (id: string) => {
     setSyllabi(
       syllabi.map((s) =>
-        s.id === id ? { ...s, isFollowing: !s.isFollowing } : s
+        s.id === id ? { ...s, isFollowing: !(s as any).isFollowing } : s
       )
     );
     const syllabus = syllabi.find((s) => s.id === id);
-    if (syllabus?.isFollowing) {
+    if ((syllabus as any)?.isFollowing) {
       message.success('Đã hủy theo dõi đề cương');
     } else {
       message.success('Đã theo dõi đề cương. Bạn sẽ nhận thông báo khi có cập nhật.');
@@ -227,39 +234,43 @@ const ManageSyllabiPage: React.FC = () => {
       dataIndex: 'subjectCode',
       width: 100,
       align: 'center',
-      sorter: (a, b) => a.subjectCode.localeCompare(b.subjectCode),
+      // Fix lỗi TS: ép kiểu as any cho a và b
+      sorter: (a, b) => ((a as any).subjectCode || '').localeCompare((b as any).subjectCode || ''),
     },
     {
       title: 'Tên học phần',
-      dataIndex: 'subjectName',
+      dataIndex: 'subjectNameVi',
       width: 200,
       align: 'center',
-      sorter: (a, b) => a.subjectName.localeCompare(b.subjectName),
+      sorter: (a, b) => ((a as any).subjectNameVi || '').localeCompare((b as any).subjectNameVi || ''),
     },
     {
       title: 'Học kỳ',
       dataIndex: 'semester',
       width: 150,
       align: 'center',
-      sorter: (a, b) => a.semester.localeCompare(b.semester),
+      sorter: (a, b) => ((a as any).semester || '').localeCompare((b as any).semester || ''),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       width: 150,
       align: 'center',
-      render: (status, record) => (
-        <Space>
-          <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
-          {(status === 'HOD_REJECTED' || status === 'AA_REJECTED' || status === 'PRINCIPAL_REJECTED') && 
-           record.rejectionReason && (
-            <InfoCircleOutlined
-              style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 16 }}
-              onClick={() => handleViewRejectionReason(record)}
-            />
-          )}
-        </Space>
-      ),
+      render: (status, record) => {
+        const key = normalizeStatusKey(status);
+        const showRejectionIcon = ['HOD_REJECTED', 'AA_REJECTED', 'PRINCIPAL_REJECTED'].includes(key) || String(status).toUpperCase() === 'REJECTED';
+        return (
+          <Space>
+            <Tag color={statusColors[key]}>{statusLabels[key] || status}</Tag>
+            {showRejectionIcon && (record as any).rejectionReason && (
+              <InfoCircleOutlined
+                style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 16 }}
+                onClick={() => handleViewRejectionReason(record)}
+              />
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'Phiên bản',
@@ -268,24 +279,25 @@ const ManageSyllabiPage: React.FC = () => {
       align: 'center',
       render: (version, record) => (
         <Space>
-          <span>{version}</span>
+          <span>{(version as any) || (record as any).currentVersion}</span>
           <Button
             type="link"
             size="small"
             icon={<HistoryOutlined />}
             onClick={() => showHistory(record)}
           >
-            ({record.totalVersions})
+            ({(record as any).totalVersions || ''})
           </Button>
         </Space>
       ),
     },
     {
       title: 'Cập nhật lần cuối',
-      dataIndex: 'lastModified',
+      dataIndex: 'updatedAt',
       width: 180,
       align: 'center',
-      sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
+      sorter: (a, b) => new Date((a as any).updatedAt || '').getTime() - new Date((b as any).updatedAt || '').getTime(),
+      render: (text) => text ? new Date(text).toLocaleDateString('vi-VN') : '',
     },
     {
       title: 'Thao tác',
@@ -293,80 +305,83 @@ const ManageSyllabiPage: React.FC = () => {
       width: 250,
       fixed: 'right',
       align: 'center',
-      render: (_, record) => (
-        <Space>
-          <Button
-            type={record.isFollowing ? 'default' : 'text'}
-            size="small"
-            icon={record.isFollowing ? <StarFilled /> : <StarOutlined />}
-            onClick={() => toggleFollow(record.id)}
-            style={record.isFollowing ? { color: '#faad14' } : {}}
-          >
-            {record.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
-          </Button>
-          <Button
-            type="primary"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/lecturer/syllabi/edit/${record.id}`)}
-            disabled={
-              record.status !== 'DRAFT' &&
-              record.status !== 'HOD_REJECTED' &&
-              record.status !== 'PUBLISHED'
-            }
-          >
-            Sửa
-          </Button>
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/lecturer/syllabi/${record.id}`)}
-          >
-            Xem
-          </Button>
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'submit',
-                  label: 'Gửi phê duyệt',
-                  icon: <SendOutlined />,
-                  disabled: record.status !== 'DRAFT' && record.status !== 'HOD_REJECTED',
-                  onClick: () => handleSubmit(record.id),
-                },
-                {
-                  key: 'compare',
-                  label: 'So sánh phiên bản',
-                  icon: <DiffOutlined />,
-                  onClick: () => {
-                    setSelectedSyllabus(record);
-                    setCompareModalVisible(true);
+      render: (_, record) => {
+        const key = normalizeStatusKey((record as any).status);
+        const editable = ['DRAFT', 'HOD_REJECTED', 'PUBLISHED'].includes(key);
+        const canSubmit = ['DRAFT', 'HOD_REJECTED'].includes(key);
+        const canDelete = ['DRAFT'].includes(key);
+        return (
+          <Space>
+            <Button
+              type={(record as any).isFollowing ? 'default' : 'text'}
+              size="small"
+              icon={(record as any).isFollowing ? <StarFilled /> : <StarOutlined />}
+              onClick={() => toggleFollow(record.id)}
+              style={(record as any).isFollowing ? { color: '#faad14' } : {}}
+            >
+              {(record as any).isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+            </Button>
+            <Button
+              type="primary"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/lecturer/syllabi/edit/${record.id}`)}
+              disabled={!editable}
+            >
+              Sửa
+            </Button>
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/lecturer/syllabi/${record.id}`)}
+            >
+              Xem
+            </Button>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'submit',
+                    label: 'Gửi phê duyệt',
+                    icon: <SendOutlined />,
+                    disabled: !canSubmit,
+                    onClick: () => handleSubmit(record.id),
                   },
-                },
-                {
-                  key: 'delete',
-                  label: 'Xóa',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                  disabled: record.status !== 'DRAFT',
-                  onClick: () => handleDelete(record.id),
-                },
-              ],
-            }}
-          >
-            <Button size="small" icon={<MoreOutlined />} />
-          </Dropdown>
-        </Space>
-      ),
+                  {
+                    key: 'compare',
+                    label: 'So sánh phiên bản',
+                    icon: <DiffOutlined />,
+                    onClick: () => {
+                      setSelectedSyllabus(record);
+                      setCompareModalVisible(true);
+                    },
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Xóa',
+                    icon: <DeleteOutlined />,
+                    danger: true,
+                    disabled: !canDelete,
+                    onClick: () => handleDelete(record.id),
+                  },
+                ],
+              }}
+            >
+              <Button size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 
   const filteredData = syllabi.filter((item) => {
+    const s = item as any; // Cast để search không lỗi
     const matchSearch =
-      item.subjectCode.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.subjectName.toLowerCase().includes(searchText.toLowerCase());
-    const matchStatus = !statusFilter || item.status === statusFilter;
-    const matchSemester = !semesterFilter || item.semester === semesterFilter;
+      (s.subjectCode || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (s.subjectNameVi || '').toLowerCase().includes(searchText.toLowerCase());
+    const matchStatus = !statusFilter || normalizeStatusKey((item as any).status) === normalizeStatusKey(statusFilter);
+    const matchSemester = !semesterFilter || s.semester === semesterFilter;
     return matchSearch && matchStatus && matchSemester;
   });
 
@@ -382,8 +397,7 @@ const ManageSyllabiPage: React.FC = () => {
           Tạo đề cương mới
         </Button>
       </div>
-      <Card
-      >
+      <Card>
         <Space style={{ marginBottom: 16, width: '100%' }} size="middle">
           <Search
             placeholder="Tìm theo mã hoặc tên học phần"
@@ -408,9 +422,11 @@ const ManageSyllabiPage: React.FC = () => {
             allowClear
             onChange={setSemesterFilter}
           >
-            <Option value="HK1 2024-2025">HK1 2024-2025</Option>
-            <Option value="HK2 2024-2025">HK2 2024-2025</Option>
-            <Option value="HK1 2025-2026">HK1 2025-2026</Option>
+            {semesters.map((s) => (
+              <Option key={s.id} value={s.name}>
+                {s.name}
+              </Option>
+            ))}
           </Select>
         </Space>
 
@@ -441,7 +457,7 @@ const ManageSyllabiPage: React.FC = () => {
 
       {/* Version History Modal */}
       <Modal
-        title={`Lịch sử phiên bản - ${selectedSyllabus?.subjectCode}`}
+        title={`Lịch sử phiên bản - ${(selectedSyllabus as any)?.subjectCode}`}
         open={historyModalVisible}
         onCancel={() => setHistoryModalVisible(false)}
         footer={null}
@@ -456,23 +472,7 @@ const ManageSyllabiPage: React.FC = () => {
               createdBy: 'GV. Trần Thị B',
               status: 'DRAFT',
               changes: 'Cập nhật CLO3, thêm tài liệu tham khảo',
-            },
-            {
-              id: '2',
-              version: 'v2.1',
-              createdAt: '2024-12-05 10:00',
-              createdBy: 'GV. Trần Thị B',
-              status: 'HOD_APPROVED',
-              changes: 'Sửa phương pháp đánh giá',
-            },
-            {
-              id: '3',
-              version: 'v2.0',
-              createdAt: '2024-11-20 09:15',
-              createdBy: 'GV. Trần Thị B',
-              status: 'PUBLISHED',
-              changes: 'Phiên bản chính thức HK2 2024-2025',
-            },
+            }
           ]}
           rowKey="id"
           pagination={false}
@@ -485,20 +485,22 @@ const ManageSyllabiPage: React.FC = () => {
               title: 'Trạng thái',
               dataIndex: 'status',
               width: 120,
-              render: (status) => <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>,
+              render: (status) => {
+                const key = normalizeStatusKey(status);
+                return <Tag color={statusColors[key]}>{statusLabels[key] || status}</Tag>;
+              },
             },
             { title: 'Thay đổi', dataIndex: 'changes' },
           ]}
         />
       </Modal>
 
-      {/* Version Comparison Modal */}
       {selectedSyllabus && (
         <VersionComparisonModal
           visible={compareModalVisible}
           onClose={() => setCompareModalVisible(false)}
           syllabusId={selectedSyllabus.id}
-          currentVersion={selectedSyllabus.currentVersion}
+          currentVersion={(selectedSyllabus as any).currentVersion}
         />
       )}
     </div>

@@ -1,82 +1,42 @@
+import axiosClient from '@/api/axiosClient';
 import type { Notification } from '@/shared/components/NotificationBell';
 
-// Mock notification service
+const API_BASE = '/notifications';
+
+const mapBackend = (b: any): Notification => ({
+  id: String(b.id),
+  type: (b.type as Notification['type']) || 'ASSIGNMENT',
+  title: b.title || b.message || '',
+  content: b.message || b.title || '',
+  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleString('vi-VN') : '',
+  isRead: !!b.isRead,
+  relatedEntityId: b.relatedEntityId ? String(b.relatedEntityId) : undefined,
+  relatedEntityType: b.relatedEntityType || undefined,
+});
+
 export const notificationService = {
   getNotifications: async (): Promise<Notification[]> => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    
-    return [
-      {
-        id: '1',
-        type: 'REJECTION',
-        title: 'Đề cương bị từ chối',
-        content: 'Đề cương "CS501 - Học máy" đã bị Trưởng Bộ môn từ chối. Vui lòng xem góp ý và chỉnh sửa.',
-        createdAt: '2024-12-09 09:30',
-        isRead: false,
-        relatedEntityId: 's1',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '2',
-        type: 'COMMENT',
-        title: 'Bình luận mới',
-        content: 'TS. Trần Thị B đã thêm bình luận vào đề cương "CS401 - Trí tuệ nhân tạo".',
-        createdAt: '2024-12-09 08:15',
-        isRead: false,
-        relatedEntityId: 's2',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '3',
-        type: 'DEADLINE',
-        title: 'Sắp hết hạn đánh giá',
-        content: 'Đánh giá đề cương "CS601 - Xử lý ngôn ngữ tự nhiên" sẽ hết hạn vào 2024-12-20.',
-        createdAt: '2024-12-08 16:00',
-        isRead: false,
-        relatedEntityId: 'r1',
-        relatedEntityType: 'REVIEW',
-      },
-      {
-        id: '4',
-        type: 'APPROVAL',
-        title: 'Đề cương được phê duyệt',
-        content: 'Đề cương "CS201 - Cấu trúc dữ liệu" đã được Trưởng Bộ môn phê duyệt!',
-        createdAt: '2024-12-08 14:20',
-        isRead: true,
-        relatedEntityId: 's3',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '5',
-        type: 'ASSIGNMENT',
-        title: 'Phân công đánh giá mới',
-        content: 'Bạn được phân công đánh giá đề cương "CS501 - Học máy".',
-        createdAt: '2024-12-07 11:00',
-        isRead: true,
-        relatedEntityId: 'r2',
-        relatedEntityType: 'REVIEW',
-      },
-    ];
+    const resp = await axiosClient.get(API_BASE);
+    const payload = resp.data?.data ?? resp.data ?? [];
+    // payload is expected to be an array of NotificationResponse
+    return (payload as any[]).map(mapBackend);
   },
 
   markAsRead: async (notificationId: string): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    console.log(`Notification ${notificationId} marked as read`);
+    await axiosClient.patch(`${API_BASE}/${notificationId}/read`);
   },
 
   markAllAsRead: async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    console.log('All notifications marked as read');
+    await axiosClient.patch(`${API_BASE}/read-all`);
   },
 
   deleteNotification: async (notificationId: string): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    console.log(`Notification ${notificationId} deleted`);
+    await axiosClient.delete(`${API_BASE}/${notificationId}`);
   },
 
+  // Clear all by deleting each notification (backend doesn't expose a single endpoint)
   clearAll: async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    console.log('All notifications cleared');
+    const list = await (await axiosClient.get(API_BASE)).data?.data ?? [];
+    await Promise.all((list as any[]).map((n) => axiosClient.delete(`${API_BASE}/${n.id}`)));
   },
 };

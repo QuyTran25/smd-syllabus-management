@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
 import { message } from 'antd';
+import { STORAGE_KEYS } from '@/constants';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<User>;
@@ -13,9 +14,9 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'smd_auth_token';
-const REFRESH_TOKEN_KEY = 'smd_refresh_token';
-const USER_KEY = 'user'; // --- THÊM KEY NÀY ĐỂ LƯU USER ---
+const TOKEN_KEY = STORAGE_KEYS.ACCESS_TOKEN;
+const REFRESH_TOKEN_KEY = STORAGE_KEYS.REFRESH_TOKEN;
+const USER_KEY = STORAGE_KEYS.USER_DATA; // --- use centralized storage keys ---
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -67,18 +68,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password
       });
 
-      const { user, accessToken } = response.data; 
+      // Backend may wrap the actual payload in { success,message,data }.
+      // Normalize to a payload object that contains `user` and `accessToken`.
+      const payload = response?.data && response.data.data ? response.data.data : response?.data;
 
-      // --- SỬA LỖI TẠI ĐÂY: MAPPING DỮ LIỆU ---
-      // Frontend cũ đang mong đợi trường 'role', nhưng Backend trả về 'primaryRole'
-      // Ta sẽ tạo ra một object user mới có cả 2 trường để "chiều lòng" cả 2 bên.
+      const user = payload?.user ?? null;
+      const accessToken = payload?.accessToken ?? payload?.access_token ?? null;
+
+      if (!user) {
+        console.error('Login response missing user payload', { response });
+        message.error('Đăng nhập thất bại: server trả về dữ liệu không hợp lệ.');
+        throw new Error('Invalid login response: missing user');
+      }
+
+      // Provide both `primaryRole` and `role` properties for compatibility
       const userFixed = {
         ...user,
-        role: user.primaryRole // Gán giá trị primaryRole sang role
+        role: user.primaryRole ?? user.role,
       };
       // ----------------------------------------
 
-      localStorage.setItem(TOKEN_KEY, accessToken);
+      if (accessToken) {
+        localStorage.setItem(TOKEN_KEY, accessToken);
+      } else {
+        console.warn('Login succeeded but no accessToken found in response', { response });
+      }
       // Lưu userFixed (đã có role) vào bộ nhớ thay vì user gốc
       localStorage.setItem(USER_KEY, JSON.stringify(userFixed)); 
 

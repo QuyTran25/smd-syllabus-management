@@ -19,15 +19,15 @@ public class SyllabusRequest {
     @NotBlank(message = "Version number is required")
     private String versionNo;
 
-<<<<<<< HEAD
     /** Optional status string (e.g. DRAFT or PENDING_APPROVAL) */
     private String status;
 
-=======
->>>>>>> origin/main
     private LocalDateTime reviewDeadline;
     private LocalDate effectiveDate;
 
     private String[] keywords;
     private Map<String, Object> content;
+    
+    // Đảm bảo có trường này để khớp với logic "student_tasks" bạn đã thêm ở Entity
+    private String studentTasks; 
 }

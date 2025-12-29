@@ -1,16 +1,10 @@
 package vn.edu.smd.core.module.syllabus.dto;
 
 import lombok.Data;
-
-<<<<<<< HEAD
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-=======
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
->>>>>>> origin/main
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,19 +30,20 @@ public class SyllabusResponse {
     private String[] keywords;
     private Map<String, Object> content;
     
-<<<<<<< HEAD
-=======
     // Subject type and component
-    private String courseType;        // REQUIRED, ELECTIVE
-    private String componentType;     // THEORY, PRACTICE, BOTH
+    private String courseType;         // REQUIRED, ELECTIVE
+    private String componentType;      // THEORY, PRACTICE, BOTH
     
     // Faculty and academic info
     private String faculty;
     private String academicYear;
     
-    // Description and objectives (from content or subject)
+    // Description and objectives
     private String description;
     private List<String> objectives;
+    
+    // --- TRƯỜNG CỦA BẠN: Bảo vệ dữ liệu studentTasks ---
+    private String studentTasks; 
     
     // Time allocation
     private Integer theoryHours;
@@ -63,7 +58,6 @@ public class SyllabusResponse {
     // CLO-PLO mappings
     private List<CLOPLOMappingResponse> ploMappings;
     
->>>>>>> origin/main
     // Ownership and department info
     private String ownerName;
     private String department;
@@ -82,8 +76,6 @@ public class SyllabusResponse {
     private LocalDateTime updatedAt;
     private UUID createdBy;
     private UUID updatedBy;
-<<<<<<< HEAD
-=======
     
     // Inner classes for CLO and Assessment
     @Data
@@ -112,5 +104,4 @@ public class SyllabusResponse {
         private String ploCode;
         private String contributionLevel;  // H, M, L
     }
->>>>>>> origin/main
 }

@@ -1,23 +1,23 @@
 /*
  * V1__organization_and_users.sql
  * Mục tiêu: Quản lý Cơ cấu tổ chức & Người dùng (RBAC)
- * Updated: Thêm Password Hash (Hybrid Auth Support)
+ * Đã fix: Thêm lệnh khởi tạo Schema để chạy từ Database trống
  */
 
-<<<<<<< HEAD
+-- 0. KHỞI TẠO MÔI TRƯỜNG
+CREATE SCHEMA IF NOT EXISTS core_service;
+
+-- Đảm bảo extension UUID có sẵn trong database (thường ở public)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-=======
-SET search_path TO core_service;
->>>>>>> origin/main
+-- Chuyển ngữ cảnh làm việc vào schema của dự án và public để dùng UUID
+SET search_path TO core_service, public;
 
 -- ==========================================
 -- 1. ENUMS
 -- ==========================================
 CREATE TYPE user_status AS ENUM ('ACTIVE', 'INACTIVE', 'BANNED');
 CREATE TYPE gender_type AS ENUM ('MALE', 'FEMALE', 'OTHER');
-
--- [NEW] Định danh nguồn đăng nhập
 CREATE TYPE auth_provider AS ENUM ('LOCAL', 'GOOGLE', 'MICROSOFT');
 
 -- ==========================================
@@ -26,29 +26,19 @@ CREATE TYPE auth_provider AS ENUM ('LOCAL', 'GOOGLE', 'MICROSOFT');
 
 -- Faculties (Khoa)
 CREATE TABLE faculties (
-<<<<<<< HEAD
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-=======
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
->>>>>>> origin/main
-    code VARCHAR(50) NOT NULL UNIQUE, -- VD: CNTT
+    code VARCHAR(50) NOT NULL UNIQUE, 
     name VARCHAR(255) NOT NULL,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Departments (Bộ môn)
 CREATE TABLE departments (
-<<<<<<< HEAD
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-=======
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
->>>>>>> origin/main
     faculty_id UUID NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
-    code VARCHAR(50) NOT NULL UNIQUE, -- VD: SE (Software Engineering)
+    code VARCHAR(50) NOT NULL UNIQUE, 
     name VARCHAR(255) NOT NULL,
-    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -57,21 +47,16 @@ CREATE TABLE departments (
 -- 3. USERS (Người dùng)
 -- ==========================================
 CREATE TABLE users (
-<<<<<<< HEAD
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-=======
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
->>>>>>> origin/main
     
     -- Định danh
     email VARCHAR(255) NOT NULL UNIQUE,
-    username VARCHAR(100) UNIQUE, -- Có thể null nếu dùng email login
+    username VARCHAR(100) UNIQUE,
     
-    -- [NEW] Authentication (Hybrid)
-    -- password_hash: Nullable vì user SSO không có pass
+    -- Authentication (Hybrid)
     password_hash VARCHAR(255), 
     auth_provider auth_provider DEFAULT 'LOCAL',
-    provider_id VARCHAR(255), -- ID từ Google/Microsoft (nếu có)
+    provider_id VARCHAR(255), 
     
     -- Thông tin cá nhân
     full_name VARCHAR(255) NOT NULL,
@@ -82,7 +67,7 @@ CREATE TABLE users (
     -- Trạng thái
     status user_status DEFAULT 'ACTIVE',
     
-    -- Organization Mapping (Nullable vì Admin trường không thuộc khoa nào)
+    -- Organization Mapping
     faculty_id UUID REFERENCES faculties(id),
     department_id UUID REFERENCES departments(id),
     
@@ -96,35 +81,25 @@ CREATE TABLE users (
 
 -- Roles (Vai trò hệ thống)
 CREATE TABLE roles (
-<<<<<<< HEAD
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-=======
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
->>>>>>> origin/main
-    code VARCHAR(50) NOT NULL UNIQUE, -- VD: ADMIN, DEAN, LECTURER
+    code VARCHAR(50) NOT NULL UNIQUE, 
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    is_system BOOLEAN DEFAULT FALSE -- Role mặc định không thể xóa
+    is_system BOOLEAN DEFAULT FALSE 
 );
 
 -- User Roles (Mapping User - Role theo phạm vi)
 CREATE TABLE user_roles (
-<<<<<<< HEAD
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
-=======
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
->>>>>>> origin/main
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     
-    -- Scope: Quyền này áp dụng ở đâu?
-    -- VD: Ông A là TRƯỞNG KHOA (Scope=FACULTY, ID=KhoaCNTT)
-    -- Nhưng chỉ là GIẢNG VIÊN (Scope=DEPARTMENT, ID=BoMonSE)
+    -- Scope: GLOBAL, FACULTY, DEPARTMENT
     scope_type VARCHAR(20) CHECK (scope_type IN ('GLOBAL', 'FACULTY', 'DEPARTMENT')),
-    scope_id UUID, -- Null nếu là GLOBAL (Admin trường)
+    scope_id UUID, 
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, role_id, scope_type, scope_id) -- Tránh duplicate quyền
+    UNIQUE(user_id, role_id, scope_type, scope_id)
 );
 
 -- ==========================================
@@ -142,7 +117,7 @@ CREATE TRIGGER update_faculties_time BEFORE UPDATE ON faculties FOR EACH ROW EXE
 CREATE TRIGGER update_departments_time BEFORE UPDATE ON departments FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER update_users_time BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
--- Index
+-- Index để tối ưu truy vấn
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_faculty ON users(faculty_id);
 CREATE INDEX idx_user_roles_user ON user_roles(user_id);

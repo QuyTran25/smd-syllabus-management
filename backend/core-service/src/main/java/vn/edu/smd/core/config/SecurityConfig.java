@@ -1,21 +1,19 @@
 package vn.edu.smd.core.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.http.HttpMethod; // <--- Import quan trọng
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // <--- Import quan trọng
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,36 +23,33 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import vn.edu.smd.core.security.CustomUserDetailsService;
 import vn.edu.smd.core.security.JwtAuthenticationFilter;
 
-import java.util.List;
+import java.util.Arrays;
+import java.util.Collections;
 
-@Configuration("legacySecurityConfig")
-@Profile("legacy")
+@Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // <--- Bật tính năng phân quyền chi tiết (Production Ready)
+@EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthFilter;
-
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final CustomUserDetailsService userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            // CORS is handled by the API Gateway (globalcors). Disable backend CORS here
-            .cors(AbstractHttpConfigurer::disable)
+            // CORS is handled by the Gateway; disable CORS handling in Core to avoid duplicate headers
+            // (Gateway provides Access-Control-Allow-* headers)
             .authorizeHttpRequests(auth -> auth
-                // 1. --- QUAN TRỌNG: MỞ CỬA CHO CORS PRE-FLIGHT ---
-                // Trình duyệt sẽ gửi request OPTIONS để check trước khi gửi request thật.
-                // Nếu chặn request này, trình duyệt sẽ báo lỗi CORS/403.
+                // Cho phép các yêu cầu Pre-flight (OPTIONS) cho toàn bộ hệ thống
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                // 2. Cho phép Login công khai
-                .requestMatchers("/api/auth/**").permitAll()
+                // Các API xác thực và tài liệu hệ thống luôn được mở
+                .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
 
-                // 3. TẤT CẢ request khác BẮT BUỘC phải có Token xịn
+                // Các API còn lại bắt buộc phải có Token hợp lệ
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -68,14 +63,12 @@ public class SecurityConfig {
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
-        // F1 dùng NoOp, F2 nhớ đổi sang BCryptPasswordEncoder
         authProvider.setPasswordEncoder(passwordEncoder()); 
         return authProvider;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Passwords in DB are BCrypt-hashed; use BCryptPasswordEncoder to verify them.
         return new BCryptPasswordEncoder();
     }
 
@@ -84,23 +77,5 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Cho phép Frontend (localhost:3000)
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); 
-        
-        // Cho phép đầy đủ các method
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        
-        // Cho phép tất cả header (Authorization, Content-Type, ...)
-        configuration.setAllowedHeaders(List.of("*"));
-        
-        // Cho phép gửi credentials (Cookies, Authorization Header)
-        configuration.setAllowCredentials(true);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    // CORS configuration removed: Gateway will handle CORS headers to avoid duplicates
 }

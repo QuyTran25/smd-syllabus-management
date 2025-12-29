@@ -4,11 +4,9 @@
  * Updated: Version Lineage, Keywords Search, GIN Indexes
  */
 
-<<<<<<< HEAD
-=======
-SET search_path TO core_service;
+-- Chuyển ngữ cảnh làm việc vào schema dự án và public
+SET search_path TO core_service, public;
 
->>>>>>> origin/main
 -- [FINAL] Status cho Workflow + Lưu trữ
 CREATE TYPE syllabus_status AS ENUM (
     'DRAFT',
@@ -18,7 +16,7 @@ CREATE TYPE syllabus_status AS ENUM (
     'PUBLISHED',        -- Đã ban hành
     'REJECTED',         -- Từ chối (quay về Draft)
     'INACTIVE',         -- Ngưng sử dụng
-    'ARCHIVED'          -- [NEW] Lưu trữ (version cũ sau khi có bản mới)
+    'ARCHIVED'          -- Lưu trữ (version cũ sau khi có bản mới)
 );
 
 -- ==========================================
@@ -51,24 +49,22 @@ CREATE TABLE syllabus_versions (
     version_no VARCHAR(20) NOT NULL,
     status syllabus_status DEFAULT 'DRAFT',
     
-    -- [NEW] Version Lineage: Theo dõi lịch sử từng phiên bản
-    -- Giúp Compare V1 vs V2, hiện Revision History
+    -- Version Lineage: Theo dõi lịch sử từng phiên bản
     previous_version_id UUID REFERENCES syllabus_versions(id) ON DELETE SET NULL,
     
-    -- [NEW] Review Deadline: Hạn chót phê duyệt
+    -- Review Deadline: Hạn chót phê duyệt
     review_deadline TIMESTAMP,
     
-    -- Snapshots (khóa giá trị tại thời điểm tạo)
+    -- Snapshots (khóa giá trị tại thời điểm tạo để tránh bị thay đổi từ bảng Subjects gốc)
     snap_subject_code VARCHAR(20) NOT NULL,
     snap_subject_name_vi VARCHAR(255) NOT NULL,
     snap_subject_name_en VARCHAR(255),
     snap_credit_count INT NOT NULL,
     
-    -- [NEW] Keywords: Hỗ trợ tìm kiếm nhanh
-    -- Ví dụ: ['machine learning', 'neural network', 'python']
+    -- Keywords: Hỗ trợ tìm kiếm nhanh
     keywords TEXT[] DEFAULT '{}',
     
-    -- Detailed content (JSONB cho flexibility)
+    -- Detailed content (JSONB cho linh hoạt và hiệu năng cao)
     content JSONB DEFAULT '{}',
     
     -- Audit & Soft Delete
@@ -86,7 +82,7 @@ CREATE TABLE syllabus_versions (
 -- INDEXES (Performance Critical)
 -- ==========================================
 
--- Unique constraint: Chỉ 1 bản PUBLISHED cho mỗi môn mỗi kỳ
+-- Unique constraint: Chỉ cho phép 1 bản PUBLISHED duy nhất cho mỗi môn trong mỗi kỳ
 CREATE UNIQUE INDEX uq_subject_published 
 ON syllabus_versions(subject_id, academic_term_id) 
 WHERE status = 'PUBLISHED' AND is_deleted = FALSE;
@@ -97,8 +93,8 @@ CREATE INDEX idx_syllabus_term ON syllabus_versions(academic_term_id);
 CREATE INDEX idx_syllabus_previous ON syllabus_versions(previous_version_id);
 CREATE INDEX idx_syllabus_status ON syllabus_versions(status);
 
--- [NEW] GIN Indexes: CRITICAL cho Full-text Search
--- Không có GIN → Search content chậm 100x
+-- GIN Indexes: Quan trọng cho tìm kiếm Full-text và tìm kiếm trong JSONB
+-- Giúp truy vấn các trường bên trong 'content' và mảng 'keywords' cực nhanh
 CREATE INDEX idx_syllabus_content_gin ON syllabus_versions USING GIN (content jsonb_path_ops);
 CREATE INDEX idx_syllabus_keywords_gin ON syllabus_versions USING GIN (keywords);
 

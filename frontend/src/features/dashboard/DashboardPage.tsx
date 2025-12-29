@@ -8,9 +8,14 @@ import {
   RiseOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../auth';
-import { UserRole, SyllabusStatus, FeedbackStatus } from '@/types';
+import { SyllabusStatus, FeedbackStatus } from '@/types';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 import { useQuery } from '@tanstack/react-query';
 import { syllabusService, feedbackService } from '@/services';
+import axiosClient from '@/api/axiosClient';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -39,37 +44,18 @@ export const DashboardPage: React.FC = () => {
     queryFn: () => feedbackService.getFeedbacks({ status: [FeedbackStatus.PENDING] }),
   });
 
-  // Calculate unique syllabi needing edit (PUBLISHED + has PENDING feedback)
+  // Calculate unique syllabi needing edit
   const needsEditCount = new Set(
     feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).map((f) => f.syllabusId) || []
   ).size;
 
-  // Fetch pending syllabi for current user role
+  // Fetch pending syllabi for current user via Core view endpoint
   const { data: pendingSyllabi, isLoading } = useQuery({
-    queryKey: ['pending-syllabi', user?.role],
+    queryKey: ['pending-syllabi', user?.id],
     queryFn: async () => {
-      let statusFilter: SyllabusStatus[] = [];
-
-      switch (user?.role) {
-        case UserRole.HOD:
-          statusFilter = [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION];
-          break;
-        case UserRole.AA:
-          statusFilter = [SyllabusStatus.PENDING_AA];
-          break;
-        case UserRole.PRINCIPAL:
-          statusFilter = [SyllabusStatus.PENDING_PRINCIPAL];
-          break;
-        case UserRole.ADMIN:
-          statusFilter = [SyllabusStatus.APPROVED];
-          break;
-      }
-
-      const response = await syllabusService.getSyllabi(
-        { status: statusFilter },
-        { page: 1, pageSize: 5 }
-      );
-      return response.data;
+      const response = await axiosClient.get('/api/syllabuses/my-syllabuses');
+      // Controller returns ApiResponse with data being list
+      return response.data?.data || [];
     },
   });
 
@@ -110,8 +96,7 @@ export const DashboardPage: React.FC = () => {
           [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
         };
-
-        const config = statusConfig[status];
+        const config = statusConfig[status] || { color: 'default', text: status };
         return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
@@ -120,22 +105,18 @@ export const DashboardPage: React.FC = () => {
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 120,
-      render: (date: string) => new Date(date).toLocaleDateString('vi-VN'),
+      render: (date: string) => dayjs(date).fromNow(),
     },
   ];
 
-  const tableData: SyllabusItem[] = (pendingSyllabi || []).map((s) => ({
+  // Map data to table format (ensure we display a friendly owner placeholder)
+  const tableData: SyllabusItem[] = (pendingSyllabi || []).map((s: any) => ({
     key: s.id,
-<<<<<<< HEAD
-    courseName: s.subjectNameVi,
-    courseCode: s.subjectCode,
-=======
-    subjectNameVi: s.subjectNameVi,
-    subjectCode: s.subjectCode,
->>>>>>> origin/main
+    subjectNameVi: s.subjectNameVi || s.subject_name_vi || s.snapSubjectNameVi,
+    subjectCode: s.subjectCode || s.subject_code || s.snapSubjectCode,
     status: s.status,
-    owner: s.ownerName,
-    updatedAt: s.updatedAt,
+    owner: s.ownerName || s.owner_full_name || 'Chưa cập nhật',
+    updatedAt: s.updatedAt || s.updated_at || new Date().toISOString(),
   }));
 
   return (
@@ -147,7 +128,6 @@ export const DashboardPage: React.FC = () => {
         </Text>
       </Title>
 
-      {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
@@ -195,9 +175,7 @@ export const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Main Content */}
       <Row gutter={[16, 16]}>
-        {/* Pending Approvals Table */}
         <Col xs={24} xl={16}>
           <Card
             title={
@@ -212,16 +190,15 @@ export const DashboardPage: React.FC = () => {
               columns={columns}
               dataSource={tableData}
               loading={isLoading}
+              rowKey="key"
               pagination={false}
               size="middle"
             />
           </Card>
         </Col>
 
-        {/* Right Sidebar */}
         <Col xs={24} xl={8}>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {/* Workflow Progress */}
             <Card
               title="Tiến độ Quy trình"
               extra={<RiseOutlined style={{ color: '#52c41a' }} />}
@@ -240,15 +217,13 @@ export const DashboardPage: React.FC = () => {
                               (stats.PUBLISHED +
                                 stats.PENDING_HOD +
                                 stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
+                                stats.PENDING_PRINCIPAL)) * 100
                           )
                         : 0
                     }
                     strokeColor="#52c41a"
                   />
                 </div>
-
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Đang xử lý</Text>
@@ -266,75 +241,62 @@ export const DashboardPage: React.FC = () => {
                               (stats.PUBLISHED +
                                 stats.PENDING_HOD +
                                 stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
+                                stats.PENDING_PRINCIPAL)) * 100
                           )
                         : 0
                     }
                     strokeColor="#faad14"
                   />
                 </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Cần chỉnh sửa</Text>
-                    <Text strong>{needsEditCount}</Text>
-                  </div>
-                  <Progress
-                    percent={
-                      stats
-                        ? Math.round(
-                            (needsEditCount /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
-                        : 0
-                    }
-                    strokeColor="#ff4d4f"
-                  />
-                </div>
               </Space>
             </Card>
 
-            {/* Quick Actions */}
             <Card title="Thông báo Gần đây">
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <div>
-                  <Text strong>Đề cương mới được gửi</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    SE301 - Công nghệ Phần mềm
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    5 phút trước
-                  </Text>
-                </div>
-                <div>
-                  <Text strong>Đề cương đã được phê duyệt</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    CS201 - Trí tuệ Nhân tạo
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    1 giờ trước
-                  </Text>
-                </div>
-                <div>
-                  <Text strong>Đề cương bị từ chối</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    EE301 - Vi xử lý và Vi điều khiển
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    3 giờ trước
-                  </Text>
-                </div>
+                {(() => {
+                  const recentNotifications = (pendingSyllabi || [])
+                    .slice() // copy
+                    .sort((a: any, b: any) => {
+                      const ta = new Date(a.updatedAt || a.updated_at || 0).getTime();
+                      const tb = new Date(b.updatedAt || b.updated_at || 0).getTime();
+                      return tb - ta;
+                    })
+                    .slice(0, 3)
+                    .map((s: any) => ({
+                      title:
+                        s.status === 'PUBLISHED'
+                          ? 'Đề cương đã được xuất bản'
+                          : s.status === 'REJECTED'
+                          ? 'Đề cương bị từ chối'
+                          : 'Đề cương mới cập nhật',
+                      sub: `${s.subjectCode || s.subject_code || ''} - ${
+                        s.subjectNameVi || s.subject_name_vi || ''
+                      }`,
+                      time: dayjs(s.updatedAt || s.updated_at || new Date()).fromNow(),
+                    }));
+
+                  if (!recentNotifications || recentNotifications.length === 0) {
+                    return (
+                      <div>
+                        <Text type="secondary">Không có thông báo gần đây.</Text>
+                      </div>
+                    );
+                  }
+
+                  return recentNotifications.map((item: any, index: number) => (
+                    <div key={index}>
+                      <Text strong>{item.title}</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '0.9rem' }}>
+                        {item.sub}
+                      </Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                        {item.time}
+                      </Text>
+                    </div>
+                  ));
+                })()}
               </Space>
             </Card>
           </Space>

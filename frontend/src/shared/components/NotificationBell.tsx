@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Dropdown, List, Button, Space, Typography, Tag, Empty } from 'antd';
 import { BellOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
+import { notificationService } from '@/services/notification.service';
 
 const { Text } = Typography;
 
@@ -15,59 +16,7 @@ export interface Notification {
   relatedEntityType?: 'SYLLABUS' | 'REVIEW';
 }
 
-// Mock notifications
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'REJECTION',
-    title: 'Đề cương bị từ chối',
-    content: 'Đề cương "CS501 - Học máy" đã bị Trưởng Bộ môn từ chối. Vui lòng xem góp ý và chỉnh sửa.',
-    createdAt: '2024-12-09 09:30',
-    isRead: false,
-    relatedEntityId: 's1',
-    relatedEntityType: 'SYLLABUS',
-  },
-  {
-    id: '2',
-    type: 'COMMENT',
-    title: 'Bình luận mới',
-    content: 'TS. Trần Thị B đã thêm bình luận vào đề cương "CS401 - Trí tuệ nhân tạo".',
-    createdAt: '2024-12-09 08:15',
-    isRead: false,
-    relatedEntityId: 's2',
-    relatedEntityType: 'SYLLABUS',
-  },
-  {
-    id: '3',
-    type: 'DEADLINE',
-    title: 'Sắp hết hạn đánh giá',
-    content: 'Đánh giá đề cương "CS601 - Xử lý ngôn ngữ tự nhiên" sẽ hết hạn vào 2024-12-20.',
-    createdAt: '2024-12-08 16:00',
-    isRead: false,
-    relatedEntityId: 'r1',
-    relatedEntityType: 'REVIEW',
-  },
-  {
-    id: '4',
-    type: 'APPROVAL',
-    title: 'Đề cương được phê duyệt',
-    content: 'Đề cương "CS201 - Cấu trúc dữ liệu" đã được Trưởng Bộ môn phê duyệt!',
-    createdAt: '2024-12-08 14:20',
-    isRead: true,
-    relatedEntityId: 's3',
-    relatedEntityType: 'SYLLABUS',
-  },
-  {
-    id: '5',
-    type: 'ASSIGNMENT',
-    title: 'Phân công đánh giá mới',
-    content: 'Bạn được phân công đánh giá đề cương "CS501 - Học máy".',
-    createdAt: '2024-12-07 11:00',
-    isRead: true,
-    relatedEntityId: 'r2',
-    relatedEntityType: 'REVIEW',
-  },
-];
+const defaultNotifications: Notification[] = [];
 
 const typeColors: Record<Notification['type'], string> = {
   SUBMISSION: 'blue',
@@ -79,26 +28,45 @@ const typeColors: Record<Notification['type'], string> = {
 };
 
 const NotificationBell: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>(defaultNotifications);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleMarkAsRead = (id: string) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    notificationService.markAsRead(id).catch(() => {});
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+    notificationService.markAllAsRead().catch(() => {});
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
   const handleDelete = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+    notificationService.deleteNotification(id).catch(() => {});
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   const handleClearAll = () => {
+    notificationService.clearAll().catch(() => {});
     setNotifications([]);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    notificationService
+      .getNotifications()
+      .then((data) => {
+        if (mounted) setNotifications(data || []);
+      })
+      .catch(() => {
+        if (mounted) setNotifications([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const dropdownContent = (
     <div

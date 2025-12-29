@@ -8,25 +8,28 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import vn.edu.smd.core.security.UserPrincipal;
+import vn.edu.smd.core.entity.SyllabusFullView;
+import vn.edu.smd.core.repository.SyllabusFullRepository;
 import vn.edu.smd.core.common.dto.ApiResponse;
 import vn.edu.smd.core.common.dto.PageResponse;
 import vn.edu.smd.core.module.syllabus.dto.*;
 import vn.edu.smd.core.module.syllabus.service.SyllabusService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
 @RestController
-<<<<<<< HEAD
 @RequestMapping("/api/syllabuses")
-=======
-@RequestMapping("/api/syllabi")
->>>>>>> origin/main
 @RequiredArgsConstructor
 public class SyllabusController {
 
     private final SyllabusService syllabusService;
+    private final SyllabusFullRepository syllabusFullRepository;
 
     @Operation(summary = "Get all syllabi", description = "Get list of syllabi with pagination and filtering")
     @GetMapping
@@ -42,6 +45,30 @@ public class SyllabusController {
     public ResponseEntity<ApiResponse<SyllabusResponse>> getSyllabusById(@PathVariable UUID id) {
         SyllabusResponse syllabus = syllabusService.getSyllabusById(id);
         return ResponseEntity.ok(ApiResponse.success(syllabus));
+    }
+
+    @Operation(summary = "Get my syllabi", description = "Get syllabi created by the authenticated user (read-only view)")
+    @GetMapping("/my-syllabuses")
+    public ResponseEntity<ApiResponse<List<SyllabusFullView>>> getMySyllabuses() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal userPrincipal) {
+            List<SyllabusFullView> list = syllabusFullRepository.findByCreatedByOrderByUpdatedAtDesc(userPrincipal.getId());
+            return ResponseEntity.ok(ApiResponse.success(list));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(List.of()));
+    }
+
+    @Operation(summary = "Get syllabus statistics", description = "Get counts of syllabi grouped by status")
+    @GetMapping("/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getStatistics() {
+        Map<String, Integer> stats = syllabusService.getStatistics();
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     @Operation(summary = "Create syllabus", description = "Create new syllabus")
@@ -128,8 +155,4 @@ public class SyllabusController {
         byte[] pdfData = syllabusService.exportSyllabusToPdf(id);
         return ResponseEntity.ok(ApiResponse.success("PDF exported successfully", pdfData));
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> origin/main

@@ -1,7 +1,12 @@
 import axios from 'axios';
+import { STORAGE_KEYS } from '@/constants';
+
+const gatewayUrl = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+const axiosTimeout = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
 
 const axiosClient = axios.create({
-    baseURL: 'http://localhost:8080/api', 
+    baseURL: gatewayUrl.endsWith('/') ? `${gatewayUrl}api` : `${gatewayUrl}/api`,
+    timeout: axiosTimeout,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -9,13 +14,8 @@ const axiosClient = axios.create({
 
 axiosClient.interceptors.request.use(
     (config) => {
-        // --- ĐOẠN DEBUG (Thêm vào để kiểm tra) ---
-        const tokenKey = 'smd_auth_token'; // Tên key phải khớp với LocalStorage
-        const token = localStorage.getItem(tokenKey); 
-        
-        console.log(`[DEBUG AXIOS] Đang tìm token với key: "${tokenKey}"`);
-        console.log(`[DEBUG AXIOS] Kết quả token tìm được:`, token ? "ĐÃ TÌM THẤY (Có độ dài " + token.length + ")" : "KHÔNG TÌM THẤY (NULL)");
-        // -----------------------------------------
+        const tokenKey = STORAGE_KEYS.ACCESS_TOKEN; // centralized key
+        const token = localStorage.getItem(tokenKey);
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -23,6 +23,31 @@ axiosClient.interceptors.request.use(
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Response interceptor - log server errors for debugging Save Draft / permissions
+axiosClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response) {
+            console.error(`[AXIOS ERROR] Status: ${error.response.status}`);
+            console.error('[AXIOS ERROR] Data:', error.response.data);
+
+            if (error.response.status === 401) {
+                // token invalid/expired — optional handling
+                // window.location.href = '/login';
+            }
+            if (error.response.status === 403) {
+                // forbidden — user lacks permission
+                console.warn('[AXIOS ERROR] Forbidden: user may lack permission');
+            }
+        } else if (error.request) {
+            console.error('[AXIOS ERROR] No response received from server');
+        } else {
+            console.error('[AXIOS ERROR] Message:', error.message);
+        }
         return Promise.reject(error);
     }
 );

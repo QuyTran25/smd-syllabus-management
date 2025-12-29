@@ -9,7 +9,8 @@
 
 BEGIN;
 
-SET search_path TO core_service;
+-- Chuyển ngữ cảnh làm việc vào schema dự án và public để dùng UUID
+SET search_path TO core_service, public;
 
 DO $$BEGIN RAISE NOTICE 'Starting V12 Migration: Seeding Syllabus Details...'; END$$;
 
@@ -17,7 +18,6 @@ DO $$BEGIN RAISE NOTICE 'Starting V12 Migration: Seeding Syllabus Details...'; E
 -- 1. UPDATE CONTENT JSONB FOR ALL SYLLABUS_VERSIONS
 -- ==========================================
 
--- Cập nhật content với dữ liệu chi tiết cho tất cả syllabus
 UPDATE syllabus_versions sv
 SET content = jsonb_build_object(
     'description', 'Môn học ' || sv.snap_subject_name_vi || ' cung cấp cho sinh viên những kiến thức nền tảng và kỹ năng thực hành cần thiết. Học phần này là một phần quan trọng trong chương trình đào tạo ngành Công nghệ thông tin, giúp sinh viên xây dựng nền tảng vững chắc để học các môn chuyên ngành tiếp theo.',
@@ -125,10 +125,9 @@ SET content = jsonb_build_object(
 -- ==========================================
 -- 2. INSERT CLOs FOR EACH SYLLABUS
 -- ==========================================
-
--- Tạo CLOs cho tất cả syllabus_versions
-INSERT INTO clos (syllabus_version_id, code, description, bloom_level, weight, created_by)
+INSERT INTO clos (id, syllabus_version_id, code, description, bloom_level, weight, created_by)
 SELECT 
+    gen_random_uuid(),
     sv.id,
     'CLO' || clo_num,
     CASE clo_num
@@ -139,18 +138,10 @@ SELECT
         WHEN 5 THEN 'Làm việc nhóm hiệu quả và trình bày kết quả một cách chuyên nghiệp'
     END,
     CASE clo_num
-        WHEN 1 THEN 'Understand'
-        WHEN 2 THEN 'Analyze'
-        WHEN 3 THEN 'Apply'
-        WHEN 4 THEN 'Create'
-        WHEN 5 THEN 'Evaluate'
+        WHEN 1 THEN 'Understand' WHEN 2 THEN 'Analyze' WHEN 3 THEN 'Apply' WHEN 4 THEN 'Create' WHEN 5 THEN 'Evaluate'
     END,
     CASE clo_num
-        WHEN 1 THEN 25.00
-        WHEN 2 THEN 20.00
-        WHEN 3 THEN 25.00
-        WHEN 4 THEN 20.00
-        WHEN 5 THEN 10.00
+        WHEN 1 THEN 25.00 WHEN 2 THEN 20.00 WHEN 3 THEN 25.00 WHEN 4 THEN 20.00 WHEN 5 THEN 10.00
     END,
     sv.created_by
 FROM syllabus_versions sv
@@ -160,10 +151,9 @@ ON CONFLICT (syllabus_version_id, code) DO NOTHING;
 -- ==========================================
 -- 3. INSERT ASSESSMENT SCHEMES
 -- ==========================================
-
--- Tạo Assessment Schemes cho tất cả syllabus_versions
-INSERT INTO assessment_schemes (syllabus_version_id, name, weight_percent, created_by)
+INSERT INTO assessment_schemes (id, syllabus_version_id, name, weight_percent, created_by)
 SELECT 
+    gen_random_uuid(),
     sv.id,
     assessment_name,
     assessment_weight,
@@ -180,43 +170,35 @@ ON CONFLICT DO NOTHING;
 -- ==========================================
 -- 4. INSERT CLO-PLO MAPPINGS
 -- ==========================================
-
--- Tạo ánh xạ CLO-PLO (giả định có PLOs trong database)
--- Chỉ insert nếu có PLOs tồn tại
-
-INSERT INTO clo_plo_mappings (clo_id, plo_id, weight, created_by)
+INSERT INTO clo_plo_mappings (id, clo_id, plo_id, weight, created_by)
 SELECT 
-    c.id as clo_id,
-    p.id as plo_id,
-    CASE 
-        WHEN c.code IN ('CLO1', 'CLO2') THEN 0.3
-        WHEN c.code = 'CLO3' THEN 0.4
-        ELSE 0.2
-    END as weight,
+    gen_random_uuid(),
+    c.id,
+    p.id,
+    CASE WHEN c.code IN ('CLO1', 'CLO2') THEN 0.3 WHEN c.code = 'CLO3' THEN 0.4 ELSE 0.2 END,
     c.created_by
 FROM clos c
-CROSS JOIN LATERAL (
-    -- Lấy 2-3 PLOs ngẫu nhiên cho mỗi CLO
-    SELECT id FROM plos 
-    ORDER BY RANDOM() 
-    LIMIT 2
-) p
-WHERE EXISTS (SELECT 1 FROM plos LIMIT 1)
-ON CONFLICT DO NOTHING;
+JOIN syllabus_versions sv ON c.syllabus_version_id = sv.id
+JOIN subjects s ON sv.subject_id = s.id
+JOIN plos p ON s.curriculum_id = p.curriculum_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM clo_plo_mappings m WHERE m.clo_id = c.id AND m.plo_id = p.id
+)
+LIMIT 1000;
 
 -- ==========================================
 -- 5. INSERT ASSESSMENT-CLO MAPPINGS
 -- ==========================================
-
-INSERT INTO assessment_clo_mappings (assessment_scheme_id, clo_id, contribution_percent)
+INSERT INTO assessment_clo_mappings (id, assessment_scheme_id, clo_id, contribution_percent)
 SELECT 
-    ass.id as assessment_scheme_id,
-    c.id as clo_id,
+    gen_random_uuid(),
+    ass.id,
+    c.id,
     CASE 
         WHEN ass.name LIKE '%cuối kỳ%' THEN 40.00
         WHEN ass.name LIKE '%giữa kỳ%' THEN 30.00
         ELSE 15.00
-    END as contribution_percent
+    END
 FROM assessment_schemes ass
 JOIN clos c ON c.syllabus_version_id = ass.syllabus_version_id
 ON CONFLICT DO NOTHING;
@@ -224,24 +206,14 @@ ON CONFLICT DO NOTHING;
 -- ==========================================
 -- 6. LOG SUMMARY
 -- ==========================================
-
 DO $$
 DECLARE
     clo_count INT;
     assessment_count INT;
-    mapping_count INT;
 BEGIN
     SELECT COUNT(*) INTO clo_count FROM clos;
     SELECT COUNT(*) INTO assessment_count FROM assessment_schemes;
-    SELECT COUNT(*) INTO mapping_count FROM clo_plo_mappings;
-    
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'V12 Migration completed!';
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'CLOs created: %', clo_count;
-    RAISE NOTICE 'Assessment schemes created: %', assessment_count;
-    RAISE NOTICE 'CLO-PLO mappings created: %', mapping_count;
-    RAISE NOTICE '================================';
+    RAISE NOTICE 'V12 Migration Success: % CLOs and % Assessments seeded.', clo_count, assessment_count;
 END $$;
 
 COMMIT;

@@ -28,9 +28,6 @@ public class Subject {
     private String code;
 
     // --- FIX LAZY LOADING & JSON SERIALIZATION ---
-    
-    // 1. Map object quan hệ (để lưu dữ liệu và dùng trong code Java)
-    // Dùng @JsonIgnore để khi trả về API, nó không cố load object này -> Tránh lỗi Lazy
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     @JsonIgnore 
@@ -41,15 +38,12 @@ public class Subject {
     @JsonIgnore
     private Curriculum curriculum;
 
-    // 2. Map cột ID ra biến riêng (Read-only)
-    // Frontend chỉ cần ID để hiển thị hoặc filter, không cần cả object Department
+    // Map ID fields for read-only access to prevent Lazy Initialization errors in API responses
     @Column(name = "department_id", insertable = false, updatable = false)
     private UUID departmentId;
 
     @Column(name = "curriculum_id", insertable = false, updatable = false)
     private UUID curriculumId;
-
-    // ---------------------------------------------
 
     @Column(name = "current_name_vi", nullable = false, length = 255)
     private String currentNameVi;
@@ -59,11 +53,6 @@ public class Subject {
 
     @Column(name = "default_credits", nullable = false)
     private Integer defaultCredits;
-
-    // Helper method (giữ lại nếu code cũ đang gọi hàm này)
-    public Integer getCredits() {
-        return defaultCredits;
-    }
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -114,13 +103,13 @@ public class Subject {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-<<<<<<< HEAD
-}
-=======
 
-    // Helper method for backward compatibility
+    // --- Helper methods for backward compatibility ---
+    public Integer getCredits() {
+        return defaultCredits;
+    }
+
     public String getName() {
         return this.currentNameVi;
     }
 }
->>>>>>> origin/main

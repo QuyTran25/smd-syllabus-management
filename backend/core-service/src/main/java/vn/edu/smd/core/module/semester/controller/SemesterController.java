@@ -4,10 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-<<<<<<< HEAD
-import org.springframework.beans.factory.annotation.Autowired;
-=======
->>>>>>> origin/main
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -17,26 +14,25 @@ import vn.edu.smd.core.common.dto.PageResponse;
 import vn.edu.smd.core.module.semester.dto.SemesterRequest;
 import vn.edu.smd.core.module.semester.dto.SemesterResponse;
 import vn.edu.smd.core.module.semester.service.SemesterService;
+import vn.edu.smd.core.module.classmodule.service.ClassService; // Import trực tiếp
+import vn.edu.smd.core.module.classmodule.dto.ClassResponse;
 
 import java.util.List;
 import java.util.UUID;
-<<<<<<< HEAD
-import org.springframework.context.ApplicationContext;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
-=======
->>>>>>> origin/main
 
 @Tag(name = "Semester Management", description = "Semester management APIs")
 @RestController
 @RequestMapping("/api/semesters")
-@RequiredArgsConstructor
 public class SemesterController {
 
     private final SemesterService semesterService;
-<<<<<<< HEAD
-    private final ApplicationContext applicationContext;
-=======
->>>>>>> origin/main
+    private final ClassService classService;
+
+    // Sử dụng Constructor Injection kết hợp @Lazy cho ClassService
+    public SemesterController(SemesterService semesterService, @Lazy ClassService classService) {
+        this.semesterService = semesterService;
+        this.classService = classService;
+    }
 
     @Operation(summary = "Get all semesters with pagination", description = "Get list of semesters with pagination")
     @GetMapping
@@ -44,6 +40,8 @@ public class SemesterController {
         Page<SemesterResponse> semesters = semesterService.getAllSemesters(pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(semesters)));
     }
+
+    // ... Các method khác giữ nguyên ...
 
     @Operation(summary = "Get semester by ID", description = "Get semester details by ID")
     @GetMapping("/{id}")
@@ -84,40 +82,9 @@ public class SemesterController {
 
     @Operation(summary = "Get classes in semester", description = "Get list of classes in a specific semester")
     @GetMapping("/{id}/classes")
-<<<<<<< HEAD
-    public ResponseEntity<ApiResponse<List<Object>>> getClassesInSemester(@PathVariable UUID id, Pageable pageable) {
-        try {
-            Object classService = applicationContext.getBean("classService");
-            if (classService == null) {
-                return ResponseEntity.ok(ApiResponse.success(List.of()));
-            }
-
-            // Call getClassesBySemester(UUID, Pageable) via reflection to avoid compile-time dependency
-            java.lang.reflect.Method m = classService.getClass().getMethod("getClassesBySemester", UUID.class, Pageable.class);
-            Object pageObj = m.invoke(classService, id, pageable);
-            if (pageObj == null) {
-                return ResponseEntity.ok(ApiResponse.success(List.of()));
-            }
-
-            java.lang.reflect.Method getContent = pageObj.getClass().getMethod("getContent");
-            Object content = getContent.invoke(pageObj);
-            if (content instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<Object> list = (List<Object>) content;
-                return ResponseEntity.ok(ApiResponse.success(list));
-            }
-
-            return ResponseEntity.ok(ApiResponse.success(List.of()));
-        } catch (NoSuchBeanDefinitionException ex) {
-            return ResponseEntity.ok(ApiResponse.success(List.of()));
-        } catch (ReflectiveOperationException ex) {
-            // If reflection fails, fall back to empty list to keep API stable
-            return ResponseEntity.ok(ApiResponse.success(List.of()));
-        }
-=======
-    public ResponseEntity<ApiResponse<List<Object>>> getClassesInSemester(@PathVariable UUID id) {
-        // TODO: Implement when Class module is created
-        return ResponseEntity.ok(ApiResponse.success(List.of()));
->>>>>>> origin/main
+    public ResponseEntity<ApiResponse<List<ClassResponse>>> getClassesInSemester(@PathVariable UUID id, Pageable pageable) {
+        // Gọi trực tiếp method, không thông qua reflection, có kiểm soát kiểu ClassResponse
+        Page<ClassResponse> classPage = classService.getClassesBySemester(id, pageable);
+        return ResponseEntity.ok(ApiResponse.success(classPage.getContent()));
     }
 }

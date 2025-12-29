@@ -9,13 +9,11 @@
 
 BEGIN;
 
-<<<<<<< HEAD
-=======
-SET search_path TO core_service;
->>>>>>> origin/main
+-- Chuyển ngữ cảnh làm việc vào schema dự án và public để dùng UUID
+SET search_path TO core_service, public;
 
 -- Log start
-DO $$BEGIN RAISE NOTICE 'Starting V10 Migration: Seeding Full Curriculum...'; END$$;
+DO $$BEGIN RAISE NOTICE 'Starting V9 Migration: Seeding Full Curriculum...'; END$$;
 
 -- ==========================================
 -- 1. TẠO CẤU TRÚC KHOA & BỘ MÔN
@@ -31,7 +29,7 @@ INSERT INTO faculties (code, name) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 1.2. Departments
--- REVIEW UPDATE: Đổi mã Bộ môn thêm prefix BM_ hoặc TT_ để tránh trùng code với Khoa (Risk 2.1)
+-- Sửa lỗi trùng mã bằng cách thêm tiền tố BM_ hoặc TT_
 WITH 
     f_fit AS (SELECT id FROM faculties WHERE code = 'FIT'),
     f_llct AS (SELECT id FROM faculties WHERE code = 'LLCT'),
@@ -45,7 +43,6 @@ INSERT INTO departments (code, name, faculty_id) VALUES
 ('HTTT', 'Hệ thống Thông tin', (SELECT id FROM f_fit)),
 ('MMT', 'Mạng máy tính & Truyền thông', (SELECT id FROM f_fit)),
 ('TOAN', 'Toán học', (SELECT id FROM f_khcb)),
--- Fix naming collision:
 ('BM_LLCT', 'Lý luận Chính trị', (SELECT id FROM f_llct)), 
 ('BM_LUAT', 'Pháp luật', (SELECT id FROM f_llct)), 
 ('TT_GDTC', 'Giáo dục Thể chất', (SELECT id FROM f_gdtc)),
@@ -62,7 +59,6 @@ WITH
     d_httt AS (SELECT id FROM departments WHERE code = 'HTTT'),
     d_mmt  AS (SELECT id FROM departments WHERE code = 'MMT'),
     d_toan AS (SELECT id FROM departments WHERE code = 'TOAN'),
-    -- Cập nhật lookup theo mã mới
     d_llct AS (SELECT id FROM departments WHERE code = 'BM_LLCT'),
     d_luat AS (SELECT id FROM departments WHERE code = 'BM_LUAT'),
     d_tc   AS (SELECT id FROM departments WHERE code = 'TT_GDTC'),
@@ -89,9 +85,7 @@ INSERT INTO subjects (code, current_name_vi, default_credits, department_id, des
 ('122002', 'Toán rời rạc', 2, (SELECT id FROM d_khmt), 'Logic, Tập hợp, Đếm.'),
 ('122003', 'Lập trình hướng đối tượng', 3, (SELECT id FROM d_ktpm), 'OOP, Java/C++.'),
 ('122004', 'Lý thuyết đồ thị', 2, (SELECT id FROM d_khmt), 'Đường đi ngắn nhất, Cây khung.'),
-('122043', 'Chuyên đề thực tế 1', 1, (SELECT id FROM d_ktpm), 'Tham quan doanh nghiệp.'),
 ('123002', 'Mạng máy tính', 3, (SELECT id FROM d_mmt), 'OSI, TCP/IP.'),
-('123042', 'Chuyên đề thực tế 2', 1, (SELECT id FROM d_mmt), 'Thực tập nhận thức.'),
 ('124001', 'Kỹ thuật lập trình', 3, (SELECT id FROM d_ktpm), 'C/C++, Con trỏ, Đệ quy.'),
 ('124002', 'Cấu trúc dữ liệu và giải thuật', 3, (SELECT id FROM d_ktpm), 'Stack, Queue, Sort, Search.'),
 ('125000', 'Kiến trúc máy tính', 3, (SELECT id FROM d_mmt), 'Assembly, CPU, Memory.'),
@@ -107,7 +101,7 @@ INSERT INTO subjects (code, current_name_vi, default_credits, department_id, des
 ('124003', 'Phân tích thiết kế giải thuật', 3, (SELECT id FROM d_khmt), 'Độ phức tạp thuật toán.'),
 ('126000', 'Thực tập tốt nghiệp', 3, (SELECT id FROM d_ktpm), 'Thực tập doanh nghiệp.'),
 
--- === 2.4. TỰ CHỌN & CHUYÊN SÂU (Đại diện) ===
+-- === 2.4. TỰ CHỌN & CHUYÊN SÂU ===
 ('001210', 'Tối ưu hóa', 2, (SELECT id FROM d_toan), 'Quy hoạch tuyến tính.'),
 ('121031', 'Lập trình Web', 3, (SELECT id FROM d_ktpm), 'HTML/CSS/JS, PHP/NodeJS.'),
 ('121034', 'Lập trình Mobile', 3, (SELECT id FROM d_ktpm), 'Android/iOS.'),
@@ -116,7 +110,7 @@ INSERT INTO subjects (code, current_name_vi, default_credits, department_id, des
 ('126001', 'Luận văn tốt nghiệp', 6, (SELECT id FROM d_ktpm), 'Thesis.'),
 ('121033', 'Trí tuệ nhân tạo', 3, (SELECT id FROM d_khmt), 'AI/ML Basic.'),
 
--- === 2.5. MÔN ĐIỀU KIỆN (Fix Credits > 0) ===
+-- === 2.5. MÔN ĐIỀU KIỆN ===
 ('007101', 'Đường lối quân sự', 2, (SELECT id FROM d_qp), 'GDQP 1'),
 ('007102', 'Công tác QP an ninh', 2, (SELECT id FROM d_qp), 'GDQP 2'),
 ('007103', 'Quân sự chung', 4, (SELECT id FROM d_qp), 'GDQP 3'),
@@ -139,21 +133,16 @@ DECLARE
     rec RECORD;
     v_count INT := 0;
 BEGIN
-    -- NOTE: Hiện tại hệ thống coi tất cả mapping là "HARD PREREQUISITE" (Điều kiện tiên quyết cứng).
-    -- TODO: Trong tương lai (V20+), cần thêm cột `type` vào bảng `prerequisites` để phân biệt:
-    --       - HARD: Bắt buộc phải qua môn trước.
-    --       - SOFT/RECOMMENDED: Khuyến khích học theo lộ trình (như các môn Chính trị).
-    
     FOR rec IN SELECT * FROM (VALUES 
-        -- Chính trị (Soft prerequisite - Recommended chain)
+        -- Chính trị (Soft chain)
         ('005106', '005105'), ('005107', '005106'), ('005102', '005107'), ('005108', '005102'),
-        -- Chuyên ngành (Hard prerequisite)
+        -- Chuyên ngành (Hard chain)
         ('122003', '124001'), ('122004', '124001'), ('122004', '122002'), ('122004', '124002'),
         ('124002', '124001'), ('125001', '125000'), ('121002', '121000'), ('121002', '122002'),
         ('121002', '124001'), ('121008', '121000'), ('121008', '121002'), ('122038', '124001'),
         ('122038', '121008'), ('123013', '123002'), ('123013', '124001'), ('124003', '124002'),
         ('121031', '121000'), ('121031', '124001'), ('121034', '122003'), ('121034', '124001'),
-        ('122036', '122003'), ('122039', '122005'), ('124008', '124001'), ('125003', '123002')
+        ('122036', '122003'), ('122039', '122005')
     ) AS mapping(subject_code, prereq_code)
     LOOP
         INSERT INTO subject_relationships (subject_id, related_subject_id, type)
@@ -162,11 +151,9 @@ BEGIN
         WHERE s1.code = rec.subject_code AND s2.code = rec.prereq_code
         ON CONFLICT DO NOTHING;
         
-        -- Chỉ tăng biến đếm nếu insert thành công (Logic đơn giản hóa cho demo)
         v_count := v_count + 1;
     END LOOP;
 
-    -- Logging with Count (Fix 2.3)
     RAISE NOTICE 'Seed completed successfully. Processed % prerequisites mappings.', v_count;
 END $$;
 
