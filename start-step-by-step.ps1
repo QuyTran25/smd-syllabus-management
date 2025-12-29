@@ -33,6 +33,13 @@ if (!(Test-Path "frontend\node_modules")) {
 } else {
     Write-Host "  ✓ Dependencies already installed" -ForegroundColor Green
 }
+
+# Clean Vite cache to prevent "504 Outdated Optimize Dep" error
+Write-Host "  Cleaning Vite cache..." -ForegroundColor Yellow
+if (Test-Path "frontend\node_modules\.vite") {
+    Remove-Item -Recurse -Force "frontend\node_modules\.vite" -ErrorAction SilentlyContinue
+}
+Write-Host "  ✓ Vite cache cleared" -ForegroundColor Green
 Write-Host ""
 
 # Step 3: Start Core Service
