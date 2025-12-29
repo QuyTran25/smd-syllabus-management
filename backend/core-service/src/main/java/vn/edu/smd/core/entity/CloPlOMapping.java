@@ -8,6 +8,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import vn.edu.smd.core.entity.CLO;
+import vn.edu.smd.core.entity.PLO;
+import vn.edu.smd.core.entity.User;
 
 /**
  * CLO-PLO Mapping Entity

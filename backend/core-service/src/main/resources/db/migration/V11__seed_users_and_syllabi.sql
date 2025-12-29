@@ -51,9 +51,22 @@ ON CONFLICT (email) DO NOTHING;
 -- ==========================================
 -- 2. GÁN QUYỀN (Roles Assignment)
 -- ==========================================
+WITH 
+    user_ids AS (
+        SELECT email, id FROM users 
+        WHERE email IN (
+            'admin@smd.edu.vn', 'principal@smd.edu.vn', 
+            'aa1@smd.edu.vn', 'aa2@smd.edu.vn',
+            'hod.khmt@smd.edu.vn', 'hod.ktpm@smd.edu.vn',
+            'gv.nguyen@smd.edu.vn', 'gv.tran@smd.edu.vn', 'gv.vo@smd.edu.vn'
+        )
+    ),
+    role_ids AS (
+        SELECT code, id FROM roles 
+        WHERE code IN ('ADMIN', 'PRINCIPAL', 'AA', 'HOD', 'LECTURER')
+    )
 INSERT INTO user_roles (user_id, role_id, scope_type)
-SELECT u.id, r.id, 'GLOBAL'
-FROM users u, roles r
+SELECT u.id, r.id, 'GLOBAL' FROM user_ids u, role_ids r
 WHERE 
     (u.email = 'admin@smd.edu.vn' AND r.code = 'ADMIN') OR
     (u.email = 'principal@smd.edu.vn' AND r.code = 'PRINCIPAL') OR
@@ -99,7 +112,31 @@ WHERE s.code IN ('122042', '124001', '124002')
 ON CONFLICT DO NOTHING;
 
 -- ==========================================
--- 5. LOG SUMMARY
+-- 6. UPDATE TIMESTAMPS FOR REALISM (Logic của Team)
+-- ==========================================
+-- PUBLISHED syllabus - đã qua tất cả workflow
+UPDATE syllabus_versions 
+SET 
+    submitted_at = CURRENT_TIMESTAMP - INTERVAL '85 days',
+    hod_approved_at = CURRENT_TIMESTAMP - INTERVAL '80 days',
+    hod_approved_by = (SELECT id FROM users WHERE email = 'hod.ktpm@smd.edu.vn' LIMIT 1),
+    aa_approved_at = CURRENT_TIMESTAMP - INTERVAL '70 days',
+    aa_approved_by = (SELECT id FROM users WHERE email = 'aa1@smd.edu.vn' LIMIT 1),
+    principal_approved_at = CURRENT_TIMESTAMP - INTERVAL '60 days',
+    principal_approved_by = (SELECT id FROM users WHERE email = 'principal@smd.edu.vn' LIMIT 1),
+    published_at = CURRENT_TIMESTAMP - INTERVAL '50 days'
+WHERE status = 'PUBLISHED';
+
+-- PENDING_AA - đã qua HOD
+UPDATE syllabus_versions 
+SET 
+    submitted_at = CURRENT_TIMESTAMP - INTERVAL '25 days',
+    hod_approved_at = CURRENT_TIMESTAMP - INTERVAL '20 days',
+    hod_approved_by = (SELECT id FROM users WHERE email = 'hod.khmt@smd.edu.vn' LIMIT 1)
+WHERE status = 'PENDING_AA';
+
+-- ==========================================
+-- 7. LOG SUMMARY
 -- ==========================================
 DO $$
 DECLARE

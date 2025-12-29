@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Space, Row, Col, message } from 'antd';
+import { Form, Input, Button, Card, Typography, Space, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -23,20 +23,20 @@ export const LoginPage: React.FC = () => {
       
       // --- FIX LOGIC ĐIỀU HƯỚNG TẠI ĐÂY ---
       
-      // 1. Lấy role chính xác (đề phòng trường hợp string/enum lệch nhau)
-      const role = user.role || (user as any).primaryRole;
+      // 1. Lấy role chính xác rồi chuyển sang chuỗi để tránh so sánh enum/string lỗi
+      const role = String(user.role ?? (user as any).primaryRole);
 
-      console.log("Login Success. Role:", role); // Debug log
+      console.log("Login Success. Role:", role);
 
       // 2. Điều hướng dựa trên Role
-      if (role === UserRole.ADMIN || role === 'ADMIN') {
+      if (role === UserRole.ADMIN) {
         // QUAN TRỌNG: Admin phải vào layout riêng
         navigate('/admin/dashboard'); 
       } 
-      else if (role === UserRole.LECTURER || role === 'LECTURER') {
+      else if (role === UserRole.LECTURER) {
         navigate('/lecturer');
       } 
-      else if (role === UserRole.STUDENT || role === 'STUDENT') {
+      else if (role === UserRole.STUDENT) {
         navigate('/student'); // (Nếu có trang student)
       } 
       else {
@@ -120,7 +120,7 @@ export const LoginPage: React.FC = () => {
               onFinish={onFinish}
               layout="vertical"
               size="large"
-              autoComplete="off"
+              autoComplete="on"
             >
               <Form.Item
                 name="email"
@@ -133,11 +133,13 @@ export const LoginPage: React.FC = () => {
                   },
                 ]}
               >
+                {/* MERGE: Kết hợp autoComplete của Team và logic onBlur trim() của Bạn */}
                 <Input 
                   prefix={<UserOutlined />} 
-                  placeholder="user@smd.edu.vn" 
-                  autoComplete="off"
+                  placeholder="lecturer@smd.edu.vn" 
+                  autoComplete="username" 
                   onBlur={(e) => {
+                    // Logic của bạn: Tự động cắt khoảng trắng thừa
                     const value = e.target.value.trim();
                     form.setFieldValue('email', value);
                   }}
@@ -149,7 +151,11 @@ export const LoginPage: React.FC = () => {
                 label="Mật khẩu"
                 rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="••••••" />
+                <Input.Password 
+                  prefix={<LockOutlined />} 
+                  placeholder="••••••" 
+                  autoComplete="current-password"
+                />
               </Form.Item>
 
               <Form.Item>

@@ -40,7 +40,7 @@ CREATE TYPE recommendation_status AS ENUM (
 -- 2. SYLLABUS AI ANALYSIS (Kết quả phân tích)
 -- ==========================================
 CREATE TABLE syllabus_ai_analysis (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Reference (không FK cứng vì cross-service)
     syllabus_version_id UUID NOT NULL,
@@ -98,7 +98,7 @@ FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 -- 3. SYLLABUS AI RECOMMENDATION (Đề xuất cải thiện)
 -- ==========================================
 CREATE TABLE syllabus_ai_recommendation (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Reference
     syllabus_version_id UUID NOT NULL,

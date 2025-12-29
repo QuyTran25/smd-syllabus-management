@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:admin\" \"npm run dev:student\" --names \"admin,student\" --prefix-colors \"blue,green\"",
-    "dev:admin": "vite --port 3000 --open /login",
-    "dev:student": "vite --config vite.student.config.ts --open /student-dev/index.html",
+    "clean": "rimraf node_modules/.vite",
+    "dev": "npm run clean && concurrently \"npm run dev:admin\" \"npm run dev:student\" --names \"admin,student\" --prefix-colors \"blue,green\"",
+    "dev:admin": "vite --port 3000",
+    "dev:student": "vite --config vite.student.config.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
@@ -31,6 +32,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.2.1",
     "eslint": "^8.56.0",
+    "rimraf": "^6.1.2",
     "typescript": "^5.3.3",
     "vite": "^5.4.21"
   }

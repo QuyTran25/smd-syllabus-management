@@ -1,28 +1,29 @@
-import React, { useMemo, useState } from 'react';
-import { Button, Card, Form, Input, Space, Typography, message } from 'antd';
-import { LockOutlined, MailOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Button, Card, Form, Input, Space, Typography, App } from 'antd';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { http } from '../api/http';
 
 const { Title, Text } = Typography;
 
-type LoginForm = { email: string; password: string };
-
 export const StudentLoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
 
-  const initialValues = useMemo<LoginForm>(
-    () => ({ email: 'student@smd.edu.vn', password: '123456' }),
-    []
-  );
-
-  const onFinish = async (values: LoginForm) => {
+  const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 350));
-      localStorage.setItem('student_token', 'mock-token');
-      message.success('Đăng nhập thành công (mock)');
-      navigate('/syllabi');
+      const res = await http.post('/auth/login', values);
+      if (res.data?.data?.accessToken) {
+        localStorage.setItem('student_token', res.data.data.accessToken);
+        message.success('Đăng nhập thành công');
+        navigate('/syllabi');
+      } else {
+        message.error('Sai thông tin đăng nhập');
+      }
+    } catch (err) {
+      message.error('Không thể kết nối máy chủ');
     } finally {
       setLoading(false);
     }
@@ -38,59 +39,31 @@ export const StudentLoginPage: React.FC = () => {
         padding: 16,
       }}
     >
-      <Card
-        style={{
-          width: 480,
-          maxWidth: '100%',
-          borderRadius: 10,
-          boxShadow: '0 14px 38px rgba(0,0,0,0.18)',
-        }}
-        bodyStyle={{ padding: 28 }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size={6} align="center">
-          <Title level={2} style={{ margin: 0, color: '#018486' }}>
+      <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
+        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size={4}>
+          <Title level={3} style={{ margin: 0, color: '#018486' }}>
             Student Portal
           </Title>
-          <Text type="secondary">Hệ thống Tra cứu Đề cương - Sinh viên</Text>
+          <Text type="secondary">Hệ thống Tra cứu Đề cương</Text>
         </Space>
-
-        <div style={{ height: 18 }} />
-
-        <Form<LoginForm> layout="vertical" initialValues={initialValues} onFinish={onFinish}>
+        <div style={{ height: 24 }} />
+        <Form layout="vertical" onFinish={onFinish}>
           <Form.Item
             name="email"
-            rules={[
-              { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' },
-            ]}
+            rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
           >
-            <Input size="large" prefix={<MailOutlined />} placeholder="Email" />
+            <Input size="large" prefix={<MailOutlined />} placeholder="Email sinh viên" />
           </Form.Item>
-
           <Form.Item
             name="password"
             rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
           >
-            <Input.Password
-              size="large"
-              prefix={<LockOutlined />}
-              placeholder="Mật khẩu"
-              iconRender={(v) => (v ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-            />
+            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Mật khẩu" />
           </Form.Item>
-
-          <Form.Item style={{ marginTop: 10 }}>
-            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
-              Đăng nhập
-            </Button>
-          </Form.Item>
+          <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            Đăng nhập
+          </Button>
         </Form>
-
-        <div style={{ textAlign: 'center', marginTop: 6 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Demo: student@smd.edu.vn / 123456
-          </Text>
-        </div>
       </Card>
     </div>
   );

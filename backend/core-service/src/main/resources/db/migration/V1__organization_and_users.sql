@@ -1,16 +1,13 @@
 /*
  * V1__organization_and_users.sql
  * Mục tiêu: Quản lý Cơ cấu tổ chức & Người dùng (RBAC)
- * Đã fix: Thêm lệnh khởi tạo Schema để chạy từ Database trống
+ * Đã fix: Thống nhất dùng gen_random_uuid() theo chuẩn mới của Team
  */
 
 -- 0. KHỞI TẠO MÔI TRƯỜNG
 CREATE SCHEMA IF NOT EXISTS core_service;
 
--- Đảm bảo extension UUID có sẵn trong database (thường ở public)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Chuyển ngữ cảnh làm việc vào schema của dự án và public để dùng UUID
+-- Chuyển ngữ cảnh làm việc vào schema của dự án
 SET search_path TO core_service, public;
 
 -- ==========================================
@@ -26,8 +23,9 @@ CREATE TYPE auth_provider AS ENUM ('LOCAL', 'GOOGLE', 'MICROSOFT');
 
 -- Faculties (Khoa)
 CREATE TABLE faculties (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code VARCHAR(50) NOT NULL UNIQUE, 
+    -- MERGE: Dùng gen_random_uuid() của Team để tối ưu hiệu năng
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE, -- VD: CNTT
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -35,7 +33,7 @@ CREATE TABLE faculties (
 
 -- Departments (Bộ môn)
 CREATE TABLE departments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     faculty_id UUID NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
     code VARCHAR(50) NOT NULL UNIQUE, 
     name VARCHAR(255) NOT NULL,
@@ -47,7 +45,7 @@ CREATE TABLE departments (
 -- 3. USERS (Người dùng)
 -- ==========================================
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Định danh
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -81,8 +79,9 @@ CREATE TABLE users (
 
 -- Roles (Vai trò hệ thống)
 CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code VARCHAR(50) NOT NULL UNIQUE, 
+    -- MERGE: Thống nhất dùng gen_random_uuid()
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE, -- VD: ADMIN, DEAN, LECTURER
     name VARCHAR(100) NOT NULL,
     description TEXT,
     is_system BOOLEAN DEFAULT FALSE 
@@ -90,7 +89,7 @@ CREATE TABLE roles (
 
 -- User Roles (Mapping User - Role theo phạm vi)
 CREATE TABLE user_roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     

@@ -59,7 +59,7 @@ CREATE TYPE log_level AS ENUM ('INFO', 'WARN', 'ERROR', 'DEBUG');
 -- 2. AI JOBS
 -- ==========================================
 CREATE TABLE ai_jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID, 
     type job_type NOT NULL,
     status job_status DEFAULT 'PENDING',
@@ -165,7 +165,7 @@ $$ LANGUAGE plpgsql;
 -- 4. VECTOR EMBEDDINGS
 -- ==========================================
 CREATE TABLE vector_embeddings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL,
     section_type embedding_section_type NOT NULL,
     
@@ -194,7 +194,7 @@ CREATE TRIGGER update_vectors_time BEFORE UPDATE ON vector_embeddings FOR EACH R
 -- 5. MONITORING
 -- ==========================================
 CREATE TABLE ai_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id UUID REFERENCES ai_jobs(id) ON DELETE CASCADE,
     level log_level DEFAULT 'INFO',
     message TEXT,

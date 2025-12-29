@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Breadcrumb, Col, Row, Space, Typography, Skeleton, Empty } from 'antd';
+import { Badge, Breadcrumb, Typography, Skeleton, Empty } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StudentFilters } from '../components/StudentFilters';
 import { SyllabusCard } from '../components/SyllabusCard';
@@ -12,8 +12,9 @@ export const StudentSyllabusListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Khởi tạo bộ lọc
   const [filters, setFilters] = useState<StudentSyllabiFilters>({
-    scope: 'ALL',
+    scope: (searchParams.get('scope') as any) || 'ALL',
     q: '',
     faculty: undefined,
     program: undefined,
@@ -21,41 +22,43 @@ export const StudentSyllabusListPage: React.FC = () => {
     sort: 'newest',
   });
 
-  // Sync scope from query (?scope=TRACKED)
+  // Đồng bộ URL -> Filters
   useEffect(() => {
     const scope = searchParams.get('scope');
-    if (scope === 'TRACKED' && filters.scope !== 'TRACKED')
-      setFilters((p) => ({ ...p, scope: 'TRACKED' }));
-    if (scope === 'ALL' && filters.scope !== 'ALL') setFilters((p) => ({ ...p, scope: 'ALL' }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (scope && (scope === 'ALL' || scope === 'TRACKED')) {
+      if (filters.scope !== scope) {
+        setFilters((p) => ({ ...p, scope: scope as any }));
+      }
+    }
   }, [searchParams]);
 
-  // Persist scope to query
+  // Đồng bộ Filters -> URL
   useEffect(() => {
-    const current = searchParams.get('scope');
-    if (filters.scope !== current) {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('scope', filters.scope);
-        return next;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.scope]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('scope', filters.scope);
+      return next;
+    });
+  }, [filters.scope, setSearchParams]);
 
+  // Lấy dữ liệu từ Hook (Dữ liệu trả về là 1 Array)
   const { data, isLoading } = useStudentSyllabi(filters);
   const toggleTrack = useToggleTrack();
 
-  const rows = data?.rows ?? [];
-  const trackedCount = data?.trackedCount ?? 0;
+  // ⭐ SỬA LỖI: data chính là mảng các rows
+  const rows = useMemo(() => data ?? [], [data]);
 
+  // ⭐ SỬA LỖI: Tính toán số lượng theo dõi trực tiếp từ mảng
+  const trackedCount = useMemo(() => rows.filter((r) => r.tracked).length, [rows]);
+
+  // Tự động trích xuất danh sách Khoa/Chương trình/Học kỳ từ dữ liệu thật
   const faculties = useMemo(() => Array.from(new Set(rows.map((x) => x.faculty))).sort(), [rows]);
   const programs = useMemo(() => Array.from(new Set(rows.map((x) => x.program))).sort(), [rows]);
   const terms = useMemo(() => Array.from(new Set(rows.map((x) => x.term))).sort(), [rows]);
 
   return (
     <>
-      {/* Banner full width - escape khỏi container maxWidth 1200px */}
+      {/* Banner Header */}
       <div
         style={{
           height: 120,
@@ -75,105 +78,89 @@ export const StudentSyllabusListPage: React.FC = () => {
             position: 'absolute',
             inset: 0,
             background:
-              'radial-gradient(circle at 10% 30%, rgba(255,255,255,0.18) 0 60px, transparent 62px),' +
-              'radial-gradient(circle at 90% 35%, rgba(255,255,255,0.14) 0 70px, transparent 72px),' +
-              'radial-gradient(circle at 98% 80%, rgba(255,255,255,0.12) 0 55px, transparent 57px)',
+              'radial-gradient(circle at 10% 30%, rgba(255,255,255,0.18) 0 60px, transparent 62px), radial-gradient(circle at 90% 35%, rgba(255,255,255,0.14) 0 70px, transparent 72px)',
             pointerEvents: 'none',
           }}
         />
-
-        <Space direction="vertical" align="center" size={6} style={{ position: 'relative' }}>
+        <div style={{ textAlign: 'center', position: 'relative' }}>
           <Title level={3} style={{ margin: 0, color: 'white' }}>
             Đề cương của tôi
           </Title>
-
           <Breadcrumb
             items={[
-              { title: <Text style={{ color: 'rgba(255,255,255,0.85)' }}>Đề cương của tôi</Text> },
-              {
-                title: (
-                  <Text style={{ color: 'rgba(255,255,255,0.85)' }}>Có trang của trang web</Text>
-                ),
-              },
-              { title: <Text style={{ color: 'rgba(255,255,255,0.85)' }}>Đề cương của tôi</Text> },
+              { title: <span style={{ color: 'white' }}>Trang chủ</span> },
+              { title: <span style={{ color: 'white' }}>Học tập</span> },
+              { title: <span style={{ color: 'white' }}>Đề cương</span> },
             ]}
           />
-        </Space>
+        </div>
       </div>
 
-      {/* Content với padding */}
       <div style={{ padding: '0 18px' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 12,
-        }}
-      >
-        <Title level={4} style={{ margin: 0 }}>
-          Chào bạn, Sinh viên! 👋
-        </Title>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <Title level={4} style={{ margin: 0 }}>
+            Chào bạn, Sinh viên! 👋
+          </Title>
+          <Badge count={trackedCount}>
+            <div
+              style={{
+                border: '1px solid #ffe58f',
+                background: '#fff7e6',
+                padding: '6px 12px',
+                borderRadius: 6,
+                fontSize: 13,
+              }}
+            >
+              ⭐ Đang theo dõi: {trackedCount} đề cương
+            </div>
+          </Badge>
+        </div>
 
-        <Badge count={trackedCount} overflowCount={99} offset={[-4, 4]}>
-          <div
-            style={{
-              border: '1px solid #ffe58f',
-              background: '#fff7e6',
-              padding: '6px 10px',
-              borderRadius: 6,
-              fontSize: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            ⭐ Đang theo dõi: {trackedCount} đề cương
-          </div>
-        </Badge>
-      </div>
+        {/* Thanh lọc dữ liệu */}
+        <StudentFilters
+          value={filters}
+          faculties={faculties}
+          programs={programs}
+          terms={terms}
+          onChange={setFilters}
+        />
 
-      {/* Khối Tổng quan + filter (y hệt cấu trúc trong ảnh) */}
-      <StudentFilters
-        value={filters}
-        faculties={faculties}
-        programs={programs}
-        terms={terms}
-        onChange={setFilters}
-      />
-
-      {/* Cards */}
-      <div style={{ marginTop: 14 }}>
-        {isLoading ? (
-          <Skeleton active />
-        ) : rows.length === 0 ? (
-          <div style={{ marginTop: 28 }}>
-            <Empty description="Không có đề cương phù hợp bộ lọc." />
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gap: 14,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              alignItems: 'stretch',
-            }}
-          >
-            {rows.map((item) => (
-              <div key={item.id} style={{ minWidth: 0 }}>
+        {/* Danh sách Card hiển thị */}
+        <div style={{ marginTop: 20 }}>
+          {isLoading ? (
+            <Skeleton active paragraph={{ rows: 6 }} />
+          ) : rows.length === 0 ? (
+            <Empty
+              description="Không tìm thấy đề cương nào trong hệ thống."
+              style={{ marginTop: 40 }}
+            />
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gap: 20,
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              }}
+            >
+              {rows.map((item) => (
                 <SyllabusCard
+                  key={item.id}
                   item={item}
                   onOpen={(sid) => navigate(`/syllabi/${sid}`)}
                   onToggleTrack={(sid) => toggleTrack.mutate(sid)}
                 />
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 };

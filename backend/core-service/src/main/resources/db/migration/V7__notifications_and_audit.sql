@@ -1,7 +1,7 @@
 /*
  * V7__notifications_and_audit.sql
  * Mục tiêu: Cấu hình hệ thống, Thông báo và Nhật ký truy vết
- * Cập nhật: System Settings dùng JSONB, Notification hỗ trợ payload
+ * Cập nhật: Thống nhất dùng gen_random_uuid() theo chuẩn Team
  */
 
 -- Chuyển ngữ cảnh làm việc vào schema dự án và public để dùng UUID
@@ -26,8 +26,10 @@ CREATE TABLE system_settings (
 -- 2. NOTIFICATIONS (Thông báo người dùng)
 -- ==========================================
 CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Người nhận
+    -- MERGE: Thống nhất dùng gen_random_uuid() của Team
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- MERGE: Bỏ CASCADE theo chuẩn của Team để bảo vệ dữ liệu vết
+    user_id UUID NOT NULL REFERENCES users(id), -- Người nhận
     
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -51,7 +53,7 @@ CREATE INDEX idx_notif_read ON notifications(user_id, is_read);
 -- 3. AUDIT LOGS (Nhật ký truy vết)
 -- ==========================================
 CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     entity_name VARCHAR(50), -- VD: 'SyllabusVersion', 'User', 'Subject'
     entity_id UUID,          -- ID của bản ghi bị tác động

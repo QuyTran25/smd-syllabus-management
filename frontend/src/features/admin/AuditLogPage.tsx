@@ -1,217 +1,98 @@
 import React, { useState } from 'react';
-import { Card, Table, Space, Select, DatePicker, Input, Tag, Button } from 'antd';
+import { Card, Table, Space, Select, DatePicker, Input, Tag, Button, Typography } from 'antd';
 import { SearchOutlined, DownloadOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
+import type { TablePaginationConfig } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { auditLogService, AuditLog } from '@/services/auditlog.service';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+const { Text } = Typography;
 
-interface AuditLog {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  userRole: string;
-  action: string;
-  resource: string;
-  resourceId: string;
-  details: string;
-  ipAddress: string;
-  status: 'success' | 'failed';
-}
-
-// Mock audit logs
-const mockAuditLogs: AuditLog[] = [
-  {
-    id: '1',
-    timestamp: '2024-12-08 14:30:25',
-    userId: 'u001',
-    userName: 'Nguyễn Văn A',
-    userRole: 'Admin',
-    action: 'CREATE',
-    resource: 'User',
-    resourceId: 'u025',
-    details: 'Tạo tài khoản mới cho giảng viên Trần Thị B',
-    ipAddress: '192.168.1.100',
-    status: 'success',
-  },
-  {
-    id: '2',
-    timestamp: '2024-12-08 14:25:10',
-    userId: 'u002',
-    userName: 'Lê Văn C',
-    userRole: 'HoD',
-    action: 'APPROVE',
-    resource: 'Syllabus',
-    resourceId: 's042',
-    details: 'Phê duyệt đề cương CS301 - Cấu trúc dữ liệu',
-    ipAddress: '192.168.1.105',
-    status: 'success',
-  },
-  {
-    id: '3',
-    timestamp: '2024-12-08 14:20:45',
-    userId: 'u003',
-    userName: 'Phạm Thị D',
-    userRole: 'AA',
-    action: 'UPDATE',
-    resource: 'PLO',
-    resourceId: 'plo05',
-    details: 'Cập nhật mô tả PLO5 - Năng lực tự học',
-    ipAddress: '192.168.1.110',
-    status: 'success',
-  },
-  {
-    id: '4',
-    timestamp: '2024-12-08 14:15:30',
-    userId: 'u004',
-    userName: 'Hoàng Văn E',
-    userRole: 'Lecturer',
-    action: 'SUBMIT',
-    resource: 'Syllabus',
-    resourceId: 's043',
-    details: 'Nộp đề cương CS401 - Hệ điều hành để phê duyệt',
-    ipAddress: '192.168.1.115',
-    status: 'success',
-  },
-  {
-    id: '5',
-    timestamp: '2024-12-08 14:10:15',
-    userId: 'u001',
-    userName: 'Nguyễn Văn A',
-    userRole: 'Admin',
-    action: 'DELETE',
-    resource: 'User',
-    resourceId: 'u020',
-    details: 'Xóa tài khoản người dùng không hoạt động',
-    ipAddress: '192.168.1.100',
-    status: 'success',
-  },
-  {
-    id: '6',
-    timestamp: '2024-12-08 14:05:00',
-    userId: 'u005',
-    userName: 'Vũ Thị F',
-    userRole: 'Principal',
-    action: 'APPROVE',
-    resource: 'Syllabus',
-    resourceId: 's038',
-    details: 'Phê duyệt cuối cùng 5 đề cương (batch approval)',
-    ipAddress: '192.168.1.120',
-    status: 'success',
-  },
-  {
-    id: '7',
-    timestamp: '2024-12-08 13:58:30',
-    userId: 'u002',
-    userName: 'Lê Văn C',
-    userRole: 'HoD',
-    action: 'REJECT',
-    resource: 'Syllabus',
-    resourceId: 's044',
-    details: 'Từ chối đề cương CS501 - Thiếu CLO ánh xạ PLO',
-    ipAddress: '192.168.1.105',
-    status: 'success',
-  },
-  {
-    id: '8',
-    timestamp: '2024-12-08 13:55:20',
-    userId: 'u006',
-    userName: 'Đỗ Văn G',
-    userRole: 'Lecturer',
-    action: 'LOGIN',
-    resource: 'System',
-    resourceId: '-',
-    details: 'Đăng nhập hệ thống',
-    ipAddress: '192.168.1.125',
-    status: 'success',
-  },
-  {
-    id: '9',
-    timestamp: '2024-12-08 13:50:10',
-    userId: 'u001',
-    userName: 'Nguyễn Văn A',
-    userRole: 'Admin',
-    action: 'UPDATE',
-    resource: 'SystemConfig',
-    resourceId: 'cfg01',
-    details: 'Cập nhật thời gian phê duyệt tối đa: HoD=3 ngày, AA=5 ngày',
-    ipAddress: '192.168.1.100',
-    status: 'success',
-  },
-  {
-    id: '10',
-    timestamp: '2024-12-08 13:45:00',
-    userId: 'u007',
-    userName: 'Trần Văn H',
-    userRole: 'Lecturer',
-    action: 'EXPORT',
-    resource: 'Syllabus',
-    resourceId: 's040',
-    details: 'Xuất file CSV danh sách đề cương',
-    ipAddress: '192.168.1.130',
-    status: 'success',
-  },
-];
+// Role display mapping
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin',
+  PRINCIPAL: 'Hiệu trưởng',
+  HOD: 'Trưởng BM',
+  AA: 'Phòng ĐT',
+  LECTURER: 'Giảng viên',
+  STUDENT: 'Sinh viên',
+};
 
 export const AuditLogPage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedAction, setSelectedAction] = useState<string>('all');
-  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [selectedEntity, setSelectedEntity] = useState<string>('all');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
 
-  // Mock query
-  const { data: logs, isLoading } = useQuery({
-    queryKey: ['audit-logs', searchText, selectedAction, selectedRole, dateRange],
+  // Fetch audit logs from API
+  const { data: logsData, isLoading } = useQuery({
+    queryKey: ['audit-logs', selectedAction, selectedEntity, dateRange, pagination],
     queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      let filteredLogs = [...mockAuditLogs];
-
-      if (searchText) {
-        filteredLogs = filteredLogs.filter(
-          (log) =>
-            log.userName.toLowerCase().includes(searchText.toLowerCase()) ||
-            log.details.toLowerCase().includes(searchText.toLowerCase())
-        );
-      }
-
-      if (selectedAction !== 'all') {
-        filteredLogs = filteredLogs.filter((log) => log.action === selectedAction);
-      }
-
-      if (selectedRole !== 'all') {
-        filteredLogs = filteredLogs.filter((log) => log.userRole === selectedRole);
-      }
-
-      return filteredLogs;
+      const filters = {
+        action: selectedAction !== 'all' ? selectedAction : undefined,
+        entityName: selectedEntity !== 'all' ? selectedEntity : undefined,
+        startDate: dateRange?.[0]?.toISOString(),
+        endDate: dateRange?.[1]?.toISOString(),
+        page: pagination.current - 1,
+        size: pagination.pageSize,
+      };
+      return auditLogService.searchAuditLogs(filters);
     },
   });
+
+  // Filter locally by search text (for name/description)
+  const filteredLogs = React.useMemo(() => {
+    if (!logsData?.content) return [];
+    if (!searchText) return logsData.content;
+    
+    const searchLower = searchText.toLowerCase();
+    return logsData.content.filter(
+      (log) =>
+        log.actorName?.toLowerCase().includes(searchLower) ||
+        log.description?.toLowerCase().includes(searchLower)
+    );
+  }, [logsData?.content, searchText]);
+
+  const handleTableChange = (paginationConfig: TablePaginationConfig) => {
+    setPagination({
+      current: paginationConfig.current || 1,
+      pageSize: paginationConfig.pageSize || 20,
+    });
+  };
 
   const columns: ColumnsType<AuditLog> = [
     {
       title: 'Thời gian',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      width: 110,
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 130,
       align: 'center',
-      sorter: (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      render: (timestamp) => {
-        const date = new Date(timestamp);
-        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')} ${date.getDate().toString().padStart(2, '0')}/${(date.getMonth()+1).toString().padStart(2, '0')}`;
+      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (createdAt) => {
+        const date = dayjs(createdAt);
+        return (
+          <Space direction="vertical" size={0}>
+            <Text strong>{date.format('HH:mm:ss')}</Text>
+            <Text type="secondary" style={{ fontSize: '11px' }}>{date.format('DD/MM/YYYY')}</Text>
+          </Space>
+        );
       },
     },
     {
       title: 'Người dùng',
       key: 'user',
-      width: 200,
-      align: 'center',
+      width: 180,
       ellipsis: { showTitle: false },
       render: (_, record) => (
-        <Space size="small">
-          <strong>{record.userName}</strong>
-          <Tag color="blue">{record.userRole}</Tag>
+        <Space direction="vertical" size={0}>
+          <Text strong>{record.actorName || 'Hệ thống'}</Text>
+          <Tag color="blue" style={{ fontSize: '10px' }}>
+            {ROLE_LABELS[record.actorRole] || record.actorRole || 'System'}
+          </Tag>
         </Space>
       ),
     },
@@ -230,7 +111,10 @@ export const AuditLogPage: React.FC = () => {
           REJECT: 'orange',
           SUBMIT: 'purple',
           LOGIN: 'default',
+          LOGOUT: 'default',
           EXPORT: 'geekblue',
+          PUBLISH: 'green',
+          UNPUBLISH: 'volcano',
         };
         return <Tag color={colors[action] || 'default'}>{action}</Tag>;
       },
@@ -241,27 +125,44 @@ export const AuditLogPage: React.FC = () => {
       width: 150,
       align: 'center',
       ellipsis: { showTitle: false },
-      render: (_, record) => `${record.resource}${record.resourceId !== '-' ? ` #${record.resourceId}` : ''}`,
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <Text>{record.entityName || '-'}</Text>
+          {record.entityId && (
+            <Text type="secondary" style={{ fontSize: '10px' }}>
+              #{record.entityId.substring(0, 8)}...
+            </Text>
+          )}
+        </Space>
+      ),
     },
     {
       title: 'Chi tiết',
-      dataIndex: 'details',
-      key: 'details',
-      align: 'center',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: { showTitle: false },
-      minWidth: 200,
+      minWidth: 250,
+      render: (description) => description || '-',
     },
     {
       title: 'Kết quả',
       dataIndex: 'status',
       key: 'status',
-      width: 110,
+      width: 100,
       align: 'center',
       render: (status) => (
-        <Tag color={status === 'success' ? 'success' : 'error'}>
-          {status === 'success' ? 'Thành công' : 'Lỗi'}
+        <Tag color={status === 'SUCCESS' ? 'success' : 'error'}>
+          {status === 'SUCCESS' ? 'Thành công' : 'Lỗi'}
         </Tag>
       ),
+    },
+    {
+      title: 'IP',
+      dataIndex: 'ipAddress',
+      key: 'ipAddress',
+      width: 120,
+      align: 'center',
+      render: (ip) => <Text type="secondary">{ip || '-'}</Text>,
     },
   ];
 
@@ -279,13 +180,13 @@ export const AuditLogPage: React.FC = () => {
           <Input
             placeholder="Tìm theo tên hoặc chi tiết..."
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 280 }}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
           />
 
-          <Select value={selectedAction} onChange={setSelectedAction} style={{ width: 180 }}>
+          <Select value={selectedAction} onChange={setSelectedAction} style={{ width: 160 }}>
             <Option value="all">Tất cả hành động</Option>
             <Option value="CREATE">CREATE</Option>
             <Option value="UPDATE">UPDATE</Option>
@@ -294,21 +195,25 @@ export const AuditLogPage: React.FC = () => {
             <Option value="REJECT">REJECT</Option>
             <Option value="SUBMIT">SUBMIT</Option>
             <Option value="LOGIN">LOGIN</Option>
+            <Option value="LOGOUT">LOGOUT</Option>
+            <Option value="PUBLISH">PUBLISH</Option>
             <Option value="EXPORT">EXPORT</Option>
           </Select>
 
-          <Select value={selectedRole} onChange={setSelectedRole} style={{ width: 160 }}>
-            <Option value="all">Tất cả vai trò</Option>
-            <Option value="Admin">Admin</Option>
-            <Option value="Principal">Principal</Option>
-            <Option value="HoD">HoD</Option>
-            <Option value="AA">AA</Option>
-            <Option value="Lecturer">Lecturer</Option>
+          <Select value={selectedEntity} onChange={setSelectedEntity} style={{ width: 160 }}>
+            <Option value="all">Tất cả tài nguyên</Option>
+            <Option value="User">User</Option>
+            <Option value="Syllabus">Syllabus</Option>
+            <Option value="PLO">PLO</Option>
+            <Option value="CLO">CLO</Option>
+            <Option value="Subject">Subject</Option>
+            <Option value="Semester">Semester</Option>
+            <Option value="System">System</Option>
           </Select>
 
           <RangePicker
             value={dateRange}
-            onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
+            onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
             format="DD/MM/YYYY"
             placeholder={['Từ ngày', 'Đến ngày']}
           />
@@ -318,15 +223,19 @@ export const AuditLogPage: React.FC = () => {
       <Card>
         <Table
           columns={columns}
-          dataSource={logs || []}
+          dataSource={filteredLogs}
           rowKey="id"
           loading={isLoading}
           pagination={{
-            pageSize: 20,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: logsData?.totalElements || 0,
             showSizeChanger: true,
             showTotal: (total) => `Tổng ${total} bản ghi`,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
-          scroll={{ x: 950 }}
+          onChange={handleTableChange}
+          scroll={{ x: 1100 }}
         />
       </Card>
     </div>

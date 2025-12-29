@@ -26,8 +26,17 @@ public class SyllabusRequest {
     private LocalDate effectiveDate;
 
     private String[] keywords;
-    private Map<String, Object> content;
     
-    // Đảm bảo có trường này để khớp với logic "student_tasks" bạn đã thêm ở Entity
-    private String studentTasks; 
+    // Trường này dùng để chứa cấu trúc JSON linh hoạt nếu cần
+    private Map<String, Object> content;
+
+    // =========================================================================
+    // PHẦN MERGE: CHỌN CODE CỦA TEAM (origin/main) VÌ ĐẦY ĐỦ HƠN
+    // =========================================================================
+    // Team đã bổ sung thêm description và objectives, đồng thời cũng có cả 
+    // trường studentTasks mà bạn cần.
+    
+    private String description;
+    private String objectives;
+    private String studentTasks;
 }

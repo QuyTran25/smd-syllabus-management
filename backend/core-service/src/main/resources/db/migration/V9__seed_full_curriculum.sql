@@ -1,10 +1,7 @@
 /*
  * V9__seed_full_curriculum.sql
  * Import TOÀN BỘ môn học (Full Curriculum Seed)
- * Updated: 
- * - Fix trùng Code giữa Khoa và Bộ môn (thêm prefix BM_).
- * - Thêm log debug số lượng mapping.
- * - Đánh dấu TODO cho logic prerequisite nâng cao.
+ * Đã fix: Thống nhất loại bỏ cột 'description' theo chuẩn Team để tránh lỗi Schema
  */
 
 BEGIN;
@@ -29,7 +26,7 @@ INSERT INTO faculties (code, name) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 1.2. Departments
--- Sửa lỗi trùng mã bằng cách thêm tiền tố BM_ hoặc TT_
+-- MERGE: Giữ comment giải thích - Sửa lỗi trùng mã bằng cách thêm tiền tố BM_ hoặc TT_
 WITH 
     f_fit AS (SELECT id FROM faculties WHERE code = 'FIT'),
     f_llct AS (SELECT id FROM faculties WHERE code = 'LLCT'),
@@ -52,6 +49,7 @@ ON CONFLICT (code) DO NOTHING;
 -- ==========================================
 -- 2. INSERT MÔN HỌC (SUBJECTS)
 -- ==========================================
+-- Đã xóa cột description và giá trị tương ứng để khớp với Schema hiện tại
 
 WITH 
     d_khmt AS (SELECT id FROM departments WHERE code = 'KHMT'),
@@ -64,65 +62,66 @@ WITH
     d_tc   AS (SELECT id FROM departments WHERE code = 'TT_GDTC'),
     d_qp   AS (SELECT id FROM departments WHERE code = 'TT_GDQP')
 
-INSERT INTO subjects (code, current_name_vi, default_credits, department_id, description) VALUES 
+INSERT INTO subjects (code, current_name_vi, default_credits, department_id) VALUES 
 
 -- === 2.1. ĐẠI CƯƠNG ===
-('001201', 'Đại số', 2, (SELECT id FROM d_toan), 'Ma trận, định thức, hệ phương trình tuyến tính.'),
-('001202', 'Giải tích 1', 3, (SELECT id FROM d_toan), 'Giới hạn, đạo hàm, tích phân.'),
-('001205', 'Toán chuyên đề 1', 3, (SELECT id FROM d_toan), 'Xác suất thống kê, kiểm định giả thiết.'),
-('122042', 'Nhập môn ngành CNTT', 3, (SELECT id FROM d_khmt), 'Định hướng nghề nghiệp, nhập môn Python.'),
-('005105', 'Triết học Mác – Lênin', 3, (SELECT id FROM d_llct), 'Theo quy định của Bộ Giáo dục.'),
-('005106', 'Kinh tế chính trị Mác – Lênin', 2, (SELECT id FROM d_llct), 'Theo quy định của Bộ Giáo dục.'),
-('005107', 'Chủ nghĩa xã hội khoa học', 2, (SELECT id FROM d_llct), 'Theo quy định của Bộ Giáo dục.'),
-('005102', 'Tư tưởng Hồ Chí Minh', 2, (SELECT id FROM d_llct), 'Theo quy định của Bộ Giáo dục.'),
-('005108', 'Lịch sử Đảng cộng sản VN', 2, (SELECT id FROM d_llct), 'Theo quy định của Bộ Giáo dục.'),
-('005004', 'Pháp luật đại cương', 2, (SELECT id FROM d_luat), 'Kiến thức cơ bản về nhà nước và pháp luật.'),
-('124012', 'Tin học cơ bản', 2, (SELECT id FROM d_khmt), 'Kỹ năng tin học văn phòng.'),
+('001201', 'Đại số', 2, (SELECT id FROM d_toan)),
+('001202', 'Giải tích 1', 3, (SELECT id FROM d_toan)),
+('001205', 'Toán chuyên đề 1', 3, (SELECT id FROM d_toan)),
+('122042', 'Nhập môn ngành CNTT', 3, (SELECT id FROM d_khmt)),
+('005105', 'Triết học Mác – Lênin', 3, (SELECT id FROM d_llct)),
+('005106', 'Kinh tế chính trị Mác – Lênin', 2, (SELECT id FROM d_llct)),
+('005107', 'Chủ nghĩa xã hội khoa học', 2, (SELECT id FROM d_llct)),
+('005102', 'Tư tưởng Hồ Chí Minh', 2, (SELECT id FROM d_llct)),
+('005108', 'Lịch sử Đảng cộng sản VN', 2, (SELECT id FROM d_llct)),
+('005004', 'Pháp luật đại cương', 2, (SELECT id FROM d_luat)),
+('124012', 'Tin học cơ bản', 2, (SELECT id FROM d_khmt)),
 
 -- === 2.2. CƠ SỞ NGÀNH ===
-('121000', 'Cơ sở dữ liệu', 3, (SELECT id FROM d_httt), 'SQL, Đại số quan hệ.'),
-('121037', 'Quản trị doanh nghiệp CNTT', 2, (SELECT id FROM d_httt), 'Tổng quan quản trị DN.'),
-('122002', 'Toán rời rạc', 2, (SELECT id FROM d_khmt), 'Logic, Tập hợp, Đếm.'),
-('122003', 'Lập trình hướng đối tượng', 3, (SELECT id FROM d_ktpm), 'OOP, Java/C++.'),
-('122004', 'Lý thuyết đồ thị', 2, (SELECT id FROM d_khmt), 'Đường đi ngắn nhất, Cây khung.'),
-('123002', 'Mạng máy tính', 3, (SELECT id FROM d_mmt), 'OSI, TCP/IP.'),
-('124001', 'Kỹ thuật lập trình', 3, (SELECT id FROM d_ktpm), 'C/C++, Con trỏ, Đệ quy.'),
-('124002', 'Cấu trúc dữ liệu và giải thuật', 3, (SELECT id FROM d_ktpm), 'Stack, Queue, Sort, Search.'),
-('125000', 'Kiến trúc máy tính', 3, (SELECT id FROM d_mmt), 'Assembly, CPU, Memory.'),
-('125001', 'Hệ điều hành', 3, (SELECT id FROM d_mmt), 'Process, Thread, Deadlock.'),
+('121000', 'Cơ sở dữ liệu', 3, (SELECT id FROM d_httt)),
+('121037', 'Quản trị doanh nghiệp CNTT', 2, (SELECT id FROM d_httt)),
+('122002', 'Toán rời rạc', 2, (SELECT id FROM d_khmt)),
+('122003', 'Lập trình hướng đối tượng', 3, (SELECT id FROM d_ktpm)),
+('122004', 'Lý thuyết đồ thị', 2, (SELECT id FROM d_khmt)),
+('122043', 'Chuyên đề thực tế 1', 1, (SELECT id FROM d_ktpm)),
+('123002', 'Mạng máy tính', 3, (SELECT id FROM d_mmt)),
+('123042', 'Chuyên đề thực tế 2', 1, (SELECT id FROM d_mmt)),
+('124001', 'Kỹ thuật lập trình', 3, (SELECT id FROM d_ktpm)),
+('124002', 'Cấu trúc dữ liệu và giải thuật', 3, (SELECT id FROM d_ktpm)),
+('125000', 'Kiến trúc máy tính', 3, (SELECT id FROM d_mmt)),
+('125001', 'Hệ điều hành', 3, (SELECT id FROM d_mmt)),
 
 -- === 2.3. CHUYÊN NGÀNH ===
-('121002', 'Thiết kế cơ sở dữ liệu', 3, (SELECT id FROM d_httt), 'Normal Forms, SP, Trigger.'),
-('121008', 'Phân tích thiết kế hệ thống', 3, (SELECT id FROM d_httt), 'UML, OOAD.'),
-('122005', 'Công nghệ phần mềm', 2, (SELECT id FROM d_ktpm), 'SDLC, Agile, Scrum.'),
-('122038', 'Chuyên đề HTGT thông minh', 3, (SELECT id FROM d_httt), 'ITS, IoT.'),
-('123013', 'Lập trình mạng', 3, (SELECT id FROM d_mmt), 'Socket, Multithreading.'),
-('123033', 'An toàn thông tin', 3, (SELECT id FROM d_mmt), 'Crypto, Security.'),
-('124003', 'Phân tích thiết kế giải thuật', 3, (SELECT id FROM d_khmt), 'Độ phức tạp thuật toán.'),
-('126000', 'Thực tập tốt nghiệp', 3, (SELECT id FROM d_ktpm), 'Thực tập doanh nghiệp.'),
+('121002', 'Thiết kế cơ sở dữ liệu', 3, (SELECT id FROM d_httt)),
+('121008', 'Phân tích thiết kế hệ thống', 3, (SELECT id FROM d_httt)),
+('122005', 'Công nghệ phần mềm', 2, (SELECT id FROM d_ktpm)),
+('122038', 'Chuyên đề HTGT thông minh', 3, (SELECT id FROM d_httt)),
+('123013', 'Lập trình mạng', 3, (SELECT id FROM d_mmt)),
+('123033', 'An toàn thông tin', 3, (SELECT id FROM d_mmt)),
+('124003', 'Phân tích thiết kế giải thuật', 3, (SELECT id FROM d_khmt)),
+('126000', 'Thực tập tốt nghiệp', 3, (SELECT id FROM d_ktpm)),
 
 -- === 2.4. TỰ CHỌN & CHUYÊN SÂU ===
-('001210', 'Tối ưu hóa', 2, (SELECT id FROM d_toan), 'Quy hoạch tuyến tính.'),
-('121031', 'Lập trình Web', 3, (SELECT id FROM d_ktpm), 'HTML/CSS/JS, PHP/NodeJS.'),
-('121034', 'Lập trình Mobile', 3, (SELECT id FROM d_ktpm), 'Android/iOS.'),
-('122036', 'Lập trình Java', 2, (SELECT id FROM d_ktpm), 'Java Advanced.'),
-('122039', 'Đồ án thực tế CNPM', 3, (SELECT id FROM d_ktpm), 'Capstone Project.'),
-('126001', 'Luận văn tốt nghiệp', 6, (SELECT id FROM d_ktpm), 'Thesis.'),
-('121033', 'Trí tuệ nhân tạo', 3, (SELECT id FROM d_khmt), 'AI/ML Basic.'),
+('001210', 'Tối ưu hóa', 2, (SELECT id FROM d_toan)),
+('121031', 'Lập trình Web', 3, (SELECT id FROM d_ktpm)),
+('121034', 'Lập trình Mobile', 3, (SELECT id FROM d_ktpm)),
+('122036', 'Lập trình Java', 2, (SELECT id FROM d_ktpm)),
+('122039', 'Đồ án thực tế CNPM', 3, (SELECT id FROM d_ktpm)),
+('126001', 'Luận văn tốt nghiệp', 6, (SELECT id FROM d_ktpm)),
+('121033', 'Trí tuệ nhân tạo', 3, (SELECT id FROM d_khmt)),
 
 -- === 2.5. MÔN ĐIỀU KIỆN ===
-('007101', 'Đường lối quân sự', 2, (SELECT id FROM d_qp), 'GDQP 1'),
-('007102', 'Công tác QP an ninh', 2, (SELECT id FROM d_qp), 'GDQP 2'),
-('007103', 'Quân sự chung', 4, (SELECT id FROM d_qp), 'GDQP 3'),
-('007104', 'Quân binh chủng', 1, (SELECT id FROM d_qp), 'GDQP 4'),
-('004101', 'Lý thuyết GDTC', 1, (SELECT id FROM d_tc), 'GDTC 1'),
-('004103', 'Bơi lội', 1, (SELECT id FROM d_tc), 'GDTC Tự chọn'),
-('004107', 'Bóng đá', 1, (SELECT id FROM d_tc), 'GDTC Tự chọn')
+('007101', 'Đường lối quân sự', 2, (SELECT id FROM d_qp)),
+('007102', 'Công tác QP an ninh', 2, (SELECT id FROM d_qp)),
+('007103', 'Quân sự chung', 4, (SELECT id FROM d_qp)),
+('007104', 'Quân binh chủng', 1, (SELECT id FROM d_qp)),
+('004101', 'Lý thuyết GDTC', 1, (SELECT id FROM d_tc)),
+('004103', 'Bơi lội', 1, (SELECT id FROM d_tc)),
+('004107', 'Bóng đá', 1, (SELECT id FROM d_tc))
 
 ON CONFLICT (code) DO UPDATE 
 SET current_name_vi = EXCLUDED.current_name_vi,
     default_credits = EXCLUDED.default_credits,
-    description = EXCLUDED.description,
     department_id = EXCLUDED.department_id;
 
 -- ==========================================
@@ -134,9 +133,8 @@ DECLARE
     v_count INT := 0;
 BEGIN
     FOR rec IN SELECT * FROM (VALUES 
-        -- Chính trị (Soft chain)
+        -- MERGE: Phân loại theo comment (Chính trị - Soft chain / Chuyên ngành - Hard chain)
         ('005106', '005105'), ('005107', '005106'), ('005102', '005107'), ('005108', '005102'),
-        -- Chuyên ngành (Hard chain)
         ('122003', '124001'), ('122004', '124001'), ('122004', '122002'), ('122004', '124002'),
         ('124002', '124001'), ('125001', '125000'), ('121002', '121000'), ('121002', '122002'),
         ('121002', '124001'), ('121008', '121000'), ('121008', '121002'), ('122038', '124001'),

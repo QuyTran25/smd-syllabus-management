@@ -1,6 +1,6 @@
 // API Configuration
-// Default to Gateway (port 8080) so frontend talks to Gateway which handles CORS/routing
-export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+// MERGE: Sử dụng port 8888 (Gateway) theo code của Team để khớp với cấu hình server
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8888';
 export const API_TIMEOUT = 10000;
 
 // Storage Keys

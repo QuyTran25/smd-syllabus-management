@@ -1,15 +1,35 @@
-import { LoginCredentials, AuthResponse, User } from '@/types';
+import { LoginCredentials, AuthResponse, User, UserRole } from '@/types';
 import axiosClient from '@/api/axiosClient';
 import { STORAGE_KEYS } from '@/constants';
 
-// Helper: map backend user object to frontend `User`
+// MERGE: Helper map Role từ Team (Hỗ trợ cả "Administrator" và "ADMIN")
+const mapRoleToCode = (roleName: string): UserRole => {
+  const roleMap: Record<string, UserRole> = {
+    'Administrator': UserRole.ADMIN,
+    'Principal': UserRole.PRINCIPAL,
+    'Academic Affairs': UserRole.AA,
+    'Head of Department': UserRole.HOD,
+    'Lecturer': UserRole.LECTURER,
+    'Student': UserRole.STUDENT,
+    // Hỗ trợ trường hợp backend trả về mã code trực tiếp
+    'ADMIN': UserRole.ADMIN,
+    'PRINCIPAL': UserRole.PRINCIPAL,
+    'AA': UserRole.AA,
+    'HOD': UserRole.HOD,
+    'LECTURER': UserRole.LECTURER,
+    'STUDENT': UserRole.STUDENT,
+  };
+  return roleMap[roleName] || UserRole.LECTURER;
+};
+
+// MERGE: Helper map User từ Bạn (Sử dụng mapRoleToCode của Team)
 const mapUserResponse = (userInfo: any): User => {
   const rawRole = userInfo?.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
   return {
     id: userInfo.id,
     email: userInfo.email,
     fullName: userInfo.fullName,
-    role: rawRole.toUpperCase() as User['role'],
+    role: mapRoleToCode(rawRole),
     phone: userInfo.phoneNumber,
     isActive: userInfo.status === 'ACTIVE',
     createdAt: userInfo.createdAt || new Date().toISOString(),
@@ -20,29 +40,30 @@ const mapUserResponse = (userInfo: any): User => {
 export const authService = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    // MERGE: Dùng path '/api/auth' của Team để khớp Gateway, nhưng dùng axiosClient của Bạn
     const response = await axiosClient.post('/auth/login', credentials);
-    // Normalize payload (some responses wrap under data.data)
+    
+    // Normalize payload (xử lý trường hợp data lồng nhau)
     const payload = response.data?.data ? response.data.data : response.data;
     const token = payload?.accessToken ?? payload?.access_token ?? null;
     const refreshToken = payload?.refreshToken ?? payload?.refresh_token ?? null;
 
-    // Persist tokens so axiosClient interceptor will pick them up
+    // Persist tokens (Logic của bạn - Giữ lại để đảm bảo login state)
     if (token) localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
     if (refreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
 
-    // Use user returned in login response if present, otherwise fetch /me
+    // Lấy thông tin User
     let userInfo = payload?.user ?? null;
     if (!userInfo) {
+      // Nếu login không trả về user, gọi thêm API /me
       const userResponse = await axiosClient.get('/auth/me');
-      userInfo = userResponse.data?.data;
+      userInfo = userResponse.data?.data || userResponse.data;
     }
-
-    const user: User = mapUserResponse(userInfo);
 
     return {
       token,
       refreshToken,
-      user,
+      user: mapUserResponse(userInfo),
     };
   },
 
@@ -51,7 +72,7 @@ export const authService = {
     try {
       await axiosClient.post('/auth/logout');
     } finally {
-      // Clear stored tokens; interceptor will stop attaching header
+      // Clear stored tokens
       localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     }
@@ -59,10 +80,9 @@ export const authService = {
 
   // Verify token and get current user
   getCurrentUser: async (token: string): Promise<User> => {
-    // If token provided but not persisted, attach per-request header
     const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
     const response = await axiosClient.get('/auth/me', { headers });
-    const userInfo = response.data?.data;
+    const userInfo = response.data?.data || response.data;
     return mapUserResponse(userInfo);
   },
 
@@ -73,15 +93,13 @@ export const authService = {
     const newToken = payload?.accessToken ?? payload?.access_token ?? null;
     const newRefreshToken = payload?.refreshToken ?? payload?.refresh_token ?? null;
 
-    // Persist refreshed tokens
     if (newToken) localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newToken);
     if (newRefreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
 
-    // Use returned user if present, otherwise fetch /me
     let userInfo = payload?.user ?? null;
     if (!userInfo) {
       const userResponse = await axiosClient.get('/auth/me');
-      userInfo = userResponse.data?.data;
+      userInfo = userResponse.data?.data || userResponse.data;
     }
 
     return {

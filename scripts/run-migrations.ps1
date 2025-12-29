@@ -36,9 +36,9 @@ foreach ($migration in $migrations) {
     Write-Host "Running $($migration.Name)... " -NoNewline -ForegroundColor Yellow
     
     # Add search_path at the beginning of SQL  
-    # Also fix uuid_generate_v4() to use public schema explicitly
+    # Also fix gen_random_uuid() to use public schema explicitly
     $sqlContent = Get-Content $migration.FullName -Raw
-    $sqlContent = $sqlContent -replace 'uuid_generate_v4\(\)', 'public.uuid_generate_v4()'
+    $sqlContent = $sqlContent -replace 'uuid_generate_v4\(\)', 'public.gen_random_uuid()'
     
     $sql = @"
 SET search_path TO core_service, public;

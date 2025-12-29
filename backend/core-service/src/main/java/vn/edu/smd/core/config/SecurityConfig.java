@@ -26,7 +26,7 @@ import vn.edu.smd.core.security.JwtAuthenticationFilter;
 import java.util.Arrays;
 import java.util.Collections;
 
-@Configuration
+@Configuration("coreConfigSecurity")
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
@@ -53,29 +53,14 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder()); 
-        return authProvider;
-    }
+    // authenticationProvider is provided by vn.edu.smd.core.security.SecurityConfig
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+    // AuthenticationManager provided by vn.edu.smd.core.security.SecurityConfig
 
     // CORS configuration removed: Gateway will handle CORS headers to avoid duplicates
 }

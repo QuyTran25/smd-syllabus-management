@@ -37,25 +37,33 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        // MERGE: Lấy logic trim() từ Team để tránh lỗi khoảng trắng
+        String email = request.getEmail().trim();
+        String password = request.getPassword().trim();
+
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(email, password)
             );
         } catch (AuthenticationException ex) {
-            log.warn("Login failed for user {}", request.getEmail());
+            log.warn("Login failed for user {}", email);
             throw ex;
         }
 
+        // MERGE: Bổ sung từ code Team - Đặt authentication vào context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        // MERGE: Giữ lại logic của BẠN (HEAD) để lấy thông tin User trả về cho Dashboard
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         log.info("User {} logged in successfully", user.getEmail());
+        
+        // Trả về full thông tin (Access, Refresh, UserInfo)
         return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
     }
 
@@ -155,10 +163,8 @@ public class AuthService {
         // TODO: Gửi email thực tế với token khôi phục
     }
 
-    // --- BỔ SUNG PHƯƠNG THỨC NÀY ĐỂ FIX LỖI COMPILE ---
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        // request.getEmail() hiện đã khả dụng vì DTO đã có trường email và @Data
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 

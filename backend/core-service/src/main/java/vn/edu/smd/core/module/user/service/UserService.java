@@ -31,12 +31,14 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(this::mapToResponse);
+        return userRepository.findAllWithRoles(pageable).map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
     public UserResponse getUserById(UUID id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdWithRoles(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
         return mapToResponse(user);
     }
@@ -141,6 +143,19 @@ public class UserService {
         response.setPhoneNumber(user.getPhoneNumber());
         response.setStatus(user.getStatus().name());
         response.setRoles(user.getRoles().stream().map(Role::getName).collect(Collectors.toSet()));
+        
+        // Faculty info
+        if (user.getFaculty() != null) {
+            response.setFacultyId(user.getFaculty().getId());
+            response.setFacultyName(user.getFaculty().getName());
+        }
+        
+        // Department info
+        if (user.getDepartment() != null) {
+            response.setDepartmentId(user.getDepartment().getId());
+            response.setDepartmentName(user.getDepartment().getName());
+        }
+        
         response.setCreatedAt(user.getCreatedAt());
         response.setUpdatedAt(user.getUpdatedAt());
         return response;

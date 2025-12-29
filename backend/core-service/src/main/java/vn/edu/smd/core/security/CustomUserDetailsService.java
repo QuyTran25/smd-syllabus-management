@@ -17,12 +17,19 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    // MERGE: Chọn code của bạn (readOnly = true) để tối ưu hiệu năng
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         // Sử dụng phương thức của team để nạp kèm Roles, tránh lỗi Lazy loading
         User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+
+        // Giữ lại log debug nếu cần, hoặc có thể xóa đi để code sạch hơn
+        System.out.println("--- KIEM TRA MAT KHAU DB ---");
+        System.out.println("Hash: " + user.getPassword());
+        System.out.println("Do dai: " + (user.getPassword() != null ? user.getPassword().length() : 0));
+        
         return UserPrincipal.create(user);
     }
 

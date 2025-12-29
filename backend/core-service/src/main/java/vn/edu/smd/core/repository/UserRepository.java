@@ -1,8 +1,11 @@
 package vn.edu.smd.core.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;         // THÊM DÒNG NÀY
-import org.springframework.data.repository.query.Param;    // THÊM DÒNG NÀY
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.shared.enums.UserStatus;
@@ -37,4 +40,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.id = :id")
     Optional<User> findByIdWithRoles(@Param("id") UUID id);
+
+    // =========================================================================
+    // PHẦN MERGE: LẤY CODE CỦA TEAM (origin/main)
+    // =========================================================================
+    // Method này giúp lấy danh sách User có phân trang và tự động join các bảng
+    // Role, Faculty, Department để tránh lỗi N+1 query. Rất cần thiết.
+    
+    @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
+    @Query("SELECT u FROM User u")
+    Page<User> findAllWithRoles(Pageable pageable);
 }

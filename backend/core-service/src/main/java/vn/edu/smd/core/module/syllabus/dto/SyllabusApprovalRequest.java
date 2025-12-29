@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class SyllabusApprovalRequest {
-    private String comments;
+    private String comment;
     private String reason;
 }

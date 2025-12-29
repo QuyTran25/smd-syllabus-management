@@ -26,7 +26,7 @@ export const StudentFilters: React.FC<Props> = ({
         borderRadius: 10,
         boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
       }}
-      bodyStyle={{ padding: 14 }}
+      styles={{ body: { padding: 14 } }}
     >
       <div style={{ marginBottom: 10 }}>
         <Text strong>Tổng quan về đề cương</Text>

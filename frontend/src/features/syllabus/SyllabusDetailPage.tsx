@@ -196,14 +196,16 @@ export const SyllabusDetailPage: React.FC = () => {
     [SyllabusStatus.PENDING_HOD_REVISION]: { color: 'gold', text: 'Chờ Trưởng Bộ môn (Sửa lỗi)' },
     [SyllabusStatus.PENDING_AA]: { color: 'blue', text: 'Chờ Phòng Đào tạo' },
     [SyllabusStatus.PENDING_PRINCIPAL]: { color: 'purple', text: 'Chờ Hiệu trưởng' },
-    [SyllabusStatus.APPROVED]: { color: 'green', text: 'Đã duyệt' },
-    [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: { color: 'lime', text: 'Chờ xuất hành lại' },
+    [SyllabusStatus.APPROVED]: { color: 'green', text: 'Đã phê duyệt' },
+    [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: { color: 'lime', text: 'Chờ xuất bản lại' },
     [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất bản' },
-    [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
-    [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
+    [SyllabusStatus.REJECTED]: { color: 'red', text: 'Bị từ chối' },
+    [SyllabusStatus.REVISION_IN_PROGRESS]: { color: 'volcano', text: 'Đang chỉnh sửa' },
+    [SyllabusStatus.INACTIVE]: { color: 'default', text: 'Không hoạt động' },
+    [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Đã lưu trữ' },
   };
 
-  const currentStatus = statusConfig[syllabus.status];
+  const currentStatus = statusConfig[syllabus.status] || { color: 'default', text: syllabus.status };
 
   return (
     <div>
@@ -462,12 +464,11 @@ export const SyllabusDetailPage: React.FC = () => {
                   <Descriptions.Item label="Học kỳ">{syllabus.semester}</Descriptions.Item>
                   <Descriptions.Item label="Năm học">{syllabus.academicYear}</Descriptions.Item>
                   <Descriptions.Item label="Giảng viên">{syllabus.ownerName}</Descriptions.Item>
-                  <Descriptions.Item label="Thang điểm">
-                    {syllabus.gradeScale || 10}
-                  </Descriptions.Item>
                   <Descriptions.Item label="Trạng thái">
                     <Tag color={currentStatus.color}>{currentStatus.text}</Tag>
                   </Descriptions.Item>
+                  <Descriptions.Item label="Thang điểm">{syllabus.gradeScale || 10}</Descriptions.Item>
+                  <Descriptions.Item label="Phiên bản">{syllabus.versionNumber || 1}</Descriptions.Item>
                   {syllabus.status === SyllabusStatus.REJECTED && comments && comments.length > 0 && (
                     <Descriptions.Item label="Lý do từ chối" span={2}>
                       <div style={{ padding: '12px', backgroundColor: '#fff2e8', border: '1px solid #ffbb96', borderRadius: '4px' }}>
@@ -477,9 +478,6 @@ export const SyllabusDetailPage: React.FC = () => {
                       </div>
                     </Descriptions.Item>
                   )}
-                  <Descriptions.Item label="Mô tả" span={2}>
-                    <Paragraph>{syllabus.description}</Paragraph>
-                  </Descriptions.Item>
                   <Descriptions.Item label="Mục tiêu" span={2}>
                     <ul>
                       {(syllabus.objectives || []).map((obj, idx) => (

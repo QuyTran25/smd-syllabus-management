@@ -13,17 +13,18 @@ spring:
             - Path=/api/**
           # StripPrefix=0 giúp giữ nguyên /api/ khi chuyển tiếp sang backend port 8081
           filters:
-            - StripPrefix=0
+            - StripPrefix=1  # Strip the first /api segment before forwarding
             - PreserveHostHeader
             - SetRequestHeader=Content-Type, application/json
       globalcors:
         add-to-simple-url-handler-mapping: true
-        cors-configurations: # Thêm dấu gạch ngang ở đây
+        cors-configurations: # Thêm dấu gạch ngang ở đây chuẩn cú pháp
           '[/**]':
             allowedOrigins:
               - "http://localhost:3000"
               - "http://localhost:3001"
               - "http://localhost:3002"
+              # MERGE: Giữ các port mở rộng của bạn (HEAD)
               - "http://localhost:3003"
               - "http://localhost:3004"
               - "http://localhost:3005"
@@ -38,7 +39,8 @@ spring:
             allowCredentials: true
             maxAge: 3600
 
-# Giữ cấu hình Management từ Team để hỗ trợ giám sát hệ thống
+# MERGE: Giữ cấu hình Management từ Team nhưng bỏ qua phần Logging trùng lặp của họ.
+# Chúng ta sẽ dùng block logging (TRACE) ở cuối file của bạn.
 management:
   endpoints:
     web:

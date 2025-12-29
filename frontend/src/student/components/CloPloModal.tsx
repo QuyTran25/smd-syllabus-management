@@ -13,8 +13,16 @@ type Props = {
   cloPloMap: Record<string, string[]>;
 };
 
-export const CloPloModal: React.FC<Props> = ({ open, onClose, clos, ploList, cloPloMap }) => {
+export const CloPloModal: React.FC<Props> = ({
+  open,
+  onClose,
+  clos = [],
+  ploList = [],
+  cloPloMap = {},
+}) => {
+  // Cấu trúc cột cho bảng ma trận
   const columns = useMemo(() => {
+    const basePloList = ploList || [];
     return [
       {
         title: 'CLO',
@@ -23,20 +31,23 @@ export const CloPloModal: React.FC<Props> = ({ open, onClose, clos, ploList, clo
         width: 110,
         fixed: 'left' as const,
       },
-      ...ploList.map((plo) => ({
+      ...basePloList.map((plo) => ({
         title: plo,
         dataIndex: plo,
         key: plo,
         align: 'center' as const,
         render: (_: any, row: CloRow) => {
-          const mapped = cloPloMap[row.code] ?? [];
-          return mapped.includes(plo) ? <CheckOutlined /> : null;
+          const mapped = (cloPloMap || {})[row.code] ?? [];
+          return mapped.includes(plo) ? (
+            <CheckOutlined style={{ color: '#52c41a', fontSize: 16, fontWeight: 'bold' }} />
+          ) : null;
         },
       })),
     ];
   }, [ploList, cloPloMap]);
 
-  const data = useMemo(() => clos.map((c) => ({ ...c, key: c.code })), [clos]);
+  // Chuẩn bị dữ liệu cho bảng
+  const dataSource = useMemo(() => (clos || []).map((c) => ({ ...c, key: c.code })), [clos]);
 
   return (
     <Modal
@@ -47,6 +58,7 @@ export const CloPloModal: React.FC<Props> = ({ open, onClose, clos, ploList, clo
       cancelButtonProps={{ style: { display: 'none' } }}
       title="Bản đồ CLO-PLO - Mối quan hệ Chuẩn đầu ra"
       width={920}
+      styles={{ body: { paddingTop: 12 } }}
     >
       <Space direction="vertical" style={{ width: '100%' }} size={12}>
         <Alert
@@ -55,19 +67,20 @@ export const CloPloModal: React.FC<Props> = ({ open, onClose, clos, ploList, clo
           message="Bản đồ này cho thấy mối quan hệ giữa Chuẩn đầu ra học phần (CLO) và Chuẩn đầu ra chương trình (PLO)."
         />
 
-        <Card size="small" title="Ma trận CLO - PLO">
+        <Card size="small" title="Ma trận CLO - PLO" styles={{ body: { padding: 0 } }}>
           <Table
             size="small"
             columns={columns as any}
-            dataSource={data as any}
+            dataSource={dataSource}
             pagination={false}
             scroll={{ x: 800 }}
+            bordered
           />
         </Card>
 
         <Card size="small" title="Phân tích chi tiết">
           <Space direction="vertical" style={{ width: '100%' }} size={10}>
-            {clos.map((c) => (
+            {(clos || []).map((c) => (
               <Card key={c.code} size="small" style={{ borderRadius: 10 }}>
                 <Space direction="vertical" style={{ width: '100%' }} size={6}>
                   <Text strong>

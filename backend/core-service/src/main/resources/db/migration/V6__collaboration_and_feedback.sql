@@ -22,7 +22,7 @@ END $$;
 -- 1. SYLLABUS COLLABORATORS (Cộng tác viên)
 -- =====================================================
 CREATE TABLE syllabus_collaborators (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id),
     
@@ -41,7 +41,7 @@ CREATE INDEX idx_collaborators_user ON syllabus_collaborators(user_id);
 -- 2. REVIEW COMMENTS (Thảo luận & Góp ý)
 -- =====================================================
 CREATE TABLE review_comments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id) ON DELETE CASCADE,
     
     -- Chỉ định góp ý thuộc phần nào để người soạn thảo dễ định vị
@@ -63,7 +63,7 @@ CREATE INDEX idx_comments_parent ON review_comments(parent_id);
 -- 3. SYLLABUS ERROR REPORTS (Báo cáo lỗi hậu ban hành)
 -- =====================================================
 CREATE TABLE syllabus_error_reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id),
     user_id UUID NOT NULL REFERENCES users(id), -- Người phát hiện và báo lỗi
     

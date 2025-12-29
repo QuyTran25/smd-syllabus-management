@@ -1,7 +1,7 @@
 /*
  * V5__workflow_approval.sql
  * Mục tiêu: Cấu hình quy trình duyệt & Lịch sử duyệt
- * Updated: Thêm Indexes cho History
+ * Đã fix: Thống nhất dùng gen_random_uuid() và bảo vệ Audit Log
  */
 
 -- Chuyển ngữ cảnh làm việc vào schema dự án và public để dùng UUID
@@ -19,7 +19,7 @@ END $$;
 -- 1. Approval Workflows (Cấu hình quy trình)
 -- ==========================================
 CREATE TABLE approval_workflows (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     
     -- Các bước duyệt được lưu dưới dạng JSONB để tùy biến thứ tự dễ dàng
@@ -37,8 +37,10 @@ CREATE TRIGGER update_workflows_time BEFORE UPDATE ON approval_workflows FOR EAC
 -- 2. Approval History (Lịch sử phê duyệt)
 -- ==========================================
 CREATE TABLE approval_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id) ON DELETE CASCADE,
+    -- MERGE: Thống nhất dùng gen_random_uuid()
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- MERGE: Bỏ CASCADE theo Team để giữ lại Audit Log kể cả khi Syllabus bị xóa
+    syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id),
     
     -- Người thực hiện (Trưởng bộ môn, Giáo vụ, v.v.)
     actor_id UUID NOT NULL REFERENCES users(id),

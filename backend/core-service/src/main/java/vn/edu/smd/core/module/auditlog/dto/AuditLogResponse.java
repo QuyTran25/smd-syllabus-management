@@ -14,6 +14,12 @@ public class AuditLogResponse {
     private UUID entityId;
     private String action;
     private UUID actorId;
+    
+    // Thông tin user để hiển thị trên frontend
+    private String actorName;
+    private String actorEmail;
+    private String actorRole;
+    
     private String description;
     private AuditStatus status;
     private Map<String, Object> oldValue;
