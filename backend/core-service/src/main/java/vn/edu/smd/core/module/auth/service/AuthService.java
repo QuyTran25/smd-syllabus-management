@@ -37,24 +37,32 @@ public class AuthService {
         String email = request.getEmail().trim();
         String rawPassword = request.getPassword().trim();
 
-        System.out.println("--- TIẾN TRÌNH RESET HASH ---");
-        
-        // BƯỚC 1: Tự tạo mã Hash chuẩn từ chính Encoder đang chạy
-        String currentServerHash = passwordEncoder.encode(rawPassword);
-        System.out.println("MÃ HASH CHUẨN CỦA SERVER CHO [" + rawPassword + "] LÀ:");
-        System.out.println(currentServerHash); 
-        System.out.println("-----------------------------");
+        System.out.println("=== LOGIN ATTEMPT ===");
+        System.out.println("Email: " + email);
 
         try {
+            System.out.println("Step 1: Calling authenticationManager.authenticate()");
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, rawPassword)
             );
+            System.out.println("Step 2: Authentication successful");
+            
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            System.out.println("Step 3: SecurityContext set");
+            
             String accessToken = tokenProvider.generateToken(authentication);
+            System.out.println("Step 4: Access token generated");
+            
             String refreshToken = tokenProvider.generateRefreshToken(authentication);
+            System.out.println("Step 5: Refresh token generated");
+            
+            System.out.println("=== LOGIN SUCCESS ===");
             return new AuthResponse(accessToken, refreshToken);
         } catch (Exception e) {
-            System.out.println("Lỗi: " + e.getMessage());
+            System.out.println("=== LOGIN ERROR ===");
+            System.out.println("Exception type: " + e.getClass().getName());
+            System.out.println("Message: " + e.getMessage());
+            e.printStackTrace();
             throw e;
         }
     }

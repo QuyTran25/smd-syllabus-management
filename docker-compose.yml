@@ -16,7 +16,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh
+      - ./database/core-service:/docker-entrypoint-initdb.d/migrations/core-service
+      - ./database/ai-service:/docker-entrypoint-initdb.d/migrations/ai-service
     networks:
       - smd-network
     healthcheck:
@@ -185,8 +187,8 @@ services:
   # ============================================
   ai-service:
     build:
-      context: ./backend/ai-service
-      dockerfile: ../../infrastructure/docker/ai-service/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/ai-service/Dockerfile
     container_name: smd-ai-service
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}

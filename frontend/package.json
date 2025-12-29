@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:admin\" \"npm run dev:student\" --names \"admin,student\" --prefix-colors \"blue,green\"",
-    "dev:admin": "vite --port 3000 --open /login",
-    "dev:student": "vite --config vite.student.config.ts --open /student-dev/index.html",
+    "dev:admin": "vite --port 3000",
+    "dev:student": "vite --config vite.student.config.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"

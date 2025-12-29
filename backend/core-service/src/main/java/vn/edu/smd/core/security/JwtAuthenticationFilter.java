@@ -29,10 +29,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
-            // ⭐ QUAN TRỌNG: Nếu đang gọi API đăng nhập/đăng ký -> CHO QUA LUÔN
-            // Không check token ở đây để tránh lỗi 401 nếu Frontend gửi nhầm token cũ
+            // ⭐ QUAN TRỌNG: Chỉ bypass những endpoint không cần auth
             String requestPath = request.getRequestURI();
-            if (requestPath.contains("/api/auth/") || requestPath.contains("/api/v1/auth/")) {
+            if (requestPath.contains("/api/auth/login") || 
+                requestPath.contains("/api/auth/register") ||
+                requestPath.contains("/api/auth/forgot-password") ||
+                requestPath.contains("/api/auth/reset-password") ||
+                requestPath.contains("/api/auth/refresh") ||
+                requestPath.contains("/api/auth/debug-password")) {
                 filterChain.doFilter(request, response);
                 return;
             }

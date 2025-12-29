@@ -40,8 +40,9 @@ public class SyllabusService {
         }
         
         if (statusStrings != null && !statusStrings.isEmpty()) {
-            List<SyllabusStatus> statuses = statusStrings.stream()
-                    .map(s -> SyllabusStatus.valueOf(s.toUpperCase()))
+            // Convert to uppercase for PostgreSQL ENUM matching
+            List<String> statuses = statusStrings.stream()
+                    .map(String::toUpperCase)
                     .toList();
             return syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses, pageable)
                     .map(this::mapToResponse);

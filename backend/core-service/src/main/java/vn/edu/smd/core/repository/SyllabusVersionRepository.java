@@ -23,7 +23,11 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
-    Page<SyllabusVersion> findByStatusInAndIsDeletedFalse(List<SyllabusStatus> statuses, Pageable pageable);
+    // Native query to handle PostgreSQL ENUM type correctly
+    @Query(value = "SELECT * FROM core_service.syllabus_versions WHERE CAST(status AS TEXT) IN (:statuses) AND is_deleted = false", 
+           countQuery = "SELECT COUNT(*) FROM core_service.syllabus_versions WHERE CAST(status AS TEXT) IN (:statuses) AND is_deleted = false",
+           nativeQuery = true)
+    Page<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<String> statuses, Pageable pageable);
 
     List<SyllabusVersion> findByCreatedById(UUID createdById);
 

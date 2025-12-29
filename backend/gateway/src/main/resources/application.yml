@@ -57,8 +57,24 @@ spring:
             - Path=/api/**
           filters:
             - StripPrefix=0
-            # StripPrefix=0 nghĩa là giữ nguyên /api/.. để gửi xuống Core.
-            # Vì Core của bạn có controller bắt đầu bằng /api nên để =0 là ĐÚNG.
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:3001"
+              - "http://localhost:3002"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
 
 # Cấu hình logging để dễ debug nếu Gateway có lỗi
 logging:
