@@ -17,7 +17,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    // ƯU TIÊN MAIN: Sử dụng @Transactional mặc định
     @Transactional
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -25,11 +24,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        // ƯU TIÊN MAIN: Sử dụng getPasswordHash() thay vì getPassword()
-        // Code cũ của bạn (getPassword) sẽ gây lỗi biên dịch vì Entity đã đổi tên trường
+        // Logic HEAD: An toàn hơn (Check null trước khi lấy length để tránh lỗi 500)
         System.out.println("--- KIEM TRA MAT KHAU DB ---");
         System.out.println("Hash: " + user.getPasswordHash());
-        // Thêm kiểm tra null an toàn một chút nhưng vẫn giữ logic của Main
         System.out.println("Do dai: " + (user.getPasswordHash() != null ? user.getPasswordHash().length() : 0));
 
         return UserPrincipal.create(user);

@@ -1,7 +1,7 @@
 import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
 import { Semester, SemesterFilters } from '@/types';
 
-// API Response types (Giữ lại của Main)
+// API Response types
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -57,8 +57,8 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 
 export const semesterService = {
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    // Dùng axiosClient và bỏ prefix /api để khớp với Gateway StripPrefix
-    const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/semesters', {
+    // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+    const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
       params: {
         page: 0,
         size: 100,
@@ -66,14 +66,14 @@ export const semesterService = {
       },
     });
 
-    // Xử lý payload an toàn (Logic của Bạn nhưng cần thiết)
+    // Xử lý payload an toàn (Logic của Bạn)
     const rawContent = response.data?.data?.content || 
                        (response.data as any)?.content || 
                        [];
                        
     let semesters = rawContent.map(mapToSemester);
 
-    // Apply client-side filtering (Logic của Team)
+    // Apply client-side filtering
     if (filters?.isActive !== undefined) {
       semesters = semesters.filter((s) => s.isActive === filters.isActive);
     }
@@ -97,14 +97,16 @@ export const semesterService = {
   },
 
   getSemesterById: async (id: string): Promise<Semester> => {
-    const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`);
+    // FIX: Thêm /api
+    const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`);
     const data = response.data?.data || response.data;
     return mapToSemester(data as unknown as SemesterApiResponse);
   },
 
   getActiveSemester: async (): Promise<Semester | null> => {
     try {
-      const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/semesters/current');
+      // FIX: Thêm /api
+      const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
       const data = response.data?.data || response.data;
       return mapToSemester(data as unknown as SemesterApiResponse);
     } catch {
@@ -123,7 +125,8 @@ export const semesterService = {
       isActive: data.isActive,
     };
 
-    const response = await axiosClient.post<ApiResponse<SemesterApiResponse>>('/semesters', request);
+    // FIX: Thêm /api
+    const response = await axiosClient.post<ApiResponse<SemesterApiResponse>>('/api/semesters', request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },
@@ -142,16 +145,19 @@ export const semesterService = {
       isActive: data.isActive ?? existing.isActive,
     };
 
-    const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`, request);
+    // FIX: Thêm /api
+    const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },
 
   deleteSemester: async (id: string): Promise<void> => {
-    await axiosClient.delete(`/semesters/${id}`);
+    // FIX: Thêm /api
+    await axiosClient.delete(`/api/semesters/${id}`);
   },
 
   setActiveSemester: async (id: string): Promise<Semester> => {
+    // First get the existing semester
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {
@@ -164,7 +170,8 @@ export const semesterService = {
       isActive: true,
     };
 
-    const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`, request);
+    // FIX: Thêm /api
+    const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },

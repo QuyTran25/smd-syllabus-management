@@ -5,13 +5,11 @@ import { LoginPage, ProtectedRoute } from './features/auth';
 // --- LAYOUTS ---
 import { MainLayout } from './shared/layouts/MainLayout';
 import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
-// FIX: Trỏ đúng vào thư mục shared/layouts
-import AdminLayout from './shared/layouts/AdminLayout'; 
+import AdminLayout from './shared/layouts/AdminLayout';
 
-// --- PAGES: ADMIN (Tất cả lấy từ features/admin) ---
-// FIX: Sửa đường dẫn từ ./pages/admin thành ./features/admin
-import AdminDashboard from './features/admin/AdminDashboard'; 
-import AdminSubjectsPage from './features/admin/AdminSubjectsPage'; 
+// --- PAGES: ADMIN ---
+import AdminDashboard from './features/admin/AdminDashboard';
+import AdminSubjectsPage from './features/admin/AdminSubjectsPage';
 import { UserManagementPage } from './features/admin/UserManagementPage';
 import { SystemSettingsPage } from './features/admin/SystemSettingsPage';
 import { AuditLogPage } from './features/admin/AuditLogPage';
@@ -24,14 +22,22 @@ import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
 import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
 import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
 
-// --- PAGES: OTHERS (Common/Principal/HoD/AA) ---
+// --- PAGES: PRINCIPAL ---
+import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
+
+// --- PAGES: HOD ---
+import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
+import HodSyllabusReviewPage from './features/hod/SyllabusReviewPage';
+
+// --- PAGES: AA ---
+import { PLOManagementPage } from './features/aa/PLOManagementPage';
+import { CourseManagementPage } from './features/aa/CourseManagementPage';
+import AaSyllabusReviewPage from './features/aa/SyllabusReviewPage';
+
+// --- PAGES: COMMON / SHARED ---
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { SyllabusListPage } from './features/syllabus/SyllabusListPage';
 import { SyllabusDetailPage } from './features/syllabus/SyllabusDetailPage';
-import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
-import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
-import { PLOManagementPage } from './features/aa/PLOManagementPage';
-import { CourseManagementPage } from './features/aa/CourseManagementPage';
 
 import { UserRole } from '@/types';
 
@@ -42,7 +48,7 @@ const App: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
 
       {/* ========================================================= */}
-      {/* 1. ADMIN ROUTES (Layout Riêng)                           */}
+      {/* 1. ADMIN ROUTES (Layout Riêng)                          */}
       {/* ========================================================= */}
       <Route
         path="/admin"
@@ -56,9 +62,9 @@ const App: React.FC = () => {
         <Route path="dashboard" element={<AdminDashboard />} />
         
         {/* Trang CRUD Môn học mới */}
-        <Route path="subjects" element={<AdminSubjectsPage />} /> 
+        <Route path="subjects" element={<AdminSubjectsPage />} />
 
-        {/* Các trang Admin cũ chuyển vào đây */}
+        {/* Các trang Admin cũ */}
         <Route path="users" element={<UserManagementPage />} />
         <Route path="settings" element={<SystemSettingsPage />} />
         <Route path="audit-logs" element={<AuditLogPage />} />
@@ -69,7 +75,7 @@ const App: React.FC = () => {
       </Route>
 
       {/* ========================================================= */}
-      {/* 2. LECTURER ROUTES (Layout Riêng)                        */}
+      {/* 2. LECTURER ROUTES (Layout Riêng)                       */}
       {/* ========================================================= */}
       <Route
         path="/lecturer"
@@ -125,6 +131,14 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="syllabus-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.HOD]}>
+              <HodSyllabusReviewPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* AA only */}
         <Route
@@ -140,6 +154,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={[UserRole.AA]}>
               <CourseManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="aa-syllabus-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.AA]}>
+              <AaSyllabusReviewPage />
             </ProtectedRoute>
           }
         />

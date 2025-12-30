@@ -21,33 +21,24 @@ export const LoginPage: React.FC = () => {
     try {
       const user = await login(values.email, values.password);
       
-      // --- FIX LOGIC ĐIỀU HƯỚNG TẠI ĐÂY ---
-      
-      // 1. Lấy role chính xác rồi chuyển sang chuỗi để tránh so sánh enum/string lỗi
+      // Logic điều hướng (Giữ nguyên phần này vì nó không conflict, chỉ là logic xử lý)
       const role = String(user.role ?? (user as any).primaryRole);
-
       console.log("Login Success. Role:", role);
 
-      // 2. Điều hướng dựa trên Role
       if (role === UserRole.ADMIN) {
-        // QUAN TRỌNG: Admin phải vào layout riêng
         navigate('/admin/dashboard'); 
       } 
       else if (role === UserRole.LECTURER) {
         navigate('/lecturer');
       } 
       else if (role === UserRole.STUDENT) {
-        navigate('/student'); // (Nếu có trang student)
+        navigate('/student');
       } 
       else {
-        // Các role còn lại: HOD, AA, PRINCIPAL
-        // Họ được phép truy cập MainLayout (/)
         navigate('/'); 
       }
 
     } catch (error) {
-      // Error đã được handle trong AuthContext, 
-      // nhưng có thể thêm thông báo ở đây nếu cần
       console.error("Login failed:", error);
     }
   };
@@ -133,16 +124,11 @@ export const LoginPage: React.FC = () => {
                   },
                 ]}
               >
-                {/* MERGE: Kết hợp autoComplete của Team và logic onBlur trim() của Bạn */}
+                {/* CHỌN MAIN: Giữ code gốc, không có logic onBlur */}
                 <Input 
                   prefix={<UserOutlined />} 
                   placeholder="lecturer@smd.edu.vn" 
-                  autoComplete="username" 
-                  onBlur={(e) => {
-                    // Logic của bạn: Tự động cắt khoảng trắng thừa
-                    const value = e.target.value.trim();
-                    form.setFieldValue('email', value);
-                  }}
+                  autoComplete="username"
                 />
               </Form.Item>
 

@@ -71,8 +71,8 @@ public enum SyllabusStatus {
     public String getDisplayName() {
         return switch (this) {
             case DRAFT -> "Bản nháp";
-            case PENDING_HOD -> "Chờ Trưởng bộ môn duyệt";
-            case PENDING_AA -> "Chờ Phòng đào tạo duyệt";
+            case PENDING_HOD -> "Chờ Trưởng BM";
+            case PENDING_AA -> "Chờ Phòng ĐT";
             case PENDING_PRINCIPAL -> "Chờ Hiệu trưởng duyệt";
             case APPROVED -> "Đã phê duyệt";
             case PUBLISHED -> "Đã xuất bản";

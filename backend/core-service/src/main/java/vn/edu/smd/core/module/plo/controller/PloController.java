@@ -22,6 +22,13 @@ public class PloController {
 
     private final PloService ploService;
 
+    @Operation(summary = "Get all PLOs", description = "Get list of all PLOs")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<PloResponse>>> getAllPlos() {
+        List<PloResponse> plos = ploService.getAllPlos();
+        return ResponseEntity.ok(ApiResponse.success(plos));
+    }
+
     @Operation(summary = "Get PLOs by curriculum", description = "Get list of PLOs for a curriculum")
     @GetMapping("/curriculum/{curriculumId}")
     public ResponseEntity<ApiResponse<List<PloResponse>>> getPlosByCurriculum(@PathVariable UUID curriculumId) {

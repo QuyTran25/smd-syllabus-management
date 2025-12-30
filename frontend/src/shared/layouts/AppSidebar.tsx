@@ -83,6 +83,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
     // HoD-only items
     if (user?.role === UserRole.HOD) {
       baseItems.push({
+        key: '/syllabus-review',
+        icon: <CheckOutlined />,
+        label: 'Duyệt Đề cương',
+      });
+      baseItems.push({
         key: '/teaching-assignment',
         icon: <TeamOutlined />,
         label: 'Quản lý Công tác',
@@ -91,6 +96,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
 
     // AA-only items
     if (user?.role === UserRole.AA) {
+      baseItems.push({
+        key: '/aa-syllabus-review',
+        icon: <CheckOutlined />,
+        label: 'Duyệt Đề cương',
+      });
       baseItems.push({
         key: '/plo-management',
         icon: <ApartmentOutlined />,

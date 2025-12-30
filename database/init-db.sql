@@ -5,19 +5,18 @@
 
 -- 1. Enable Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector"; -- Có thể lỗi nếu image postgres thường, nhưng cứ để
+CREATE EXTENSION IF NOT EXISTS "vector"; -- Hỗ trợ lưu trữ Vector AI (nếu dùng pgvector image)
 
 -- 2. Tạo Schemas
 CREATE SCHEMA IF NOT EXISTS core_service;
 
--- [SECURITY] REVOKE quyền mặc định từ PUBLIC
+-- [SECURITY] REVOKE quyền mặc định từ PUBLIC để bảo mật
 REVOKE ALL ON SCHEMA core_service FROM PUBLIC;
 
--- 3. Tạo Roles (FIX: Dùng đúng tên smd_user để khớp với Java)
+-- 3. Tạo Roles (Đảm bảo smd_user khớp với Java application.properties)
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'smd_user') THEN
-        -- Password này khớp với cấu hình trong application.yml
         CREATE ROLE smd_user LOGIN PASSWORD 'smd_password';
     END IF;
 END
@@ -31,8 +30,8 @@ GRANT USAGE ON SCHEMA core_service TO smd_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA core_service TO smd_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA core_service TO smd_user;
 
--- 6. Set search_path (Quan trọng để Flyway không bị lạc)
+-- 6. Set search_path (Quan trọng để Flyway migrate đúng vào schema core_service)
 ALTER ROLE smd_user SET search_path TO core_service, public;
 
--- Log kết thúc (Dùng DO block để in ra an toàn)
+-- Log kết thúc để xác nhận khởi tạo thành công
 DO $$ BEGIN RAISE NOTICE '--- SMD DB INFRASTRUCTURE INITIALIZED & SECURED ---'; END $$;

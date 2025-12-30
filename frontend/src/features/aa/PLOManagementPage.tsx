@@ -1,98 +1,127 @@
-import React, { useState } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, Tag, message } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Card, Table, Space, Select, Tag, Alert, Button, Modal, Form, Input, message, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
+import { ploService, PLO } from '../../services/plo.service';
 
-const { TextArea } = Input;
 const { Option } = Select;
+const { TextArea } = Input;
 
-interface PLO {
+// Interface for display (mapped from API)
+interface PLODisplay {
   id: string;
   code: string;
   description: string;
   category: 'Knowledge' | 'Skills' | 'Competence' | 'Attitude';
-  courseId: string;
-  courseCode: string;
-  courseName: string;
+  curriculumId: string;
+  curriculumCode: string;
+  curriculumName: string;
 }
 
-interface Course {
-  id: string;
-  code: string;
-  name: string;
-}
-
-// Mock courses
-const mockCourses: Course[] = [
-  { id: 'c1', code: 'CS101', name: 'Nhập môn Lập trình' },
-  { id: 'c2', code: 'CS201', name: 'Cấu trúc Dữ liệu và Giải thuật' },
-  { id: 'c3', code: 'CS301', name: 'Hệ điều hành' },
-  { id: 'c4', code: 'CS401', name: 'Mạng máy tính' },
-];
-
-// Mock PLOs
-const mockPLOs: PLO[] = [
-  { id: 'p1', code: 'PLO1', description: 'Vận dụng kiến thức nền tảng về toán, khoa học tự nhiên và kỹ thuật', category: 'Knowledge', courseId: 'c1', courseCode: 'CS101', courseName: 'Nhập môn Lập trình' },
-  { id: 'p2', code: 'PLO2', description: 'Phân tích và giải quyết các vấn đề phức tạp trong lĩnh vực CNTT', category: 'Skills', courseId: 'c1', courseCode: 'CS101', courseName: 'Nhập môn Lập trình' },
-  { id: 'p3', code: 'PLO1', description: 'Thiết kế và triển khai các cấu trúc dữ liệu hiệu quả', category: 'Skills', courseId: 'c2', courseCode: 'CS201', courseName: 'Cấu trúc Dữ liệu và Giải thuật' },
-  { id: 'p4', code: 'PLO2', description: 'Phân tích độ phức tạp thuật toán', category: 'Knowledge', courseId: 'c2', courseCode: 'CS201', courseName: 'Cấu trúc Dữ liệu và Giải thuật' },
-  { id: 'p5', code: 'PLO3', description: 'Làm việc hiệu quả trong môi trường nhóm', category: 'Competence', courseId: 'c2', courseCode: 'CS201', courseName: 'Cấu trúc Dữ liệu và Giải thuật' },
-  { id: 'p6', code: 'PLO1', description: 'Hiểu cấu trúc và hoạt động của hệ điều hành', category: 'Knowledge', courseId: 'c3', courseCode: 'CS301', courseName: 'Hệ điều hành' },
-];
+// Map API category to display category
+const mapCategory = (apiCategory: PLO['category']): PLODisplay['category'] => {
+  const mapping: Record<string, PLODisplay['category']> = {
+    KNOWLEDGE: 'Knowledge',
+    SKILLS: 'Skills',
+    COMPETENCE: 'Competence',
+    ATTITUDE: 'Attitude',
+  };
+  return mapping[apiCategory] || 'Knowledge';
+};
 
 export const PLOManagementPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingPLO, setEditingPLO] = useState<PLO | null>(null);
-  const [courseFilter, setCourseFilter] = useState<string | undefined>(undefined);
+  const [curriculumFilter, setCurriculumFilter] = useState<string | undefined>(undefined);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPLO, setEditingPLO] = useState<PLODisplay | null>(null);
   const [form] = Form.useForm();
+  const queryClient = useQueryClient();
 
-  // Fetch PLOs
-  const { data: plos, isLoading } = useQuery({
+  // Fetch PLOs from API
+  const { data: plosRaw, isLoading, error } = useQuery({
     queryKey: ['plos'],
-    queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockPLOs;
+    queryFn: () => ploService.getAllPLOs(),
+  });
+
+  // Create PLO mutation
+  const createPLOMutation = useMutation({
+    mutationFn: (values: any) => ploService.createPLO(values),
+    onSuccess: () => {
+      message.success('Thêm PLO thành công');
+      queryClient.invalidateQueries({ queryKey: ['plos'] });
+      setIsModalOpen(false);
+      form.resetFields();
+    },
+    onError: () => {
+      message.error('Thêm PLO thất bại');
     },
   });
 
-  // Create/Update PLO mutation
-  const savePLOMutation = useMutation({
-    mutationFn: async (values: any) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return values;
-    },
+  // Update PLO mutation
+  const updatePLOMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: any }) => ploService.updatePLO(id, values),
     onSuccess: () => {
-      message.success(editingPLO ? 'Cập nhật PLO thành công' : 'Thêm PLO thành công');
-      setIsModalVisible(false);
+      message.success('Cập nhật PLO thành công');
+      queryClient.invalidateQueries({ queryKey: ['plos'] });
+      setIsModalOpen(false);
       setEditingPLO(null);
       form.resetFields();
-      queryClient.invalidateQueries({ queryKey: ['plos'] });
+    },
+    onError: () => {
+      message.error('Cập nhật PLO thất bại');
     },
   });
 
   // Delete PLO mutation
   const deletePLOMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return id;
-    },
+    mutationFn: (id: string) => ploService.deletePLO(id),
     onSuccess: () => {
       message.success('Xóa PLO thành công');
       queryClient.invalidateQueries({ queryKey: ['plos'] });
     },
+    onError: () => {
+      message.error('Xóa PLO thất bại');
+    },
   });
 
-  const ploColumns: ColumnsType<PLO> = [
+  // Map API response to display format
+  const plos: PLODisplay[] = useMemo(() => {
+    if (!plosRaw) return [];
+    return plosRaw.map((p) => ({
+      id: p.id,
+      code: p.code,
+      description: p.description,
+      category: mapCategory(p.category),
+      curriculumId: p.curriculumId,
+      curriculumCode: p.curriculumCode,
+      curriculumName: p.curriculumName,
+    }));
+  }, [plosRaw]);
+
+  // Extract unique curriculums for filter
+  const curriculums = useMemo(() => {
+    const unique = new Map<string, { id: string; code: string; name: string }>();
+    plos.forEach((p) => {
+      if (!unique.has(p.curriculumId)) {
+        unique.set(p.curriculumId, {
+          id: p.curriculumId,
+          code: p.curriculumCode,
+          name: p.curriculumName,
+        });
+      }
+    });
+    return Array.from(unique.values());
+  }, [plos]);
+
+  const ploColumns: ColumnsType<PLODisplay> = [
     {
-      title: 'Môn học',
-      key: 'course',
+      title: 'Chương trình đào tạo',
+      key: 'curriculum',
       width: 250,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
-          <span style={{ fontWeight: 500 }}>{record.courseCode}</span>
-          <span style={{ fontSize: '12px', color: '#666' }}>{record.courseName}</span>
+          <span style={{ fontWeight: 500 }}>{record.curriculumCode}</span>
+          <span style={{ fontSize: '12px', color: '#666' }}>{record.curriculumName}</span>
         </Space>
       ),
     },
@@ -120,66 +149,71 @@ export const PLOManagementPage: React.FC = () => {
           Competence: { color: 'orange', text: 'Năng lực' },
           Attitude: { color: 'purple', text: 'Thái độ' },
         };
-        const { color, text} = config[category as keyof typeof config];
-        return <Tag color={color}>{text}</Tag>;
+        const cfg = config[category as keyof typeof config] || { color: 'default', text: category };
+        return <Tag color={cfg.color}>{cfg.text}</Tag>;
       },
     },
     {
       title: 'Hành động',
-      key: 'actions',
+      key: 'action',
       width: 150,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Button
+            type="link"
             size="small"
             icon={<EditOutlined />}
             onClick={() => {
               setEditingPLO(record);
-              form.setFieldsValue(record);
-              setIsModalVisible(true);
+              form.setFieldsValue({
+                curriculumId: record.curriculumId,
+                code: record.code,
+                description: record.description,
+                category: record.category.toUpperCase(),
+              });
+              setIsModalOpen(true);
             }}
           >
             Sửa
           </Button>
-          <Button
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => {
-              Modal.confirm({
-                title: 'Xóa PLO',
-                content: `Bạn có chắc muốn xóa PLO "${record.code}"?`,
-                okText: 'Xóa',
-                cancelText: 'Hủy',
-                okType: 'danger',
-                onOk: () => deletePLOMutation.mutate(record.id),
-              });
-            }}
-          />
+          <Popconfirm
+            title="Xóa PLO"
+            description="Bạn có chắc muốn xóa PLO này?"
+            onConfirm={() => deletePLOMutation.mutate(record.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
-  // Filter PLOs by course
-  const filteredPLOs = courseFilter
-    ? plos?.filter((p) => p.courseId === courseFilter)
+  // Filter PLOs by curriculum
+  const filteredPLOs = curriculumFilter
+    ? plos?.filter((p) => p.curriculumId === curriculumFilter)
     : plos;
+
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Alert
+          type="error"
+          message="Lỗi tải dữ liệu"
+          description="Không thể tải danh sách PLO. Vui lòng thử lại sau."
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>Quản lý PLO</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => {
-            setEditingPLO(null);
-            form.resetFields();
-            setIsModalVisible(true);
-          }}
-        >
+        <h2 style={{ margin: 0 }}>Quản lý PLO (Chuẩn đầu ra)</h2>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
           Thêm PLO
         </Button>
       </div>
@@ -187,13 +221,13 @@ export const PLOManagementPage: React.FC = () => {
       <Card>
         <div style={{ marginBottom: 16 }}>
           <Select
-            placeholder="Lọc theo môn học"
-            style={{ width: 300 }}
+            placeholder="Lọc theo chương trình đào tạo"
+            style={{ width: 350 }}
             allowClear
-            value={courseFilter}
-            onChange={(value) => setCourseFilter(value)}
+            value={curriculumFilter}
+            onChange={(value) => setCurriculumFilter(value)}
           >
-            {mockCourses.map((c) => (
+            {curriculums.map((c) => (
               <Option key={c.id} value={c.id}>
                 {c.code} - {c.name}
               </Option>
@@ -201,8 +235,8 @@ export const PLOManagementPage: React.FC = () => {
           </Select>
           <span style={{ marginLeft: 16, color: '#666' }}>
             Tổng: <strong>{filteredPLOs?.length || 0}</strong> PLO
-            {courseFilter && (
-              <> (của môn <strong>{mockCourses.find(c => c.id === courseFilter)?.code}</strong>)</>
+            {curriculumFilter && (
+              <> (của CTĐT <strong>{curriculums.find(c => c.id === curriculumFilter)?.code}</strong>)</>
             )}
           </span>
         </div>
@@ -221,37 +255,37 @@ export const PLOManagementPage: React.FC = () => {
         />
       </Card>
 
-      {/* Add/Edit PLO Modal */}
+      {/* Modal thêm/sửa PLO */}
       <Modal
         title={editingPLO ? 'Chỉnh sửa PLO' : 'Thêm PLO mới'}
-        open={isModalVisible}
+        open={isModalOpen}
+        onOk={() => form.submit()}
         onCancel={() => {
-          setIsModalVisible(false);
+          setIsModalOpen(false);
           setEditingPLO(null);
           form.resetFields();
         }}
-        footer={null}
+        confirmLoading={createPLOMutation.isPending || updatePLOMutation.isPending}
         width={600}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={(values) => {
-            const course = mockCourses.find((c) => c.id === values.courseId);
-            savePLOMutation.mutate({
-              ...values,
-              courseCode: course?.code,
-              courseName: course?.name,
-            });
+            if (editingPLO) {
+              updatePLOMutation.mutate({ id: editingPLO.id, values });
+            } else {
+              createPLOMutation.mutate(values);
+            }
           }}
         >
           <Form.Item
             label="Môn học"
-            name="courseId"
-            rules={[{ required: true, message: 'Chọn môn học' }]}
+            name="curriculumId"
+            rules={[{ required: true, message: 'Vui lòng chọn chương trình đào tạo' }]}
           >
-            <Select placeholder="Chọn môn học" showSearch optionFilterProp="children">
-              {mockCourses.map((c) => (
+            <Select placeholder="Chọn chương trình đào tạo">
+              {curriculums.map((c) => (
                 <Option key={c.id} value={c.id}>
                   {c.code} - {c.name}
                 </Option>
@@ -262,39 +296,30 @@ export const PLOManagementPage: React.FC = () => {
           <Form.Item
             label="Mã PLO"
             name="code"
-            rules={[{ required: true, message: 'Nhập mã PLO' }]}
+            rules={[{ required: true, message: 'Vui lòng nhập mã PLO' }]}
           >
-            <Input placeholder="VD: PLO1" />
+            <Input placeholder="Ví dụ: PLO1" />
           </Form.Item>
 
           <Form.Item
             label="Mô tả"
             name="description"
-            rules={[{ required: true, message: 'Nhập mô tả PLO' }]}
+            rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
           >
-            <TextArea rows={3} placeholder="Mô tả chi tiết PLO..." />
+            <TextArea rows={4} placeholder="Mô tả chuẩn đầu ra..." />
           </Form.Item>
 
           <Form.Item
             label="Danh mục"
             name="category"
-            rules={[{ required: true, message: 'Chọn danh mục' }]}
+            rules={[{ required: true, message: 'Vui lòng chọn danh mục' }]}
           >
             <Select placeholder="Chọn danh mục">
-              <Option value="Knowledge">Knowledge (Kiến thức)</Option>
-              <Option value="Skills">Skills (Kỹ năng)</Option>
-              <Option value="Competence">Competence (Năng lực)</Option>
-              <Option value="Attitude">Attitude (Thái độ)</Option>
+              <Option value="KNOWLEDGE">Kiến thức</Option>
+              <Option value="SKILLS">Kỹ năng</Option>
+              <Option value="COMPETENCE">Năng lực</Option>
+              <Option value="ATTITUDE">Thái độ</Option>
             </Select>
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, marginTop: 16 }}>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setIsModalVisible(false)}>Hủy</Button>
-              <Button type="primary" htmlType="submit" loading={savePLOMutation.isPending}>
-                {editingPLO ? 'Cập nhật' : 'Thêm mới'}
-              </Button>
-            </Space>
           </Form.Item>
         </Form>
       </Modal>

@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8888
 
 spring:
   application:
@@ -12,9 +12,7 @@ spring:
           predicates:
             - Path=/api/**
           filters:
-            # Lưu ý: Không loại bỏ tiền tố `/api` — forward nguyên đường dẫn đến backend.
-            # Nếu backend của bạn là /api/users -> dùng StripPrefix=0 (hoặc không set)
-            # Nếu backend của bạn là /users -> dùng StripPrefix=1
+            # Giữ nguyên /api khi forward đến backend
             - StripPrefix=0
             - PreserveHostHeader
             - SetRequestHeader=Content-Type, application/json
@@ -49,7 +47,7 @@ management:
     health:
       show-details: always
 
-# Cấu hình logging chi tiết (Giữ lại cấu hình của bạn vì nó TRACE kỹ hơn DEBUG của main)
+# Cấu hình logging chi tiết (Ưu tiên mức TRACE của bạn để dễ debug)
 logging:
   level:
     org.springframework.cloud.gateway: TRACE

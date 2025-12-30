@@ -5,4 +5,7 @@ export * from './ai.service';
 export * from './course.service';
 export * from './semester.service';
 export * from './feedback.service';
+export * from './teaching-assignment.service';
+export * from './subject.service';
+export * from './plo.service';
 export * from './auditlog.service';

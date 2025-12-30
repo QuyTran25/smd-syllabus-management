@@ -1,7 +1,7 @@
 import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình interceptor
 import { User, UserRole } from '@/types';
 
-// API Response types (Giữ lại của Main)
+// API Response types
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -77,22 +77,22 @@ export const userService = {
     search?: string;
   }): Promise<User[]> => {
     try {
-      // Dùng axiosClient và bỏ prefix /api để khớp với Gateway
-      const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/users', {
+      // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+      const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
         params: {
           page: 0,
           size: 100,
         },
       });
 
-      // Xử lý payload an toàn (Logic của Bạn nhưng cần thiết)
+      // Xử lý payload an toàn (Logic của Bạn)
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let users = rawContent.map(mapToUser);
 
-      // Apply client-side filtering (Logic của Team)
+      // Apply client-side filtering
       if (filters?.role) {
         users = users.filter((u) => u.role === filters.role);
       }
@@ -119,7 +119,8 @@ export const userService = {
 
   // Get user by ID
   getUserById: async (id: string): Promise<User> => {
-    const response = await axiosClient.get<ApiResponse<UserApiResponse>>(`/users/${id}`);
+    // FIX: Thêm /api
+    const response = await axiosClient.get<ApiResponse<UserApiResponse>>(`/api/users/${id}`);
     const data = response.data?.data || response.data;
     return mapToUser(data as unknown as UserApiResponse);
   },
@@ -134,7 +135,8 @@ export const userService = {
       password: 'DefaultPass@123', // Default password, should be changed
     };
 
-    const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/users', request);
+    // FIX: Thêm /api
+    const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/api/users', request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
   },
@@ -151,33 +153,33 @@ export const userService = {
       roleCode: data.role ?? existing.role,
     };
 
-    const response = await axiosClient.put<ApiResponse<UserApiResponse>>(`/users/${id}`, request);
+    // FIX: Thêm /api
+    const response = await axiosClient.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
   },
 
   // Delete user
   deleteUser: async (id: string): Promise<void> => {
-    await axiosClient.delete(`/users/${id}`);
+    // FIX: Thêm /api
+    await axiosClient.delete(`/api/users/${id}`);
   },
 
-  // Toggle user status (lock/unlock) - Logic từ Main
+  // Toggle user status (lock/unlock)
   toggleUserStatus: async (id: string): Promise<User> => {
     // Get current user status
     const user = await userService.getUserById(id);
     const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
 
-    // Dùng endpoint update status riêng hoặc update full tùy backend
-    // Ở đây ta dùng cách gọi update patch status nếu backend hỗ trợ
-    // Hoặc nếu không thì dùng update full
-    const response = await axiosClient.patch<ApiResponse<UserApiResponse>>(`/users/${id}/status`, {
+    // FIX: Thêm /api
+    const response = await axiosClient.patch<ApiResponse<UserApiResponse>>(`/api/users/${id}/status`, {
       status: newStatus,
     });
     const data = response.data?.data || response.data;
     return mapToUser(data as unknown as UserApiResponse);
   },
 
-  // Bulk import users from CSV - Logic từ Main (Giữ nguyên)
+  // Bulk import users from CSV
   importUsers: async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
     // TODO: Implement real API call for bulk import
     // For now, simulate with delay

@@ -48,7 +48,8 @@ public class TeachingAssignment {
     @Column(name = "deadline", nullable = false)
     private LocalDate deadline;
 
-    @Convert(converter = vn.edu.smd.core.converter.AssignmentStatusConverter.class)
+    @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(name = "status", length = 20)
     @Builder.Default
     private AssignmentStatus status = AssignmentStatus.PENDING;

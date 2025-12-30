@@ -1,7 +1,6 @@
 // API Configuration
-// ⭐ SỬA: Gọi qua Gateway (8080) thay vì Core Service (8081) để tránh CORS
-// Ưu tiên cấu hình từ nhánh Main để đảm bảo đồng bộ
-export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+// ⭐ ĐÃ CHỐT: Gọi qua Gateway (8888) theo đúng cấu hình của Team (Main Branch)
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8888';
 export const API_TIMEOUT = 10000;
 
 // Storage Keys

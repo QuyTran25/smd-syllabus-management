@@ -37,13 +37,12 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // MERGE: Logic trim() từ cả 2 nhánh để tránh lỗi khoảng trắng
+        // Ưu tiên Logic HEAD: Sạch sẽ, dùng Logger và trả về UserInfo cho Frontend
         String email = request.getEmail().trim();
         String password = request.getPassword().trim();
 
         Authentication authentication;
         try {
-            // Sử dụng AuthenticationManager chuẩn thay vì check tay như nhánh Main
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password)
             );
@@ -58,8 +57,7 @@ public class AuthService {
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        // MERGE: Giữ lại logic của BẠN để lấy thông tin User trả về cho Dashboard
-        // (Nhánh Main chỉ trả về token, nhưng Dashboard cần UserInfo)
+        // Lấy thông tin User trả về cho Dashboard (Tính năng quan trọng)
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
@@ -78,7 +76,7 @@ public class AuthService {
         User user = new User();
         user.setEmail(request.getEmail());
         
-        // FIX CONFLICT: Đổi setPassword -> setPasswordHash theo nhánh Main
+        // Fix: Dùng setPasswordHash chuẩn
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         
         user.setFullName(request.getFullName());
@@ -175,7 +173,7 @@ public class AuthService {
 
         // TODO: Thêm logic kiểm tra tính hợp lệ của token tại đây nếu cần
         
-        // FIX CONFLICT: Đổi setPassword -> setPasswordHash theo nhánh Main
+        // Fix: Dùng setPasswordHash chuẩn
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         

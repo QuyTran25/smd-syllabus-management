@@ -53,7 +53,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromToken(jwt);
                 
-                // ƯU TIÊN MAIN: Xóa comment thừa, giữ code sạch
                 UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
 
                 if (userDetails != null) {
@@ -67,7 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception ex) {
-            // Log lỗi nhưng không chặn request, để SecurityConfig xử lý
+            // Log lỗi nhưng không chặn request, để SecurityConfig xử lý (trả về 401/403 chuẩn)
             log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 

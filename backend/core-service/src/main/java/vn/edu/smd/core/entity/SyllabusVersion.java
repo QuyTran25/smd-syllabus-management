@@ -52,6 +52,7 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
+    // QUAN TRỌNG: Giữ lại code HEAD (Converter) để tránh lỗi JDBC
     @Convert(converter = vn.edu.smd.core.converter.SyllabusStatusConverter.class)
     @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
     @Builder.Default
@@ -209,5 +210,4 @@ public class SyllabusVersion {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
 }

@@ -6,7 +6,7 @@ import {
   FeedbackFilters,
 } from '@/types';
 
-// Interface Response chi tiết của Team (Giữ nguyên)
+// Interface Response chi tiết của Team
 export interface StudentFeedbackResponse {
   id: string;
   syllabusId: string;
@@ -34,7 +34,7 @@ export interface StudentFeedbackResponse {
   updatedAt: string;
 }
 
-// Map backend response to frontend type (Logic của Team)
+// Map backend response to frontend type
 const mapToStudentFeedback = (response: StudentFeedbackResponse): StudentFeedback => ({
   id: response.id,
   syllabusId: response.syllabusId,
@@ -66,19 +66,19 @@ export const feedbackService = {
       params.append('size', '100');
       params.append('sort', 'createdAt,desc');
       
-      // Dùng axiosClient và bỏ prefix /api để khớp với Gateway StripPrefix
+      // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
       const response = await axiosClient.get<{ data: { content: StudentFeedbackResponse[] } }>(
-        `/student-feedbacks?${params.toString()}`
+        `/api/student-feedbacks?${params.toString()}`
       );
       
-      // Xử lý payload an toàn (Logic của Bạn nhưng cần thiết)
+      // Xử lý payload an toàn (Logic của Bạn)
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let feedbacks = rawContent.map(mapToStudentFeedback);
       
-      // Apply client-side filters (Logic của Team)
+      // Apply client-side filters
       if (filters.status && filters.status.length > 0) {
         feedbacks = feedbacks.filter((f) => filters.status?.includes(f.status));
       }
@@ -115,8 +115,9 @@ export const feedbackService = {
   },
 
   getFeedbackById: async (id: string): Promise<StudentFeedback> => {
+    // FIX: Thêm /api
     const response = await axiosClient.get<{ data: StudentFeedbackResponse }>(
-      `/student-feedbacks/${id}`
+      `/api/student-feedbacks/${id}`
     );
     // Support cả 2 trường hợp response structure
     const data = response.data?.data || response.data;
@@ -128,8 +129,9 @@ export const feedbackService = {
     responseContent: string,
     _respondedBy: string
   ): Promise<StudentFeedback> => {
+    // FIX: Thêm /api
     const apiResponse = await axiosClient.post<{ data: StudentFeedbackResponse }>(
-      `/student-feedbacks/${id}/respond`,
+      `/api/student-feedbacks/${id}/respond`,
       { response: responseContent, enableEdit: false }
     );
     const data = apiResponse.data?.data || apiResponse.data;
@@ -138,8 +140,9 @@ export const feedbackService = {
 
   // Enable edit for lecturer
   enableEditForLecturer: async (id: string, _enabledBy: string): Promise<StudentFeedback> => {
+    // FIX: Thêm /api
     const response = await axiosClient.post<{ data: StudentFeedbackResponse }>(
-      `/student-feedbacks/${id}/enable-edit`
+      `/api/student-feedbacks/${id}/enable-edit`
     );
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
@@ -150,8 +153,9 @@ export const feedbackService = {
     id: string,
     status: FeedbackStatus
   ): Promise<StudentFeedback> => {
+    // FIX: Thêm /api
     const response = await axiosClient.patch<{ data: StudentFeedbackResponse }>(
-      `/student-feedbacks/${id}/status?status=${status}`
+      `/api/student-feedbacks/${id}/status?status=${status}`
     );
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
@@ -159,7 +163,6 @@ export const feedbackService = {
 
   getStatistics: async (): Promise<Record<string, number>> => {
     try {
-      // Logic của Team: Tính toán thống kê client-side
       const feedbacks = await feedbackService.getFeedbacks();
       const stats: Record<string, number> = {};
 

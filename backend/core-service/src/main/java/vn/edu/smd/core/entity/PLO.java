@@ -4,13 +4,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import vn.edu.smd.core.converter.PloCategoryConverter;
 import vn.edu.smd.shared.enums.PloCategory;
-import vn.edu.smd.core.converter.PloCategoryConverter; // ⭐ Import từ core.converter
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import vn.edu.smd.core.entity.Curriculum;
-import vn.edu.smd.core.entity.User;
 
 @Entity
 @Table(name = "plos", schema = "core_service")
@@ -30,10 +28,11 @@ public class PLO {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // ⭐ SỬA LỖI: Dùng @Convert để Hibernate hiểu được chữ "Knowledge"
+    // Ưu tiên nhánh Main: Có giá trị mặc định để tránh NullPointer
     @Convert(converter = PloCategoryConverter.class)
-    @Column(name = "category")
-    private PloCategory category;
+    @Column(name = "category", length = 20)
+    @Builder.Default
+    private PloCategory category = PloCategory.KNOWLEDGE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

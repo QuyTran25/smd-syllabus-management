@@ -52,7 +52,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             // ⭐ QUAN TRỌNG NHẤT: Tắt CORS ở Core Service.
-            // Lý do: Gateway (port 8080) đã thêm header CORS rồi.
+            // Lý do: Gateway (port 8888 - theo nhánh Main) đã thêm header CORS rồi.
             // Nếu Core thêm nữa sẽ bị lỗi "Duplicate Access-Control-Allow-Origin".
             .cors(AbstractHttpConfigurer::disable) 
             

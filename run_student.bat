@@ -13,8 +13,8 @@ echo [2/4] Dang khoi dong Core Service (Port 8081)...
 start "CORE-SERVICE" cmd /k "cd backend/core-service && mvn spring-boot:run"
 timeout /t 15
 
-:: 3. Chạy Gateway
-echo [3/4] Dang khoi dong Gateway (Port 8080)...
+:: 3. Chạy Gateway (CỔNG 8888 - CHUẨN MAIN)
+echo [3/4] Dang khoi dong Gateway (Port 8888)...
 start "GATEWAY-SERVICE" cmd /k "cd backend/gateway && mvn spring-boot:run"
 timeout /t 15
 

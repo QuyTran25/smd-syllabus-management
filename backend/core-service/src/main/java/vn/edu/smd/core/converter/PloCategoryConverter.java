@@ -5,24 +5,32 @@ import jakarta.persistence.Converter;
 import vn.edu.smd.shared.enums.PloCategory;
 
 /**
+ * Converter to map between Java enum (KNOWLEDGE) and database enum (Knowledge)
  * Bộ chuyển đổi dữ liệu từ Postgres (Knowledge) sang Java (KNOWLEDGE)
  */
 @Converter(autoApply = true)
 public class PloCategoryConverter implements AttributeConverter<PloCategory, String> {
 
     @Override
-    public String convertToDatabaseColumn(PloCategory attribute) {
-        if (attribute == null) return null;
-        return attribute.name();
+    public String convertToDatabaseColumn(PloCategory category) {
+        if (category == null) {
+            return null;
+        }
+        // Convert KNOWLEDGE -> Knowledge (Chữ cái đầu viết hoa, còn lại viết thường)
+        String name = category.name();
+        return name.charAt(0) + name.substring(1).toLowerCase();
     }
 
     @Override
     public PloCategory convertToEntityAttribute(String dbData) {
-        if (dbData == null) return null;
+        if (dbData == null) {
+            return null;
+        }
         try {
-            // Try robust parsing without relying on decode (shared module may not be on compile classpath)
+            // Convert Knowledge -> KNOWLEDGE (Chuyển về chữ hoa toàn bộ để khớp Enum Java)
             return PloCategory.valueOf(dbData.toUpperCase());
         } catch (Exception e) {
+            // Giá trị mặc định nếu lỗi
             return PloCategory.KNOWLEDGE;
         }
     }

@@ -17,8 +17,7 @@ public class AssignmentStatusConverter implements AttributeConverter<AssignmentS
         if (attribute == null) {
             return null;
         }
-        // Convert PENDING -> 'pending', IN_PROGRESS -> 'in-progress'
-        return attribute.name().toLowerCase().replace('_', '-');
+        return attribute.getDbValue();
     }
 
     @Override
@@ -26,7 +25,6 @@ public class AssignmentStatusConverter implements AttributeConverter<AssignmentS
         if (dbData == null || dbData.isBlank()) {
             return null;
         }
-        // Convert 'pending' -> PENDING, 'in-progress' -> IN_PROGRESS
-        return AssignmentStatus.valueOf(dbData.toUpperCase().replace('-', '_'));
+        return AssignmentStatus.fromString(dbData);
     }
 }

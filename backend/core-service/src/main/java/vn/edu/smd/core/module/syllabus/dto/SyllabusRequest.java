@@ -30,11 +30,8 @@ public class SyllabusRequest {
     // Trường này dùng để chứa cấu trúc JSON linh hoạt nếu cần
     private Map<String, Object> content;
 
-    // =========================================================================
-    // FIX CONFLICT: Sử dụng các trường từ nhánh Main (origin/main) 
-    // để đảm bảo đầy đủ dữ liệu (Description, Objectives, StudentTasks)
-    // =========================================================================
-    
+    // Các trường bổ sung (Description, Objectives, StudentTasks) 
+    // Giữ lại để đảm bảo chức năng hoạt động đúng theo nhánh Main
     private String description;
     private String objectives;
     private String studentTasks;

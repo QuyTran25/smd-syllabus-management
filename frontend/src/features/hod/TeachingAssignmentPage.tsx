@@ -5,31 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { teachingAssignmentService, TeachingAssignment } from '@/services/teaching-assignment.service';
 
 const { Option } = Select;
 const { TextArea } = Input;
-
-interface TeachingAssignment {
-  id: string;
-  courseCode: string;
-  courseName: string;
-  semester: string;
-  mainLecturer: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  coLecturers: Array<{
-    id: string;
-    name: string;
-    email: string;
-  }>;
-  deadline: string;
-  status: 'pending' | 'in-progress' | 'submitted' | 'completed';
-  syllabusId?: string; // ID của đề cương sau khi giáo viên tạo
-  createdAt: string;
-  commentCount: number; // Số lượng comment giữa các giáo viên
-}
 
 // Mock data lecturers
 const mockLecturers = [
@@ -123,14 +102,18 @@ export const TeachingAssignmentPage: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<TeachingAssignment | null>(null);
   const [form] = Form.useForm();
 
-  // Fetch assignments
-  const { data: assignments, isLoading } = useQuery({
+  // Fetch assignments from real API
+  const { data: assignments, isLoading, error } = useQuery({
     queryKey: ['teaching-assignments'],
-    queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockAssignments;
-    },
+    queryFn: () => teachingAssignmentService.getAll(),
   });
+
+  // Show error message if API call fails
+  React.useEffect(() => {
+    if (error) {
+      message.error('Không thể tải dữ liệu. Vui lòng thử lại sau.');
+    }
+  }, [error]);
 
   // Fetch comments for selected assignment
   const { data: comments } = useQuery({

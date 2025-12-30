@@ -49,12 +49,30 @@ public class SyllabusService {
         }
 
         if (statusStrings != null && !statusStrings.isEmpty()) {
-            // FIX CONFLICT: Sử dụng logic toUpperCase của Main để khớp với PostgreSQL Enum
-            List<String> statuses = statusStrings.stream()
-                    .map(String::toUpperCase)
-                    .toList();
-            return syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses, pageable)
-                    .map(this::mapToResponse);
+            // Ưu tiên Logic Main: Convert Enum chuẩn và Pagination thủ công (để tương thích Repo List)
+            List<SyllabusStatus> statuses = statusStrings.stream()
+                    .map(s -> {
+                        try {
+                            return SyllabusStatus.valueOf(s.toUpperCase()); // Safe upper case
+                        } catch (IllegalArgumentException e) {
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            
+            // Use Spring Data method - @JdbcType in entity handles enum properly
+            List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
+            List<SyllabusResponse> responses = allResults.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+            
+            // Manual pagination
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), responses.size());
+            List<SyllabusResponse> pageContent = start < responses.size() ? responses.subList(start, end) : List.of();
+            
+            return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, responses.size());
         }
         
         return syllabusVersionRepository.findAll(pageable).map(this::mapToResponse);
@@ -69,10 +87,19 @@ public class SyllabusService {
                 .map(role -> role.getCode())
                 .orElse("");
         
+        // Ưu tiên Logic Main: Phân quyền status chặt chẽ hơn
         return switch (primaryRole) {
             case "PRINCIPAL" -> List.of(SyllabusStatus.PENDING_PRINCIPAL.name(), SyllabusStatus.APPROVED.name());
-            case "AA" -> List.of(SyllabusStatus.PENDING_AA.name());
-            case "HOD" -> List.of(SyllabusStatus.PENDING_HOD.name(), SyllabusStatus.PENDING_HOD_REVISION.name());
+            case "AA" -> List.of(
+                SyllabusStatus.PENDING_AA.name(), 
+                SyllabusStatus.PENDING_PRINCIPAL.name(), 
+                SyllabusStatus.REJECTED.name()
+            );
+            case "HOD" -> List.of(
+                SyllabusStatus.PENDING_HOD.name(), 
+                SyllabusStatus.PENDING_AA.name(), 
+                SyllabusStatus.REJECTED.name()
+            );
             case "LECTURER" -> List.of(
                 SyllabusStatus.DRAFT.name(), SyllabusStatus.PENDING_HOD.name(),
                 SyllabusStatus.PENDING_AA.name(), SyllabusStatus.PENDING_PRINCIPAL.name(),
@@ -107,7 +134,7 @@ public class SyllabusService {
                 .keywords(request.getKeywords())
                 .content(request.getContent())
                 .description(request.getDescription())
-                // MERGE: Giữ lại studentTasks từ HEAD
+                // HEAD: Giữ lại studentTasks
                 .studentTasks(request.getStudentTasks()) 
                 .snapSubjectCode(subject.getCode())
                 .snapSubjectNameVi(subject.getCurrentNameVi())
@@ -140,7 +167,7 @@ public class SyllabusService {
         syllabus.setKeywords(request.getKeywords());
         syllabus.setContent(request.getContent());
         syllabus.setDescription(request.getDescription());
-        // MERGE: Giữ lại studentTasks từ HEAD
+        // HEAD: Giữ lại studentTasks
         syllabus.setStudentTasks(request.getStudentTasks());
         syllabus.setUpdatedBy(getCurrentUser());
 
@@ -204,7 +231,6 @@ public class SyllabusService {
         SyllabusVersion current = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
         List<SyllabusVersion> versions = new ArrayList<>();
-        // FIX CONFLICT: Sử dụng vòng lặp từ Main để traverse logic
         while (current != null) {
             versions.add(current);
             current = current.getPreviousVersion();
@@ -242,19 +268,24 @@ public class SyllabusService {
                 .versionNo(generateNextVersionNo(original.getVersionNo()))
                 .status(SyllabusStatus.DRAFT)
                 .content(original.getContent())
-                // MERGE: Giữ lại studentTasks khi Clone
+                // HEAD: Giữ lại studentTasks
                 .studentTasks(original.getStudentTasks())
                 .createdBy(getCurrentUser())
                 .isDeleted(false)
                 .build();
         return mapToResponse(syllabusVersionRepository.save(cloned));
     }
-    
-    // --- MERGE: GIỮ LẠI HÀM STATISTICS CỦA BẠN (DASHBOARD CẦN) ---
+
+    @Transactional(readOnly = true)
+    public byte[] exportSyllabusToPdf(UUID id) {
+        return new byte[0];
+    }
+
+    // --- HEAD: GIỮ LẠI HÀM STATISTICS CỦA BẠN (DASHBOARD CẦN) ---
     @Transactional(readOnly = true)
     public Map<String, Integer> getStatistics() {
         // Lưu ý: Đảm bảo Repository có method findAllActive hoặc logic tương đương
-        List<SyllabusVersion> all = syllabusVersionRepository.findAllActive(); 
+        List<SyllabusVersion> all = syllabusVersionRepository.findByIsDeletedFalse(); 
         Map<String, Integer> stats = new LinkedHashMap<>();
         // Initialize all statuses to 0
         for (SyllabusStatus s : SyllabusStatus.values()) {
@@ -277,26 +308,22 @@ public class SyllabusService {
         return mapToResponse(syllabus);
     }
 
-    @Transactional(readOnly = true)
-    public byte[] exportSyllabusToPdf(UUID id) {
-        // Placeholder from Main
-        return new byte[0];
-    }
-
-    // --- HELPERS (MERGE: KẾT HỢP LOGIC CHI TIẾT CỦA MAIN VÀ FIELD CỦA HEAD) ---
+    // --- HELPERS (Logic Mapping chi tiết từ Main + Field của HEAD) ---
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
         response.setVersionNo(syllabus.getVersionNo());
         response.setStatus(syllabus.getStatus().name());
-        response.setStudentTasks(syllabus.getStudentTasks()); // HEAD: Đảm bảo field này có
+        
+        // HEAD: Đảm bảo field này có
+        response.setStudentTasks(syllabus.getStudentTasks()); 
         
         response.setReviewDeadline(syllabus.getReviewDeadline());
         response.setEffectiveDate(syllabus.getEffectiveDate());
         response.setKeywords(syllabus.getKeywords());
         response.setContent(syllabus.getContent());
 
-        // MERGE: Dùng logic mapping chi tiết của Main cho Subject
+        // Ưu tiên Logic Main: Mapping chi tiết Subject
         Subject subject = syllabus.getSubject();
         if (subject != null) {
             response.setSubjectId(subject.getId());
@@ -305,8 +332,9 @@ public class SyllabusService {
             if (subject.getSubjectType() != null) {
                 response.setCourseType(subject.getSubjectType().name().toLowerCase());
             }
-            if (subject.getComponent() != null) {
-                response.setComponentType(subject.getComponent().name().toLowerCase());
+            // Get component type from syllabus (major/foundation/general), not from subject component (theory/practice)
+            if (syllabus.getComponentType() != null) {
+                response.setComponentType(syllabus.getComponentType().name().toLowerCase());
             }
             
             response.setTheoryHours(subject.getDefaultTheoryHours());
@@ -339,7 +367,14 @@ public class SyllabusService {
         }
         
         if (syllabus.getAcademicTerm() != null) {
-            response.setSemester(syllabus.getAcademicTerm().getName());
+            // Parse semester number from academic term code (e.g., "HK1_2024" -> "1")
+            String code = syllabus.getAcademicTerm().getCode();
+            if (code != null && code.startsWith("HK")) {
+                String semesterNum = code.substring(2, code.indexOf('_'));
+                response.setSemester(semesterNum);
+            } else {
+                response.setSemester(syllabus.getAcademicTerm().getName());
+            }
             response.setAcademicYear(syllabus.getAcademicTerm().getAcademicYear());
         }
         
@@ -362,7 +397,7 @@ public class SyllabusService {
         response.setCreatedAt(syllabus.getCreatedAt());
         response.setUpdatedAt(syllabus.getUpdatedAt());
 
-        // MERGE: Dùng logic mapping chi tiết của Main cho CLO, PLO, Assessment
+        // Ưu tiên Logic Main: Mapping chi tiết CLO, Assessment, PLO
         // Load CLOs
         List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabus.getId());
         Map<UUID, String> cloCodeMap = new HashMap<>();
@@ -382,11 +417,13 @@ public class SyllabusService {
         for (CLO clo : clos) {
             List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
             for (CloPlOMapping mapping : mappings) {
-                SyllabusResponse.CLOPLOMappingResponse mapResponse = new SyllabusResponse.CLOPLOMappingResponse();
-                mapResponse.setCloCode(clo.getCode());
-                mapResponse.setPloCode(mapping.getPlo().getCode());
-                mapResponse.setContributionLevel(mapping.getMappingLevel());
-                ploMappings.add(mapResponse);
+                SyllabusResponse.CLOPLOMappingResponse mappingResponse = new SyllabusResponse.CLOPLOMappingResponse();
+                mappingResponse.setCloCode(clo.getCode());
+                // Load PLO eagerly to avoid LazyInitializationException
+                PLO plo = mapping.getPlo();
+                mappingResponse.setPloCode(plo.getCode());
+                mappingResponse.setContributionLevel(mapping.getMappingLevel());
+                ploMappings.add(mappingResponse);
             }
         }
         response.setPloMappings(ploMappings);

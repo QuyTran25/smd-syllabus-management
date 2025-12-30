@@ -1,5 +1,8 @@
 package vn.edu.smd.core.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.TeachingAssignment;
@@ -15,6 +18,19 @@ import java.util.UUID;
  */
 @Repository
 public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssignment, UUID> {
+
+    /**
+     * Find all with eager loading of relationships
+     */
+    @EntityGraph(attributePaths = {"subject", "academicTerm", "mainLecturer", "syllabusVersion", "assignedBy"})
+    Page<TeachingAssignment> findAll(Pageable pageable);
+
+    /**
+     * Find all with eager loading (no pagination)
+     */
+    @EntityGraph(attributePaths = {"subject", "academicTerm", "mainLecturer", "syllabusVersion", "assignedBy", "subject.department", "subject.department.faculty"})
+    @org.springframework.data.jpa.repository.Query("SELECT t FROM TeachingAssignment t")
+    List<TeachingAssignment> findAllWithDetails();
 
     /**
      * Find assignment by subject and academic term

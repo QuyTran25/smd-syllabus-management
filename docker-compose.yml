@@ -8,7 +8,6 @@ services:
     image: pgvector/pgvector:pg15
     container_name: smd-postgres
     environment:
-      # ⭐ FIX CỨNG: Để khớp với application.properties của Core Service
       POSTGRES_DB: smd_database
       POSTGRES_USER: smd_user
       POSTGRES_PASSWORD: smd_password
@@ -22,8 +21,7 @@ services:
     networks:
       - smd-network
     healthcheck:
-      # ⭐ FIX CỨNG: User healthcheck
-      test: ["CMD-SHELL", "pg_isready -U smd_user"]
+      test: ["CMD-SHELL", "pg_isready -U smd_user -d smd_database"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,7 +68,7 @@ services:
       retries: 5
 
   # ============================================
-  # EVENT STREAMING: Zookeeper (for Kafka)
+  # EVENT STREAMING: Zookeeper & Kafka
   # ============================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -78,17 +76,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - smd-network
 
-  # ============================================
-  # EVENT STREAMING: Kafka
-  # ============================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: smd-kafka
@@ -101,41 +91,32 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
       - "9092:9092"
       - "29092:29092"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
     networks:
       - smd-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "kafka-broker-api-versions",
-          "--bootstrap-server",
-          "localhost:9092",
-        ]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
       timeout: 10s
       retries: 5
 
   # ============================================
-  # BACKEND: API Gateway (Spring Cloud Gateway)
+  # BACKEND: API Gateway
   # ============================================
   gateway:
     build:
       context: ./backend/gateway
-      dockerfile: ../../infrastructure/docker/gateway/Dockerfile
+      dockerfile: Dockerfile
     container_name: smd-gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SERVER_PORT=8080 # ⭐ Ép chạy port 8080 for Gateway
+      - SERVER_PORT=8888
       - CORE_SERVICE_URL=http://core-service:8081
       - AI_SERVICE_URL=http://ai-service:8082
     ports:
-      - "8080:8080" # ⭐ Map ra ngoài port 8080 cho Frontend gọi
+      - "8888:8888"
     depends_on:
       - core-service
     networks:
@@ -143,119 +124,74 @@ services:
     restart: unless-stopped
 
   # ============================================
-  # BACKEND: Core Service (Java Spring Boot)
+  # BACKEND: Core Service (Java)
   # ============================================
   core-service:
     build:
       context: ./backend/core-service
-      dockerfile: ../../infrastructure/docker/core-service/Dockerfile
+      dockerfile: Dockerfile
     container_name: smd-core-service
     environment:
-      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
-      # ⭐ FIX CỨNG: Cập nhật connection string để khớp với Postgres container
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/smd_database
       - SPRING_DATASOURCE_USERNAME=smd_user
       - SPRING_DATASOURCE_PASSWORD=smd_password
       - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
-      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
-      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - JWT_SECRET=${JWT_SECRET}
-      - FIREBASE_SERVICE_ACCOUNT_KEY=${FIREBASE_SERVICE_ACCOUNT_KEY}
     ports:
-      - "${CORE_SERVICE_PORT:-8081}:8081"
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     networks:
       - smd-network
-    restart: unless-stopped
-    volumes:
-      - ./uploads:/app/uploads
 
   # ============================================
-  # BACKEND: AI Service (Python FastAPI)
+  # BACKEND: AI Service (Python)
   # ============================================
   ai-service:
     build:
-      context: .
-      dockerfile: infrastructure/docker/ai-service/Dockerfile
+      context: ./backend/ai-service
+      dockerfile: Dockerfile
     container_name: smd-ai-service
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      # ⭐ FIX CỨNG: Cập nhật connection string cho AI service luôn
       - DATABASE_URL=postgresql://smd_user:smd_password@postgres:5432/smd_database
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
     ports:
-      - "${AI_SERVICE_PORT:-8082}:8082"
+      - "8082:8082"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - smd-network
-    restart: unless-stopped
 
   # ============================================
-  # FRONTEND: React Application
+  # FRONTEND: React
   # ============================================
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infrastructure/docker/frontend/Dockerfile
+      dockerfile: Dockerfile
     container_name: smd-frontend
     environment:
-      # MERGE: Sửa default port thành 8080 để khớp với Gateway
-      - VITE_API_GATEWAY_URL=http://localhost:${GATEWAY_PORT:-8080}
-      - VITE_FIREBASE_API_KEY=${FIREBASE_API_KEY}
-      - VITE_FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - VITE_API_GATEWAY_URL=http://localhost:8888
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "3000:3000"
     depends_on:
       - gateway
     networks:
       - smd-network
-    restart: unless-stopped
 
-# ============================================
-# NETWORKS
-# ============================================
 networks:
   smd-network:
     driver: bridge
 
-# ============================================
-# VOLUMES
-# ============================================
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   rabbitmq_data:
-    driver: local
-  zookeeper_data:
-    driver: local
-  zookeeper_logs:
-    driver: local
   kafka_data:
-    driver: local
