@@ -1,5 +1,8 @@
 package vn.edu.smd.shared.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * Teaching assignment status
  * Maps to database enum: assignment_status ('pending', 'in-progress', 'submitted', 'completed')
@@ -8,22 +11,44 @@ public enum AssignmentStatus {
     /**
      * Assignment created, not started yet
      */
-    PENDING,
+    PENDING("pending"),
 
     /**
      * Lecturer is working on the syllabus
      */
-    IN_PROGRESS,
+    IN_PROGRESS("in-progress"),
 
     /**
      * Syllabus submitted for approval
      */
-    SUBMITTED,
+    SUBMITTED("submitted"),
 
     /**
      * Syllabus approved and published
      */
-    COMPLETED;
+    COMPLETED("completed");
+
+    private final String dbValue;
+
+    AssignmentStatus(String dbValue) {
+        this.dbValue = dbValue;
+    }
+
+    @JsonValue
+    public String getDbValue() {
+        return dbValue;
+    }
+
+    @JsonCreator
+    public static AssignmentStatus fromString(String value) {
+        if (value == null) return null;
+        for (AssignmentStatus status : values()) {
+            if (status.dbValue.equalsIgnoreCase(value) || status.name().equalsIgnoreCase(value)) {
+                return status;
+            }
+        }
+        throw new IllegalArgumentException("Unknown AssignmentStatus: " + value);
+    }
 
     /**
      * Get display name in Vietnamese

@@ -23,8 +23,9 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
-    // Use Spring Data JPA method with proper @JdbcType annotation in entity
-    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(List<SyllabusStatus> statuses);
+    // Use custom query to avoid PostgreSQL enum casting issues
+    @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
+    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
 
     List<SyllabusVersion> findByCreatedById(UUID createdById);
 

@@ -34,19 +34,21 @@ public class TeachingAssignmentService {
      * Get all teaching assignments with pagination
      */
     public Page<TeachingAssignmentResponse> getAllAssignments(Pageable pageable, List<String> statusList) {
-        List<TeachingAssignment> assignments;
+        // Use findAllWithDetails() with EntityGraph to prevent N+1 query
+        List<TeachingAssignment> allAssignments = teachingAssignmentRepository.findAllWithDetails();
         
+        List<TeachingAssignment> assignments;
         if (statusList != null && !statusList.isEmpty()) {
             // Filter by status
             List<AssignmentStatus> statuses = statusList.stream()
                 .map(s -> AssignmentStatus.valueOf(s.toUpperCase().replace("-", "_")))
                 .collect(Collectors.toList());
             
-            assignments = teachingAssignmentRepository.findAll().stream()
+            assignments = allAssignments.stream()
                 .filter(a -> statuses.contains(a.getStatus()))
                 .collect(Collectors.toList());
         } else {
-            assignments = teachingAssignmentRepository.findAll();
+            assignments = allAssignments;
         }
         
         List<TeachingAssignmentResponse> responses = assignments.stream()
