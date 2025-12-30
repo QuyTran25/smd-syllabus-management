@@ -2,7 +2,6 @@ package vn.edu.smd.core.module.studentfeedback.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,6 @@ public class StudentFeedbackService {
 
     @Transactional(readOnly = true)
     public Page<StudentFeedbackResponse> getFeedbacksByStatus(String status, Pageable pageable) {
-        // Ưu tiên nhánh Main: Tận dụng Pagination của JPA (Tối ưu hiệu suất DB)
         Page<SyllabusErrorReport> feedbacks = feedbackRepository.findByStatus(status, pageable);
         return feedbacks.map(this::mapToResponse);
     }
@@ -94,7 +92,6 @@ public class StudentFeedbackService {
         
         if (Boolean.TRUE.equals(request.getEnableEdit())) {
             feedback.setEditEnabled(true);
-            // Note: editEnabledBy and editEnabledAt might need separate fields
         }
         
         feedback = feedbackRepository.save(feedback);
@@ -131,7 +128,6 @@ public class StudentFeedbackService {
         StudentFeedbackResponse response = new StudentFeedbackResponse();
         response.setId(feedback.getId());
         
-        // Syllabus info - safe access (Ưu tiên nhánh Main: Có try-catch tránh lỗi Lazy Loading)
         try {
             if (feedback.getSyllabusVersion() != null) {
                 response.setSyllabusId(feedback.getSyllabusVersion().getId());
@@ -139,10 +135,9 @@ public class StudentFeedbackService {
                 response.setSyllabusName(feedback.getSyllabusVersion().getSnapSubjectNameVi());
             }
         } catch (Exception e) {
-            // Handle lazy loading exception gracefully
+            // Safe fallback for Lazy Loading
         }
         
-        // Student info - safe access
         try {
             if (feedback.getUser() != null) {
                 response.setStudentId(feedback.getUser().getId());
@@ -150,17 +145,15 @@ public class StudentFeedbackService {
                 response.setStudentEmail(feedback.getUser().getEmail());
             }
         } catch (Exception e) {
-            // Handle lazy loading exception gracefully
+            // Safe fallback for Lazy Loading
         }
         
-        // Feedback details
         response.setType(feedback.getType());
         response.setSection(feedback.getSection());
         response.setTitle(feedback.getTitle());
         response.setDescription(feedback.getDescription());
         response.setStatus(feedback.getStatus());
         
-        // Admin response
         response.setAdminResponse(feedback.getAdminResponse());
         try {
             if (feedback.getRespondedBy() != null) {
@@ -168,25 +161,22 @@ public class StudentFeedbackService {
                 response.setRespondedByName(feedback.getRespondedBy().getFullName());
             }
         } catch (Exception e) {
-            // Handle lazy loading exception gracefully
+            // Safe fallback for Lazy Loading
         }
         response.setRespondedAt(feedback.getRespondedAt());
         
-        // Edit enabled
         response.setEditEnabled(feedback.getEditEnabled());
         
-        // Resolution
         try {
             if (feedback.getResolvedBy() != null) {
                 response.setResolvedById(feedback.getResolvedBy().getId());
                 response.setResolvedByName(feedback.getResolvedBy().getFullName());
             }
         } catch (Exception e) {
-            // Handle lazy loading exception gracefully
+            // Safe fallback for Lazy Loading
         }
         response.setResolvedAt(feedback.getResolvedAt());
         
-        // Timestamps
         response.setCreatedAt(feedback.getCreatedAt());
         response.setUpdatedAt(feedback.getUpdatedAt());
         

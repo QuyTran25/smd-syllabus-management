@@ -29,14 +29,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Giữ logic xử lý OPTIONS để tránh lỗi CORS (Cần thiết cho Frontend)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            // Bypass những endpoint Auth để tránh check token thừa
             String requestPath = request.getRequestURI();
             if (requestPath.contains("/api/auth/login") || 
                 requestPath.contains("/api/auth/register") ||
@@ -60,13 +58,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // Lưu thông tin xác thực vào Security Context
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     log.debug("Authenticated user with ID: {}", userId);
                 }
             }
         } catch (Exception ex) {
-            // Log lỗi nhưng không chặn request, để SecurityConfig xử lý (trả về 401/403 chuẩn)
             log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 

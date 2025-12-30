@@ -42,13 +42,13 @@ if (Test-Path "frontend\node_modules\.vite") {
 Write-Host "  ✓ Vite cache cleared" -ForegroundColor Green
 Write-Host ""
 
-# Step 3: Start Core Service
+# Step 3: Start Core Service (ƯU TIÊN MAIN: Chạy file .jar)
 Write-Host "[3/5] Starting Core Service on port 8081..." -ForegroundColor Yellow
 $coreRunning = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue
 if ($coreRunning) {
     Write-Host "  ✓ Core Service already running on port 8081" -ForegroundColor Green
 } else {
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\core-service && mvn spring-boot:run" -WindowStyle Normal
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\core-service && java -jar target\core-service-1.0.0.jar" -WindowStyle Normal
     Write-Host "  Waiting for Core Service to start (up to 60 seconds)..." -ForegroundColor Yellow
     $maxRetries = 12
     $retryCount = 0
@@ -64,18 +64,18 @@ if ($coreRunning) {
     if ($coreRunning) {
         Write-Host "  ✓ Core Service is running on port 8081" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ Core Service failed to start after 60 seconds" -ForegroundColor Red
+        Write-Host "  ✗ Core Service failed to start sau 60 giây. Hãy kiểm tra file log hoặc đảm bảo đã chạy 'mvn clean package'." -ForegroundColor Red
     }
 }
 Write-Host ""
 
-# Step 4: Start Gateway
+# Step 4: Start Gateway (ƯU TIÊN MAIN: Chạy file .jar trên port 8888)
 Write-Host "[4/5] Starting Gateway on port 8888..." -ForegroundColor Yellow
 $gatewayRunning = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
 if ($gatewayRunning) {
     Write-Host "  ✓ Gateway already running on port 8888" -ForegroundColor Green
 } else {
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\gateway && mvn spring-boot:run" -WindowStyle Normal
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\gateway && java -jar target\gateway-1.0.0.jar" -WindowStyle Normal
     Write-Host "  Waiting for Gateway to start (up to 30 seconds)..." -ForegroundColor Yellow
     $maxRetries = 6
     $retryCount = 0
@@ -91,7 +91,7 @@ if ($gatewayRunning) {
     if ($gatewayRunning) {
         Write-Host "  ✓ Gateway is running on port 8888" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ Gateway failed to start after 30 seconds" -ForegroundColor Red
+        Write-Host "  ✗ Gateway failed to start sau 30 giây. Hãy kiểm tra file log hoặc đảm bảo đã chạy 'mvn clean package'." -ForegroundColor Red
     }
 }
 Write-Host ""
@@ -132,18 +132,15 @@ Write-Host ""
 Write-Host "  Application:" -ForegroundColor White
 Write-Host "    Core Service:     http://localhost:8081" -ForegroundColor White
 Write-Host "    Gateway:          http://localhost:8888" -ForegroundColor White
-Write-Host "    Admin Frontend:   http://localhost:3000" -ForegroundColor Green
-Write-Host "    Student Frontend: http://localhost:3001" -ForegroundColor Green
+Write-Host "    Admin Portal:     http://localhost:3000" -ForegroundColor Green
+Write-Host "    Student Portal:   http://localhost:3001" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Opening browsers..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
-# Open both Admin and Student portals
 Start-Process "http://localhost:3000"
 Start-Process "http://localhost:3001"
-Write-Host "  → Admin Portal: http://localhost:3000" -ForegroundColor Cyan
-Write-Host "  → Student Portal: http://localhost:3001" -ForegroundColor Cyan
-Write-Host ""
+
 Write-Host "Press Enter to stop all services..." -ForegroundColor Yellow
 Read-Host
 

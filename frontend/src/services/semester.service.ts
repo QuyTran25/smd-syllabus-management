@@ -1,4 +1,4 @@
-import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
+import axiosClient from '@/api/axiosClient';
 import { Semester, SemesterFilters } from '@/types';
 
 // API Response types
@@ -57,7 +57,7 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 
 export const semesterService = {
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+    // Gọi qua Gateway 8888 sử dụng axiosClient
     const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
       params: {
         page: 0,
@@ -66,14 +66,14 @@ export const semesterService = {
       },
     });
 
-    // Xử lý payload an toàn (Logic của Bạn)
+    // Xử lý payload an toàn hỗ trợ cả trường hợp có hoặc không có bọc trường 'data'
     const rawContent = response.data?.data?.content || 
                        (response.data as any)?.content || 
                        [];
                        
     let semesters = rawContent.map(mapToSemester);
 
-    // Apply client-side filtering
+    // Client-side filtering
     if (filters?.isActive !== undefined) {
       semesters = semesters.filter((s) => s.isActive === filters.isActive);
     }
@@ -97,7 +97,6 @@ export const semesterService = {
   },
 
   getSemesterById: async (id: string): Promise<Semester> => {
-    // FIX: Thêm /api
     const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`);
     const data = response.data?.data || response.data;
     return mapToSemester(data as unknown as SemesterApiResponse);
@@ -105,7 +104,6 @@ export const semesterService = {
 
   getActiveSemester: async (): Promise<Semester | null> => {
     try {
-      // FIX: Thêm /api
       const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
       const data = response.data?.data || response.data;
       return mapToSemester(data as unknown as SemesterApiResponse);
@@ -125,14 +123,12 @@ export const semesterService = {
       isActive: data.isActive,
     };
 
-    // FIX: Thêm /api
     const response = await axiosClient.post<ApiResponse<SemesterApiResponse>>('/api/semesters', request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },
 
   updateSemester: async (id: string, data: Partial<Semester>): Promise<Semester> => {
-    // First get the existing semester to merge with updates
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {
@@ -145,19 +141,16 @@ export const semesterService = {
       isActive: data.isActive ?? existing.isActive,
     };
 
-    // FIX: Thêm /api
     const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },
 
   deleteSemester: async (id: string): Promise<void> => {
-    // FIX: Thêm /api
     await axiosClient.delete(`/api/semesters/${id}`);
   },
 
   setActiveSemester: async (id: string): Promise<Semester> => {
-    // First get the existing semester
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {
@@ -170,7 +163,6 @@ export const semesterService = {
       isActive: true,
     };
 
-    // FIX: Thêm /api
     const response = await axiosClient.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);

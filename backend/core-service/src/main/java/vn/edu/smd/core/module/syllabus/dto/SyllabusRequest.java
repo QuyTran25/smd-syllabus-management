@@ -19,7 +19,6 @@ public class SyllabusRequest {
     @NotBlank(message = "Version number is required")
     private String versionNo;
 
-    /** Optional status string (e.g. DRAFT or PENDING_APPROVAL) */
     private String status;
 
     private LocalDateTime reviewDeadline;
@@ -27,11 +26,8 @@ public class SyllabusRequest {
 
     private String[] keywords;
     
-    // Trường này dùng để chứa cấu trúc JSON linh hoạt nếu cần
     private Map<String, Object> content;
 
-    // Các trường bổ sung (Description, Objectives, StudentTasks) 
-    // Giữ lại để đảm bảo chức năng hoạt động đúng theo nhánh Main
     private String description;
     private String objectives;
     private String studentTasks;

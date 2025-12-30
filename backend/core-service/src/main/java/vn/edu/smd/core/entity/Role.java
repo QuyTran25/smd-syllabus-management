@@ -2,13 +2,15 @@ package vn.edu.smd.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "roles", schema = "core_service")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,14 +31,11 @@ public class Role {
     @Builder.Default
     private Boolean isSystem = false;
 
-    // --- QUAN TRỌNG: Giữ lại code của bạn (HEAD) ---
-    // Lý do: Database (Migration V12) đã có các cột này.
-    // Nếu bỏ đi sẽ gây lệch giữa Code và Database.
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

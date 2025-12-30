@@ -12,7 +12,6 @@ spring:
           predicates:
             - Path=/api/**
           filters:
-            # Giữ nguyên /api khi forward đến backend
             - StripPrefix=0
             - PreserveHostHeader
             - SetRequestHeader=Content-Type, application/json
@@ -24,9 +23,6 @@ spring:
               - "http://localhost:3000"
               - "http://localhost:3001"
               - "http://localhost:3002"
-              - "http://localhost:3003"
-              - "http://localhost:3004"
-              - "http://localhost:3005"
             allowedMethods:
               - GET
               - POST
@@ -47,7 +43,6 @@ management:
     health:
       show-details: always
 
-# Cấu hình logging chi tiết (Ưu tiên mức TRACE của bạn để dễ debug)
 logging:
   level:
     org.springframework.cloud.gateway: TRACE

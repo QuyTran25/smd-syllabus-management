@@ -32,9 +32,7 @@ public class PasswordDebugController {
             return ResponseEntity.ok(ApiResponse.success(result));
         }
         
-        // Chọn code sạch của nhánh Main
         String storedHash = user.getPasswordHash();
-        
         boolean matches = passwordEncoder.matches(password, storedHash);
         String newHash = passwordEncoder.encode(password);
         
@@ -58,10 +56,7 @@ public class PasswordDebugController {
         }
         
         String newHash = passwordEncoder.encode(newPassword);
-        
-        // Chọn code sạch của nhánh Main
         user.setPasswordHash(newHash);
-        
         userRepository.save(user);
         
         return ResponseEntity.ok(ApiResponse.success("Password updated. New hash: " + newHash));

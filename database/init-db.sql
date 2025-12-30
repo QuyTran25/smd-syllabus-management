@@ -5,15 +5,15 @@
 
 -- 1. Enable Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector"; -- Hỗ trợ lưu trữ Vector AI (nếu dùng pgvector image)
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- 2. Tạo Schemas
 CREATE SCHEMA IF NOT EXISTS core_service;
 
--- [SECURITY] REVOKE quyền mặc định từ PUBLIC để bảo mật
+-- [SECURITY] REVOKE quyền mặc định từ PUBLIC
 REVOKE ALL ON SCHEMA core_service FROM PUBLIC;
 
--- 3. Tạo Roles (Đảm bảo smd_user khớp với Java application.properties)
+-- 3. Tạo Roles (Dùng smd_user để khớp với cấu hình Java)
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'smd_user') THEN
@@ -33,5 +33,5 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA core_service TO smd_user;
 -- 6. Set search_path (Quan trọng để Flyway migrate đúng vào schema core_service)
 ALTER ROLE smd_user SET search_path TO core_service, public;
 
--- Log kết thúc để xác nhận khởi tạo thành công
+-- Log xác nhận khởi tạo thành công
 DO $$ BEGIN RAISE NOTICE '--- SMD DB INFRASTRUCTURE INITIALIZED & SECURED ---'; END $$;

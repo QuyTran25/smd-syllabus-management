@@ -37,7 +37,6 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // Ưu tiên Logic HEAD: Sạch sẽ, dùng Logger và trả về UserInfo cho Frontend
         String email = request.getEmail().trim();
         String password = request.getPassword().trim();
 
@@ -51,19 +50,16 @@ public class AuthService {
             throw ex;
         }
 
-        // Đặt authentication vào context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        // Lấy thông tin User trả về cho Dashboard (Tính năng quan trọng)
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         log.info("User {} logged in successfully", user.getEmail());
         
-        // Trả về full thông tin (Access, Refresh, UserInfo)
         return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
     }
 
@@ -75,10 +71,7 @@ public class AuthService {
 
         User user = new User();
         user.setEmail(request.getEmail());
-        
-        // Fix: Dùng setPasswordHash chuẩn
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        
         user.setFullName(request.getFullName());
         user.setPhoneNumber(request.getPhoneNumber());
         user.setAuthProvider(AuthProvider.LOCAL);
@@ -163,7 +156,6 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
         log.info("Generating reset token for user: {}", user.getEmail());
-        // TODO: Gửi email thực tế với token khôi phục
     }
 
     @Transactional
@@ -171,9 +163,6 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
-        // TODO: Thêm logic kiểm tra tính hợp lệ của token tại đây nếu cần
-        
-        // Fix: Dùng setPasswordHash chuẩn
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         

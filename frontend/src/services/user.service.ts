@@ -1,4 +1,4 @@
-import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình interceptor
+import axiosClient from '@/api/axiosClient';
 import { User, UserRole } from '@/types';
 
 // API Response types
@@ -32,9 +32,10 @@ interface UserApiResponse {
   updatedAt: string;
 }
 
-// Map backend role to frontend UserRole
+/**
+ * Map backend role to frontend UserRole
+ */
 const mapRole = (roles: string[]): UserRole => {
-  // Use role code (first 3-8 chars) to map
   for (const role of roles) {
     if (role === 'Administrator' || role === 'ADMIN') return UserRole.ADMIN;
     if (role === 'Principal' || role === 'PRINCIPAL') return UserRole.PRINCIPAL;
@@ -43,10 +44,12 @@ const mapRole = (roles: string[]): UserRole => {
     if (role === 'Lecturer' || role === 'LECTURER') return UserRole.LECTURER;
     if (role === 'Student' || role === 'STUDENT') return UserRole.STUDENT;
   }
-  return UserRole.LECTURER; // default
+  return UserRole.LECTURER;
 };
 
-// Map API response to frontend User type
+/**
+ * Map API response to frontend User type
+ */
 const mapToUser = (data: UserApiResponse): User => ({
   id: data.id,
   email: data.email,
@@ -57,7 +60,7 @@ const mapToUser = (data: UserApiResponse): User => ({
   department: data.departmentName,
   isActive: data.status === 'ACTIVE',
   createdAt: data.createdAt,
-  lastLogin: data.updatedAt, // Using updatedAt as proxy for lastLogin
+  lastLogin: data.updatedAt,
 });
 
 // Request type for create/update
@@ -77,7 +80,7 @@ export const userService = {
     search?: string;
   }): Promise<User[]> => {
     try {
-      // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+      // Gọi qua Gateway 8888 sử dụng axiosClient
       const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
         params: {
           page: 0,
@@ -85,14 +88,14 @@ export const userService = {
         },
       });
 
-      // Xử lý payload an toàn (Logic của Bạn)
+      // Xử lý payload an toàn hỗ trợ cả trường hợp có hoặc không có bọc trường 'data'
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let users = rawContent.map(mapToUser);
 
-      // Apply client-side filtering
+      // Client-side filtering
       if (filters?.role) {
         users = users.filter((u) => u.role === filters.role);
       }
@@ -119,7 +122,6 @@ export const userService = {
 
   // Get user by ID
   getUserById: async (id: string): Promise<User> => {
-    // FIX: Thêm /api
     const response = await axiosClient.get<ApiResponse<UserApiResponse>>(`/api/users/${id}`);
     const data = response.data?.data || response.data;
     return mapToUser(data as unknown as UserApiResponse);
@@ -132,10 +134,9 @@ export const userService = {
       fullName: data.fullName,
       phoneNumber: data.phone,
       roleCode: data.role,
-      password: 'DefaultPass@123', // Default password, should be changed
+      password: 'DefaultPass@123',
     };
 
-    // FIX: Thêm /api
     const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/api/users', request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
@@ -143,7 +144,6 @@ export const userService = {
 
   // Update user
   updateUser: async (id: string, data: Partial<User>): Promise<User> => {
-    // Get existing user first to merge data
     const existing = await userService.getUserById(id);
 
     const request: UserRequest = {
@@ -153,7 +153,6 @@ export const userService = {
       roleCode: data.role ?? existing.role,
     };
 
-    // FIX: Thêm /api
     const response = await axiosClient.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
@@ -161,17 +160,14 @@ export const userService = {
 
   // Delete user
   deleteUser: async (id: string): Promise<void> => {
-    // FIX: Thêm /api
     await axiosClient.delete(`/api/users/${id}`);
   },
 
   // Toggle user status (lock/unlock)
   toggleUserStatus: async (id: string): Promise<User> => {
-    // Get current user status
     const user = await userService.getUserById(id);
     const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
 
-    // FIX: Thêm /api
     const response = await axiosClient.patch<ApiResponse<UserApiResponse>>(`/api/users/${id}/status`, {
       status: newStatus,
     });
@@ -181,8 +177,6 @@ export const userService = {
 
   // Bulk import users from CSV
   importUsers: async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
-    // TODO: Implement real API call for bulk import
-    // For now, simulate with delay
     return new Promise((resolve) => {
       const reader = new FileReader();
       const errors: string[] = [];
@@ -195,14 +189,12 @@ export const userService = {
           const lines = text.split('\n').filter((line) => line.trim());
           const header = lines[0]?.toLowerCase();
 
-          // Validate CSV header
           if (!header?.includes('email') || !header?.includes('fullname')) {
             errors.push('CSV phải có các cột: email, fullName');
             resolve({ success: 0, failed: lines.length - 1, errors });
             return;
           }
 
-          // Process rows
           const headerCols = header.split(',').map((col) => col.trim());
           const emailIndex = headerCols.indexOf('email');
           const fullNameIndex = headerCols.indexOf('fullname');
@@ -212,7 +204,6 @@ export const userService = {
             const cols = lines[i].split(',').map((col) => col.trim());
             const email = cols[emailIndex];
             const fullName = cols[fullNameIndex];
-            const role = cols[roleIndex];
 
             if (!email || !fullName) {
               errors.push(`Dòng ${i + 1}: Thiếu email hoặc tên`);

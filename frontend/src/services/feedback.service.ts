@@ -1,4 +1,4 @@
-import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
+import axiosClient from '@/api/axiosClient';
 import {
   StudentFeedback,
   FeedbackStatus,
@@ -6,7 +6,6 @@ import {
   FeedbackFilters,
 } from '@/types';
 
-// Interface Response chi tiết của Team
 export interface StudentFeedbackResponse {
   id: string;
   syllabusId: string;
@@ -34,7 +33,9 @@ export interface StudentFeedbackResponse {
   updatedAt: string;
 }
 
-// Map backend response to frontend type
+/**
+ * Map backend response to frontend StudentFeedback type
+ */
 const mapToStudentFeedback = (response: StudentFeedbackResponse): StudentFeedback => ({
   id: response.id,
   syllabusId: response.syllabusId,
@@ -66,19 +67,19 @@ export const feedbackService = {
       params.append('size', '100');
       params.append('sort', 'createdAt,desc');
       
-      // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+      // Gọi qua Gateway 8888 sử dụng axiosClient đã cấu hình interceptor
       const response = await axiosClient.get<{ data: { content: StudentFeedbackResponse[] } }>(
         `/api/student-feedbacks?${params.toString()}`
       );
       
-      // Xử lý payload an toàn (Logic của Bạn)
+      // Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let feedbacks = rawContent.map(mapToStudentFeedback);
       
-      // Apply client-side filters
+      // Client-side filtering
       if (filters.status && filters.status.length > 0) {
         feedbacks = feedbacks.filter((f) => filters.status?.includes(f.status));
       }
@@ -115,11 +116,9 @@ export const feedbackService = {
   },
 
   getFeedbackById: async (id: string): Promise<StudentFeedback> => {
-    // FIX: Thêm /api
     const response = await axiosClient.get<{ data: StudentFeedbackResponse }>(
       `/api/student-feedbacks/${id}`
     );
-    // Support cả 2 trường hợp response structure
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
   },
@@ -129,7 +128,6 @@ export const feedbackService = {
     responseContent: string,
     _respondedBy: string
   ): Promise<StudentFeedback> => {
-    // FIX: Thêm /api
     const apiResponse = await axiosClient.post<{ data: StudentFeedbackResponse }>(
       `/api/student-feedbacks/${id}/respond`,
       { response: responseContent, enableEdit: false }
@@ -138,9 +136,7 @@ export const feedbackService = {
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
   },
 
-  // Enable edit for lecturer
   enableEditForLecturer: async (id: string, _enabledBy: string): Promise<StudentFeedback> => {
-    // FIX: Thêm /api
     const response = await axiosClient.post<{ data: StudentFeedbackResponse }>(
       `/api/student-feedbacks/${id}/enable-edit`
     );
@@ -148,12 +144,10 @@ export const feedbackService = {
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
   },
 
-  // Update feedback status
   updateFeedbackStatus: async (
     id: string,
     status: FeedbackStatus
   ): Promise<StudentFeedback> => {
-    // FIX: Thêm /api
     const response = await axiosClient.patch<{ data: StudentFeedbackResponse }>(
       `/api/student-feedbacks/${id}/status?status=${status}`
     );

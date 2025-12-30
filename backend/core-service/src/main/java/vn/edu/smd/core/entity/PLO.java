@@ -28,7 +28,6 @@ public class PLO {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // Ưu tiên nhánh Main: Có giá trị mặc định để tránh NullPointer
     @Convert(converter = PloCategoryConverter.class)
     @Column(name = "category", length = 20)
     @Builder.Default

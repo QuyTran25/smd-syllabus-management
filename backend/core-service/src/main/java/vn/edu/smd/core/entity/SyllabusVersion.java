@@ -15,10 +15,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Syllabus Version Entity
- * Maps to table: syllabus_versions
- */
 @Entity
 @Table(
     name = "syllabus_versions",
@@ -52,8 +48,8 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
-    // QUAN TRỌNG: Giữ lại code HEAD (Converter) để tránh lỗi JDBC
-    @Convert(converter = vn.edu.smd.core.converter.SyllabusStatusConverter.class)
+    @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
     @Builder.Default
     private SyllabusStatus status = SyllabusStatus.DRAFT;
@@ -65,7 +61,6 @@ public class SyllabusVersion {
     @Column(name = "review_deadline")
     private LocalDateTime reviewDeadline;
 
-    // Snapshot fields
     @Column(name = "snap_subject_code", nullable = false, length = 20)
     private String snapSubjectCode;
 
@@ -85,7 +80,6 @@ public class SyllabusVersion {
     @Column(name = "content", columnDefinition = "jsonb")
     private Map<String, Object> content;
 
-    // V8 additions - Post-publication & Workflow
     @Column(name = "effective_date")
     private LocalDate effectiveDate;
 
@@ -118,7 +112,6 @@ public class SyllabusVersion {
     @Builder.Default
     private Integer currentApprovalStep = 0;
 
-    // V8 additions - Frontend Detail Fields
     @Convert(converter = vn.edu.smd.core.converter.CourseTypeConverter.class)
     @Column(name = "course_type", length = 20)
     @Builder.Default
@@ -148,7 +141,6 @@ public class SyllabusVersion {
     @Column(name = "student_duties", columnDefinition = "TEXT")
     private String studentDuties;
 
-    // V10 additions
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
@@ -158,7 +150,6 @@ public class SyllabusVersion {
     @Column(name = "student_tasks", columnDefinition = "TEXT")
     private String studentTasks;
 
-    // Approval workflow tracking
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
@@ -183,7 +174,6 @@ public class SyllabusVersion {
     @JoinColumn(name = "principal_approved_by")
     private User principalApprovedBy;
 
-    // Audit fields
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")
     private User approvedBy;
@@ -210,4 +200,5 @@ public class SyllabusVersion {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 }

@@ -47,9 +47,7 @@ const App: React.FC = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* ========================================================= */}
-      {/* 1. ADMIN ROUTES (Layout Riêng)                          */}
-      {/* ========================================================= */}
+      {/* 1. ADMIN ROUTES - AdminLayout */}
       <Route
         path="/admin"
         element={
@@ -60,23 +58,15 @@ const App: React.FC = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
-        
-        {/* Trang CRUD Môn học mới */}
         <Route path="subjects" element={<AdminSubjectsPage />} />
-
-        {/* Các trang Admin cũ */}
         <Route path="users" element={<UserManagementPage />} />
         <Route path="settings" element={<SystemSettingsPage />} />
         <Route path="audit-logs" element={<AuditLogPage />} />
         <Route path="student-feedback" element={<StudentFeedbackPage />} />
-        
-        {/* Fallback cho Admin */}
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
 
-      {/* ========================================================= */}
-      {/* 2. LECTURER ROUTES (Layout Riêng)                       */}
-      {/* ========================================================= */}
+      {/* 2. LECTURER ROUTES - LecturerLayout */}
       <Route
         path="/lecturer"
         element={
@@ -94,9 +84,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/lecturer" replace />} />
       </Route>
 
-      {/* ========================================================= */}
-      {/* 3. OTHER ROLES (HoD, AA, Principal) - MainLayout         */}
-      {/* ========================================================= */}
+      {/* 3. OTHER ROLES (HoD, AA, Principal) - MainLayout */}
       <Route
         path="/"
         element={

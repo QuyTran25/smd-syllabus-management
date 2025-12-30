@@ -22,7 +22,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     Optional<User> findByEmail(String email);
     
-    // JOIN FETCH giúp nạp Roles ngay lập tức, tránh lỗi LazyInitializationException
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.email = :email")
     Optional<User> findByEmailWithRoles(@Param("email") String email);
     
@@ -40,8 +39,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.id = :id")
     Optional<User> findByIdWithRoles(@Param("id") UUID id);
-
-    // Sử dụng EntityGraph để tối ưu hiệu suất truy vấn (Eager load các quan hệ)
+    
     @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
     @Query("SELECT u FROM User u")
     Page<User> findAllWithRoles(Pageable pageable);

@@ -8,6 +8,7 @@ services:
     image: pgvector/pgvector:pg15
     container_name: smd-postgres
     environment:
+      # ⭐ FIX CỨNG: Để khớp với application.properties (Theo Main)
       POSTGRES_DB: smd_database
       POSTGRES_USER: smd_user
       POSTGRES_PASSWORD: smd_password
@@ -21,7 +22,8 @@ services:
     networks:
       - smd-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U smd_user -d smd_database"]
+      # ⭐ FIX CỨNG: User healthcheck (Theo Main)
+      test: ["CMD-SHELL", "pg_isready -U smd_user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,13 +93,20 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
       - "9092:9092"
       - "29092:29092"
     networks:
       - smd-network
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -112,11 +121,11 @@ services:
     container_name: smd-gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SERVER_PORT=8888
+      - SERVER_PORT=8888 # ⭐ Ép chạy port 8888 (Theo Main)
       - CORE_SERVICE_URL=http://core-service:8081
       - AI_SERVICE_URL=http://ai-service:8082
     ports:
-      - "8888:8888"
+      - "8888:8888" # ⭐ Map ra ngoài port 8888 (Theo Main)
     depends_on:
       - core-service
     networks:
@@ -132,7 +141,8 @@ services:
       dockerfile: Dockerfile
     container_name: smd-core-service
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
+      # ⭐ FIX CỨNG: Cập nhật connection string (Theo Main)
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/smd_database
       - SPRING_DATASOURCE_USERNAME=smd_user
       - SPRING_DATASOURCE_PASSWORD=smd_password
@@ -154,10 +164,12 @@ services:
   # ============================================
   ai-service:
     build:
-      context: ./backend/ai-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/ai-service/Dockerfile
     container_name: smd-ai-service
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      # ⭐ FIX CỨNG: Cập nhật connection string cho AI service (Theo Main)
       - DATABASE_URL=postgresql://smd_user:smd_password@postgres:5432/smd_database
       - REDIS_HOST=redis
       - RABBITMQ_HOST=rabbitmq
@@ -194,4 +206,4 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
-  kafka_data:
+  kafka_data:   

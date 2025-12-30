@@ -1,11 +1,13 @@
-import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
+import axiosClient from '@/api/axiosClient';
 import {
   SyllabusListItem,
   SyllabusDetail,
   StudentSyllabiFilters,
 } from '../types';
 
-// ⭐ ƯU TIÊN MAIN: Định nghĩa Interface ngay tại đây để làm chuẩn cho module này
+/**
+ * Định nghĩa Interface báo cáo lỗi ngay tại đây để đảm bảo tính nhất quán (Theo Main)
+ */
 export interface ReportIssuePayload {
   syllabusId: string;
   section: string;
@@ -13,19 +15,18 @@ export interface ReportIssuePayload {
 }
 
 /**
- * Lấy danh sách Syllabus từ Backend
+ * Lấy danh sách Syllabus từ Backend dành cho sinh viên
  */
 export async function listStudentSyllabi(
   filters?: StudentSyllabiFilters
 ): Promise<SyllabusListItem[]> {
-  // FIX: Thêm /api để khớp với Gateway 8888, dùng axiosClient
+  // Thêm /api để đi qua Gateway 8888 và sử dụng axiosClient
   const res = await axiosClient.get('/api/student/syllabi', { params: filters });
   
-  // Xử lý dữ liệu an toàn (Logic của Bạn giúp tránh lỗi null)
+  // Xử lý dữ liệu an toàn để tránh lỗi Array.map trên giá trị null/undefined
   const payload = res.data?.data || res.data;
   const rawData = (Array.isArray(payload) ? payload : (payload.rows || [])) as any[];
 
-  // Map dữ liệu cẩn thận
   return rawData.map((item) => ({
     id: item.id,
     code: item.code || 'N/A',
@@ -43,12 +44,14 @@ export async function listStudentSyllabi(
   }));
 }
 
+/**
+ * Lấy chi tiết đề cương cho sinh viên
+ */
 export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDetail> {
-  // FIX: Thêm /api
   const res = await axiosClient.get(`/api/student/syllabi/${id}`);
   const d = res.data?.data || res.data;
 
-  // MERGE: Giữ logic map chi tiết để đảm bảo các trường con không bị thiếu
+  // Map chi tiết và cung cấp giá trị mặc định cho các trường quan trọng
   return {
     ...d,
     id: d.id,
@@ -72,35 +75,40 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
   };
 }
 
+/**
+ * Đánh dấu theo dõi đề cương
+ */
 export async function toggleTrackSyllabus(id: string): Promise<{ tracked: boolean }> {
-  // FIX: Thêm /api
   const res = await axiosClient.post(`/api/student/syllabi/${id}/track`);
   return res.data?.data || res.data;
 }
 
-/** Báo cáo lỗi: Sử dụng Interface vừa định nghĩa bên trên (Theo Main) */
+/** * Gửi báo cáo lỗi nội dung đề cương 
+ */
 export async function reportIssue(payload: ReportIssuePayload) {
-  // FIX: Thêm /api
   const res = await axiosClient.post('/api/student/issues/report', payload);
   return res.data?.data || res.data;
 }
 
+/** * Xuất và tải xuống file PDF 
+ */
 export async function downloadPdfMock(id: string): Promise<void> {
   try {
-    // MERGE: Endpoint của Main (thêm /api), nhưng giữ logic xử lý file của Bạn để trình duyệt tải xuống được
-    const resp = await axiosClient.get(`/api/student/syllabi/${id}/export-pdf`, { responseType: 'blob' });
+    const resp = await axiosClient.get(`/api/student/syllabi/${id}/export-pdf`, { 
+      responseType: 'blob' 
+    });
     
-    // Logic kích hoạt tải xuống trình duyệt
+    // Logic tạo URL ảo và kích hoạt tải xuống trên trình duyệt
     const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${id}.pdf`;
+    a.download = `Syllabus_${id}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   } catch (e) {
-    console.error("Download failed", e);
+    console.error("Download failed:", e);
   }
 }

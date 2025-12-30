@@ -29,15 +29,10 @@ public class SyllabusService {
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final AcademicTermRepository academicTermRepository;
-    @SuppressWarnings("unused")
     private final CLORepository cloRepository;
-    @SuppressWarnings("unused")
     private final CloPlOMappingRepository cloPlOMappingRepository;
-    @SuppressWarnings("unused")
     private final AssessmentSchemeRepository assessmentSchemeRepository;
-    @SuppressWarnings("unused")
     private final AssessmentCloMappingRepository assessmentCloMappingRepository;
-    @SuppressWarnings("unused")
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -49,11 +44,10 @@ public class SyllabusService {
         }
 
         if (statusStrings != null && !statusStrings.isEmpty()) {
-            // Ưu tiên Logic Main: Convert Enum chuẩn và Pagination thủ công (để tương thích Repo List)
             List<SyllabusStatus> statuses = statusStrings.stream()
                     .map(s -> {
                         try {
-                            return SyllabusStatus.valueOf(s.toUpperCase()); // Safe upper case
+                            return SyllabusStatus.valueOf(s.toUpperCase());
                         } catch (IllegalArgumentException e) {
                             return null;
                         }
@@ -61,13 +55,11 @@ public class SyllabusService {
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             
-            // Use Spring Data method - @JdbcType in entity handles enum properly
             List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
             List<SyllabusResponse> responses = allResults.stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
             
-            // Manual pagination
             int start = (int) pageable.getOffset();
             int end = Math.min(start + pageable.getPageSize(), responses.size());
             List<SyllabusResponse> pageContent = start < responses.size() ? responses.subList(start, end) : List.of();
@@ -84,10 +76,9 @@ public class SyllabusService {
         }
         String primaryRole = user.getRoles().stream()
                 .findFirst()
-                .map(role -> role.getCode())
+                .map(Role::getCode)
                 .orElse("");
         
-        // Ưu tiên Logic Main: Phân quyền status chặt chẽ hơn
         return switch (primaryRole) {
             case "PRINCIPAL" -> List.of(SyllabusStatus.PENDING_PRINCIPAL.name(), SyllabusStatus.APPROVED.name());
             case "AA" -> List.of(
@@ -106,7 +97,6 @@ public class SyllabusService {
                 SyllabusStatus.APPROVED.name(), SyllabusStatus.PUBLISHED.name(),
                 SyllabusStatus.REJECTED.name(), SyllabusStatus.REVISION_IN_PROGRESS.name()
             );
-            case "ADMIN" -> List.of(); 
             default -> List.of();
         };
     }
@@ -134,7 +124,6 @@ public class SyllabusService {
                 .keywords(request.getKeywords())
                 .content(request.getContent())
                 .description(request.getDescription())
-                // HEAD: Giữ lại studentTasks
                 .studentTasks(request.getStudentTasks()) 
                 .snapSubjectCode(subject.getCode())
                 .snapSubjectNameVi(subject.getCurrentNameVi())
@@ -167,7 +156,6 @@ public class SyllabusService {
         syllabus.setKeywords(request.getKeywords());
         syllabus.setContent(request.getContent());
         syllabus.setDescription(request.getDescription());
-        // HEAD: Giữ lại studentTasks
         syllabus.setStudentTasks(request.getStudentTasks());
         syllabus.setUpdatedBy(getCurrentUser());
 
@@ -268,7 +256,6 @@ public class SyllabusService {
                 .versionNo(generateNextVersionNo(original.getVersionNo()))
                 .status(SyllabusStatus.DRAFT)
                 .content(original.getContent())
-                // HEAD: Giữ lại studentTasks
                 .studentTasks(original.getStudentTasks())
                 .createdBy(getCurrentUser())
                 .isDeleted(false)
@@ -277,17 +264,9 @@ public class SyllabusService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] exportSyllabusToPdf(UUID id) {
-        return new byte[0];
-    }
-
-    // --- HEAD: GIỮ LẠI HÀM STATISTICS CỦA BẠN (DASHBOARD CẦN) ---
-    @Transactional(readOnly = true)
     public Map<String, Integer> getStatistics() {
-        // Lưu ý: Đảm bảo Repository có method findAllActive hoặc logic tương đương
         List<SyllabusVersion> all = syllabusVersionRepository.findByIsDeletedFalse(); 
         Map<String, Integer> stats = new LinkedHashMap<>();
-        // Initialize all statuses to 0
         for (SyllabusStatus s : SyllabusStatus.values()) {
             stats.put(s.name(), 0);
         }
@@ -308,35 +287,41 @@ public class SyllabusService {
         return mapToResponse(syllabus);
     }
 
-    // --- HELPERS (Logic Mapping chi tiết từ Main + Field của HEAD) ---
+    /**
+     * Xuất đề cương sang PDF (Mock implementation để fix lỗi Controller)
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportSyllabusToPdf(UUID id) {
+        log.info("Request to export syllabus {} to PDF", id);
+        // Kiểm tra tồn tại
+        syllabusVersionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
+
+        // Tạm thời trả về mảng rỗng. Bạn có thể tích hợp iText/JasperReports tại đây sau.
+        return new byte[0];
+    }
+
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
         response.setVersionNo(syllabus.getVersionNo());
         response.setStatus(syllabus.getStatus().name());
-        
-        // HEAD: Đảm bảo field này có
         response.setStudentTasks(syllabus.getStudentTasks()); 
-        
         response.setReviewDeadline(syllabus.getReviewDeadline());
         response.setEffectiveDate(syllabus.getEffectiveDate());
         response.setKeywords(syllabus.getKeywords());
         response.setContent(syllabus.getContent());
 
-        // Ưu tiên Logic Main: Mapping chi tiết Subject
         Subject subject = syllabus.getSubject();
         if (subject != null) {
             response.setSubjectId(subject.getId());
-            response.setSubjectCode(subject.getCode()); // Fallback or direct map
-            
+            response.setSubjectCode(subject.getCode());
             if (subject.getSubjectType() != null) {
                 response.setCourseType(subject.getSubjectType().name().toLowerCase());
             }
-            // Get component type from syllabus (major/foundation/general), not from subject component (theory/practice)
             if (syllabus.getComponentType() != null) {
                 response.setComponentType(syllabus.getComponentType().name().toLowerCase());
             }
-            
             response.setTheoryHours(subject.getDefaultTheoryHours());
             response.setPracticeHours(subject.getDefaultPracticeHours());
             response.setSelfStudyHours(subject.getDefaultSelfStudyHours());
@@ -345,11 +330,9 @@ public class SyllabusService {
                 (subject.getDefaultPracticeHours() != null ? subject.getDefaultPracticeHours() : 0) +
                 (subject.getDefaultSelfStudyHours() != null ? subject.getDefaultSelfStudyHours() : 0)
             );
-            
             if (subject.getDescription() != null) {
                 response.setDescription(subject.getDescription());
             }
-            
             if (subject.getDepartment() != null) {
                 response.setDepartment(subject.getDepartment().getName());
                 if (subject.getDepartment().getFaculty() != null) {
@@ -365,13 +348,13 @@ public class SyllabusService {
         if (syllabus.getUpdatedBy() != null) {
             response.setUpdatedBy(syllabus.getUpdatedBy().getId());
         }
-        
         if (syllabus.getAcademicTerm() != null) {
-            // Parse semester number from academic term code (e.g., "HK1_2024" -> "1")
             String code = syllabus.getAcademicTerm().getCode();
             if (code != null && code.startsWith("HK")) {
-                String semesterNum = code.substring(2, code.indexOf('_'));
-                response.setSemester(semesterNum);
+                int firstUnderscore = code.indexOf('_');
+                if (firstUnderscore > 2) {
+                    response.setSemester(code.substring(2, firstUnderscore));
+                }
             } else {
                 response.setSemester(syllabus.getAcademicTerm().getName());
             }
@@ -383,22 +366,17 @@ public class SyllabusService {
         if (syllabus.getHodApprovedBy() != null) {
             response.setHodApprovedByName(syllabus.getHodApprovedBy().getFullName());
         }
-        
         response.setAaApprovedAt(syllabus.getAaApprovedAt());
         if (syllabus.getAaApprovedBy() != null) {
             response.setAaApprovedByName(syllabus.getAaApprovedBy().getFullName());
         }
-        
         response.setPrincipalApprovedAt(syllabus.getPrincipalApprovedAt());
         if (syllabus.getPrincipalApprovedBy() != null) {
             response.setPrincipalApprovedByName(syllabus.getPrincipalApprovedBy().getFullName());
         }
-
         response.setCreatedAt(syllabus.getCreatedAt());
         response.setUpdatedAt(syllabus.getUpdatedAt());
 
-        // Ưu tiên Logic Main: Mapping chi tiết CLO, Assessment, PLO
-        // Load CLOs
         List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabus.getId());
         Map<UUID, String> cloCodeMap = new HashMap<>();
         response.setClos(clos.stream().map(clo -> {
@@ -412,23 +390,19 @@ public class SyllabusService {
             return cloResponse;
         }).collect(Collectors.toList()));
 
-        // Load CLO-PLO Mappings
         List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
         for (CLO clo : clos) {
             List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
             for (CloPlOMapping mapping : mappings) {
                 SyllabusResponse.CLOPLOMappingResponse mappingResponse = new SyllabusResponse.CLOPLOMappingResponse();
                 mappingResponse.setCloCode(clo.getCode());
-                // Load PLO eagerly to avoid LazyInitializationException
-                PLO plo = mapping.getPlo();
-                mappingResponse.setPloCode(plo.getCode());
+                mappingResponse.setPloCode(mapping.getPlo().getCode());
                 mappingResponse.setContributionLevel(mapping.getMappingLevel());
                 ploMappings.add(mappingResponse);
             }
         }
         response.setPloMappings(ploMappings);
 
-        // Load Assessment Schemes
         List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabus.getId());
         response.setAssessmentMethods(assessments.stream().map(as -> {
             SyllabusResponse.AssessmentResponse asResponse = new SyllabusResponse.AssessmentResponse();
@@ -475,11 +449,9 @@ public class SyllabusService {
                 response.setObjectives((List<String>) objectives);
             }
         }
-        
         if (response.getDescription() == null && syllabus.getContent() != null && syllabus.getContent().containsKey("description")) {
             response.setDescription((String) syllabus.getContent().get("description"));
         }
-
         return response;
     }
 

@@ -20,11 +20,8 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
-    // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
-    // QUAN TRỌNG: Chọn logic của Main để khớp với SyllabusService
-    // Service đang gọi hàm này với tham số List<SyllabusStatus>
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
 
@@ -32,11 +29,8 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findBySubject(Subject subject);
 
-    // Hàm hỗ trợ Dashboard (lấy thống kê)
-    // Spring Data JPA tự động generate query dựa trên tên hàm
     List<SyllabusVersion> findByIsDeletedFalse();
 
-    // Giữ lại alias này nếu code cũ có chỗ dùng
     @Query("SELECT s FROM SyllabusVersion s WHERE s.isDeleted = false")
     List<SyllabusVersion> findAllActive();
 
