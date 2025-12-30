@@ -1,5 +1,49 @@
+# server:
+#   port: 8080
+
+# spring:
+#   application:
+#     name: smd-gateway
+#   cloud:
+#     gateway:
+#       routes:
+#         - id: core-service
+#           uri: http://localhost:8081
+#           predicates:
+#             - Path=/api/**
+#           filters:
+#             - StripPrefix=0
+#       globalcors:
+#         corsConfigurations:
+#           '[/**]':
+#             allowedOrigins:
+#               - "http://localhost:3000"
+#               - "http://localhost:3001"
+#               - "http://localhost:3002"
+#               - "http://localhost:3003"
+#             allowedMethods:
+#               - GET
+#               - POST
+#               - PUT
+#               - PATCH
+#               - DELETE
+#               - OPTIONS
+#             allowedHeaders:
+#               - "*"
+#             allowCredentials: true
+#             maxAge: 3600
+
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include: health,info,gateway
+#   endpoint:
+#     health:
+#       show-details: always
+
 server:
-  port: 8080
+  port: 8888
 
 spring:
   application:
@@ -20,7 +64,6 @@ spring:
               - "http://localhost:3000"
               - "http://localhost:3001"
               - "http://localhost:3002"
-              - "http://localhost:3003"
             allowedMethods:
               - GET
               - POST
@@ -32,6 +75,14 @@ spring:
               - "*"
             allowCredentials: true
             maxAge: 3600
+
+# Cấu hình logging để dễ debug nếu Gateway có lỗi
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty: DEBUG
 
 management:
   endpoints:

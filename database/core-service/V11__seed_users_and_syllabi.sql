@@ -1,7 +1,7 @@
 /*
  * V11__seed_users_and_syllabi.sql
  * Seed Users và Syllabus Versions cho testing và demo
- * Tạo data mẫu cho đầy đủ workflow: Principal, HOD, AA, Lecturers
+ * Tạo data mẫu cho đầy đủ workflow: Principal, HOD, AA, Lecturers VÀ STUDENTS
  */
 
 BEGIN;
@@ -9,7 +9,7 @@ BEGIN;
 SET search_path TO core_service;
 
 -- Log start
-DO $$BEGIN RAISE NOTICE 'Starting V11 Migration: Seeding Users and Syllabi...'; END$$;
+DO $$BEGIN RAISE NOTICE 'Starting V11 Migration: Seeding Users (including Student) and Syllabi...'; END$$;
 
 -- ==========================================
 -- 0. INSERT ROLES FIRST (Required for user_roles foreign key)
@@ -19,7 +19,8 @@ INSERT INTO roles (code, name, description, is_system) VALUES
 ('PRINCIPAL', 'Principal', 'School Principal / Hiệu trưởng', TRUE),
 ('AA', 'Academic Affairs', 'Academic Affairs / Phòng Đào tạo', TRUE),
 ('HOD', 'Head of Department', 'Head of Department / Trưởng Bộ môn', TRUE),
-('LECTURER', 'Lecturer', 'Lecturer / Giảng viên', TRUE)
+('LECTURER', 'Lecturer', 'Lecturer / Giảng viên', TRUE),
+('STUDENT', 'Student', 'Student / Sinh viên', TRUE) -- ⭐ ĐÃ THÊM ROLE SINH VIÊN
 ON CONFLICT (code) DO NOTHING;
 
 -- ==========================================
@@ -64,7 +65,12 @@ INSERT INTO users (
 ('gv.hoang@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
  'Hoàng Văn Đức', '0901234578', 'MALE', 'ACTIVE', 'LOCAL'),
 ('gv.vo@smd.edu.vn', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 
- 'Võ Thị Ngọc', '0901234579', 'FEMALE', 'ACTIVE', 'LOCAL')
+ 'Võ Thị Ngọc', '0901234579', 'FEMALE', 'ACTIVE', 'LOCAL'),
+
+-- STUDENT (⭐ ĐÃ THÊM USER SINH VIÊN, PASS 123456)
+('student@smd.edu.vn', '$2a$10$wK.tER2SANNHpmw7wzDEeugBiXrks32RWNt3oHyN.VTvHRiDWzjCC', 
+ 'Nguyễn Văn Sinh Viên', '0909999999', 'MALE', 'ACTIVE', 'LOCAL')
+
 ON CONFLICT (email) DO NOTHING;
 
 -- ==========================================
@@ -78,12 +84,13 @@ WITH
             'aa1@smd.edu.vn', 'aa2@smd.edu.vn',
             'hod.khmt@smd.edu.vn', 'hod.ktpm@smd.edu.vn', 'hod.httt@smd.edu.vn',
             'gv.nguyen@smd.edu.vn', 'gv.tran@smd.edu.vn', 'gv.le@smd.edu.vn',
-            'gv.pham@smd.edu.vn', 'gv.hoang@smd.edu.vn', 'gv.vo@smd.edu.vn'
+            'gv.pham@smd.edu.vn', 'gv.hoang@smd.edu.vn', 'gv.vo@smd.edu.vn',
+            'student@smd.edu.vn' -- ⭐ Thêm email sinh viên vào danh sách lấy ID
         )
     ),
     role_ids AS (
         SELECT name, id FROM roles 
-        WHERE name IN ('ADMIN', 'PRINCIPAL', 'AA', 'HOD', 'LECTURER')
+        WHERE name IN ('ADMIN', 'PRINCIPAL', 'AA', 'HOD', 'LECTURER', 'STUDENT') -- ⭐ Thêm role STUDENT
     )
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id FROM user_ids u, role_ids r
@@ -92,8 +99,21 @@ WHERE
     (u.email = 'principal@smd.edu.vn' AND r.name = 'PRINCIPAL') OR
     (u.email LIKE 'aa%@smd.edu.vn' AND r.name = 'AA') OR
     (u.email LIKE 'hod%@smd.edu.vn' AND r.name = 'HOD') OR
-    (u.email LIKE 'gv%@smd.edu.vn' AND r.name = 'LECTURER')
+    (u.email LIKE 'gv%@smd.edu.vn' AND r.name = 'LECTURER') OR
+    (u.email = 'student@smd.edu.vn' AND r.name = 'STUDENT') -- ⭐ Mapping quyền Sinh viên
 ON CONFLICT DO NOTHING;
+
+-- ==========================================
+-- 2.1 CREATE STUDENT PROFILE (⭐ QUAN TRỌNG ĐỂ LOGIN)
+-- ==========================================
+INSERT INTO student_profiles (user_id, student_code, curriculum_id, enrollment_year)
+SELECT 
+    id, 
+    'SV210001', 
+    NULL, -- Sẽ update sau nếu cần liên kết curriculum cụ thể
+    2021
+FROM users WHERE email = 'student@smd.edu.vn'
+ON CONFLICT (user_id) DO NOTHING;
 
 -- ==========================================
 -- 3. ASSIGN LECTURERS TO DEPARTMENTS
@@ -236,6 +256,8 @@ SET
 WHERE status = 'PENDING_HOD';
 
 -- DRAFT - đang soạn thảo (không có submitted_at)
+
+-- ==========================================
 -- 7. LOG SUMMARY
 -- ==========================================
 DO $$

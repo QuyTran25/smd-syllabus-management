@@ -203,16 +203,14 @@ export const StudentFeedbackPage: React.FC = () => {
       title: 'Phần',
       dataIndex: 'section',
       key: 'section',
-      width: 120,
-      align: 'center',
+      width: 150,
       render: (section) => <Tag>{section}</Tag>,
     },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
-      width: 160,
-      align: 'center',
+      width: 200,
       ellipsis: { showTitle: false },
     },
     {
@@ -269,9 +267,7 @@ export const StudentFeedbackPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'actions',
-      width: 280,
-      fixed: 'right',
-      align: 'center',
+      width: 250,
       render: (_, record) => (
         <Space>
           <Button

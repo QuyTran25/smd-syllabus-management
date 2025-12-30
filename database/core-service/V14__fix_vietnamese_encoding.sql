@@ -149,7 +149,7 @@ BEGIN
         -- CLO1: Remember/Understand
         INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO1',
             'Trình bày được các khái niệm cơ bản, định nghĩa và nguyên lý nền tảng của ' || subject_name,
@@ -160,7 +160,7 @@ BEGIN
         -- CLO2: Understand
         INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO2',
             'Giải thích được cách thức hoạt động và mối quan hệ giữa các thành phần trong ' || subject_name,
@@ -171,7 +171,7 @@ BEGIN
         -- CLO3: Apply
         INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO3',
             'Áp dụng kiến thức ' || subject_name || ' để giải quyết các bài toán thực tế',
@@ -182,7 +182,7 @@ BEGIN
         -- CLO4: Analyze
         INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO4',
             'Phân tích và đánh giá các giải pháp kỹ thuật trong lĩnh vực ' || subject_name,
@@ -193,7 +193,7 @@ BEGIN
         -- CLO5: Create
         INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO5',
             'Thiết kế và xây dựng được giải pháp hoàn chỉnh ứng dụng kiến thức ' || subject_name,
@@ -224,7 +224,7 @@ BEGIN
             END IF;
             
             INSERT INTO core_service.clo_plo_mappings (id, clo_id, plo_id, mapping_level, created_at, updated_at)
-            VALUES (uuid_generate_v4(), clo.id, plo.id, mapping_level, NOW(), NOW())
+            VALUES (gen_random_uuid(), clo.id, plo.id, mapping_level, NOW(), NOW())
             ON CONFLICT DO NOTHING;
         END LOOP;
     END LOOP;
@@ -249,7 +249,7 @@ BEGIN
             ORDER BY RANDOM() LIMIT 3
         LOOP
             INSERT INTO core_service.assessment_clo_mappings (id, assessment_id, clo_id, created_at)
-            VALUES (uuid_generate_v4(), assessment.assessment_id, clo.id, NOW())
+            VALUES (gen_random_uuid(), assessment.assessment_id, clo.id, NOW())
             ON CONFLICT DO NOTHING;
         END LOOP;
     END LOOP;

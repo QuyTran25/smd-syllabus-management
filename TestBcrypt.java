@@ -1,25 +1,21 @@
-import java.util.regex.Pattern;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 public class TestBcrypt {
-    // BCrypt pattern - starts with $2a$, $2b$, or $2y$ followed by cost factor
-    private static final Pattern BCRYPT_PATTERN = Pattern.compile("\\$2[aby]?\\$\\d{1,2}\\$.{53}");
-    
     public static void main(String[] args) {
-        String hash = "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         
-        System.out.println("Hash: " + hash);
-        System.out.println("Hash length: " + hash.length());
-        System.out.println("Expected length: 60");
-        System.out.println("Is BCrypt format: " + BCRYPT_PATTERN.matcher(hash).matches());
+        String password = "123456";
+        String hashInDb = "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
         
-        // Check for hidden characters
-        System.out.println("\nCharacter analysis:");
-        for (int i = 0; i < hash.length(); i++) {
-            char c = hash.charAt(i);
-            if (c < 32 || c > 126) {
-                System.out.println("Position " + i + ": non-printable char code=" + (int)c);
-            }
-        }
-        System.out.println("Done checking");
+        System.out.println("Testing password: " + password);
+        System.out.println("Hash in DB: " + hashInDb);
+        System.out.println("Hash length: " + hashInDb.length());
+        System.out.println("Matches: " + encoder.matches(password, hashInDb));
+        
+        // Generate new hash
+        String newHash = encoder.encode(password);
+        System.out.println("\nNew generated hash: " + newHash);
+        System.out.println("New hash length: " + newHash.length());
+        System.out.println("New hash matches: " + encoder.matches(password, newHash));
     }
 }

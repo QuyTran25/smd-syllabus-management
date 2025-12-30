@@ -25,7 +25,7 @@ CREATE TABLE system_settings (
 -- 2. NOTIFICATIONS (Thông báo)
 -- ==========================================
 CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id), -- Người nhận
     
     title VARCHAR(255) NOT NULL,
@@ -50,7 +50,7 @@ CREATE INDEX idx_notif_read ON notifications(user_id, is_read);
 -- 3. AUDIT LOGS (Truy vết hệ thống)
 -- ==========================================
 CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     entity_name VARCHAR(50), -- VD: SyllabusVersion, User, CLO
     entity_id UUID,          -- ID của đối tượng bị tác động

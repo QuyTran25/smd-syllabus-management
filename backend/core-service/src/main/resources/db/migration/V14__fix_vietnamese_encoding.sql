@@ -1,5 +1,4 @@
 -- V14: Fix Vietnamese encoding for all tables
--- Run with: docker exec -i smd-postgres psql -U smd_user -d smd_database < V14__fix_vietnamese_encoding.sql
 
 SET client_encoding = 'UTF8';
 
@@ -124,9 +123,6 @@ WHERE default_credits = 2;
 -- 2. Fix CLOs table - Vietnamese descriptions
 -- ============================================
 
--- First, let's update CLO descriptions with proper Vietnamese
--- Get syllabus IDs and their subject names to create proper CLO descriptions
-
 -- Delete old CLOs and recreate with proper Vietnamese
 DELETE FROM core_service.clo_plo_mappings;
 DELETE FROM core_service.assessment_clo_mappings;
@@ -137,7 +133,6 @@ DO $$
 DECLARE
     syllabus RECORD;
     subject_name TEXT;
-    clo_id UUID;
 BEGIN
     FOR syllabus IN 
         SELECT sv.id as syllabus_id, s.current_name_vi as subject_name
@@ -147,9 +142,9 @@ BEGIN
         subject_name := syllabus.subject_name;
         
         -- CLO1: Remember/Understand
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO1',
             'Trình bày được các khái niệm cơ bản, định nghĩa và nguyên lý nền tảng của ' || subject_name,
@@ -158,9 +153,9 @@ BEGIN
         );
         
         -- CLO2: Understand
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO2',
             'Giải thích được cách thức hoạt động và mối quan hệ giữa các thành phần trong ' || subject_name,
@@ -169,9 +164,9 @@ BEGIN
         );
         
         -- CLO3: Apply
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO3',
             'Áp dụng kiến thức ' || subject_name || ' để giải quyết các bài toán thực tế',
@@ -180,9 +175,9 @@ BEGIN
         );
         
         -- CLO4: Analyze
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO4',
             'Phân tích và đánh giá các giải pháp kỹ thuật trong lĩnh vực ' || subject_name,
@@ -191,9 +186,9 @@ BEGIN
         );
         
         -- CLO5: Create
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
         VALUES (
-            uuid_generate_v4(),
+            gen_random_uuid(),
             syllabus.syllabus_id,
             'CLO5',
             'Thiết kế và xây dựng được giải pháp hoàn chỉnh ứng dụng kiến thức ' || subject_name,
@@ -213,7 +208,7 @@ DECLARE
     mapping_level TEXT;
 BEGIN
     FOR clo IN SELECT id, code FROM core_service.clos LOOP
-        FOR plo IN SELECT id, code FROM core_service.program_learning_outcomes ORDER BY RANDOM() LIMIT 3 LOOP
+        FOR plo IN SELECT id, code FROM core_service.plos ORDER BY RANDOM() LIMIT 3 LOOP
             -- Determine mapping level based on CLO code
             IF clo.code IN ('CLO1', 'CLO2') THEN
                 mapping_level := 'I'; -- Introduce
@@ -224,7 +219,7 @@ BEGIN
             END IF;
             
             INSERT INTO core_service.clo_plo_mappings (id, clo_id, plo_id, mapping_level, created_at, updated_at)
-            VALUES (uuid_generate_v4(), clo.id, plo.id, mapping_level, NOW(), NOW())
+            VALUES (gen_random_uuid(), clo.id, plo.id, mapping_level, NOW(), NOW())
             ON CONFLICT DO NOTHING;
         END LOOP;
     END LOOP;
@@ -248,8 +243,8 @@ BEGIN
             WHERE syllabus_version_id = assessment.syllabus_version_id
             ORDER BY RANDOM() LIMIT 3
         LOOP
-            INSERT INTO core_service.assessment_clo_mappings (id, assessment_id, clo_id, created_at)
-            VALUES (uuid_generate_v4(), assessment.assessment_id, clo.id, NOW())
+            INSERT INTO core_service.assessment_clo_mappings (id, assessment_scheme_id, clo_id, created_at)
+            VALUES (gen_random_uuid(), assessment.assessment_id, clo.id, NOW())
             ON CONFLICT DO NOTHING;
         END LOOP;
     END LOOP;

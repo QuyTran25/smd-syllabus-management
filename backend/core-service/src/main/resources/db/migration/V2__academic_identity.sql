@@ -13,7 +13,7 @@ CREATE TYPE subject_relation_type AS ENUM ('PREREQUISITE', 'CO_REQUISITE', 'REPL
 -- 1. CURRICULUMS (Chương trình đào tạo)
 -- ==========================================
 CREATE TABLE curriculums (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     faculty_id UUID REFERENCES faculties(id),
@@ -32,7 +32,7 @@ CREATE TRIGGER update_curriculums_time BEFORE UPDATE ON curriculums FOR EACH ROW
 -- 2. SUBJECTS (Bản thể Môn học - Identity)
 -- ==========================================
 CREATE TABLE subjects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(20) NOT NULL UNIQUE,
     department_id UUID NOT NULL REFERENCES departments(id),
     
@@ -60,7 +60,7 @@ CREATE TRIGGER update_subjects_time BEFORE UPDATE ON subjects FOR EACH ROW EXECU
 -- 3. RELATIONSHIPS (Tiên quyết / Song hành)
 -- ==========================================
 CREATE TABLE subject_relationships (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
     related_subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
     type subject_relation_type NOT NULL,

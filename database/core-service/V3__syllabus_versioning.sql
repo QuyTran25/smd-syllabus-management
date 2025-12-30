@@ -22,7 +22,7 @@ CREATE TYPE syllabus_status AS ENUM (
 -- 1. ACADEMIC TERMS (Học kỳ)
 -- ==========================================
 CREATE TABLE academic_terms (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(20) NOT NULL UNIQUE, -- FA24, SP25
     name VARCHAR(100) NOT NULL,
     start_date DATE NOT NULL,
@@ -41,7 +41,7 @@ CREATE TRIGGER update_terms_time BEFORE UPDATE ON academic_terms FOR EACH ROW EX
 -- 2. SYLLABUS VERSIONS
 -- ==========================================
 CREATE TABLE syllabus_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     subject_id UUID NOT NULL REFERENCES subjects(id),
     academic_term_id UUID REFERENCES academic_terms(id), 
     

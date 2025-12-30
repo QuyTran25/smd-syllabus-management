@@ -34,17 +34,52 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        String email = request.getEmail().trim();
+        String rawPassword = request.getPassword().trim();
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        System.out.println("=== LOGIN ATTEMPT ===");
+        System.out.println("Email: " + email);
+        System.out.println("Password length: " + rawPassword.length());
+        
+        // Debug: Check password directly
+        User dbUser = userRepository.findByEmail(email).orElse(null);
+        if (dbUser != null) {
+            System.out.println("DB User found: " + dbUser.getEmail());
+            System.out.println("DB Hash: " + dbUser.getPasswordHash());
+            System.out.println("DB Hash length: " + (dbUser.getPasswordHash() != null ? dbUser.getPasswordHash().length() : 0));
+            boolean matches = passwordEncoder.matches(rawPassword, dbUser.getPasswordHash());
+            System.out.println("Direct password match: " + matches);
+        } else {
+            System.out.println("User NOT found in DB!");
+        }
 
-        String accessToken = tokenProvider.generateToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
-
-        return new AuthResponse(accessToken, refreshToken);
+        try {
+            System.out.println("Step 1: Calling authenticationManager.authenticate()");
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, rawPassword)
+            );
+            System.out.println("Step 2: Authentication successful");
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            System.out.println("Step 3: SecurityContext set");
+            
+            String accessToken = tokenProvider.generateToken(authentication);
+            System.out.println("Step 4: Access token generated");
+            
+            String refreshToken = tokenProvider.generateRefreshToken(authentication);
+            System.out.println("Step 5: Refresh token generated");
+            
+            System.out.println("=== LOGIN SUCCESS ===");
+            return new AuthResponse(accessToken, refreshToken);
+        } catch (Exception e) {
+            System.out.println("=== LOGIN ERROR ===");
+            System.out.println("Exception type: " + e.getClass().getName());
+            System.out.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
+
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {

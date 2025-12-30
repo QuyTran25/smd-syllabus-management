@@ -52,8 +52,8 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
+    @Convert(converter = vn.edu.smd.core.converter.SyllabusStatusConverter.class)
+    @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
     @Builder.Default
     private SyllabusStatus status = SyllabusStatus.DRAFT;
 
@@ -209,4 +209,5 @@ public class SyllabusVersion {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 }

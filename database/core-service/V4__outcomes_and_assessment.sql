@@ -8,7 +8,7 @@ SET search_path TO core_service;
 
 -- 1. PLOs
 CREATE TABLE plos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     curriculum_id UUID NOT NULL REFERENCES curriculums(id),
     code VARCHAR(20) NOT NULL,
     description TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE plos (
 
 -- 2. CLOs
 CREATE TABLE clos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id) ON DELETE CASCADE,
     code VARCHAR(20) NOT NULL,
     description TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE clos (
 
 -- 3. CLO-PLO Mapping
 CREATE TABLE clo_plo_mappings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     clo_id UUID NOT NULL REFERENCES clos(id) ON DELETE CASCADE,
     plo_id UUID NOT NULL REFERENCES plos(id) ON DELETE CASCADE,
     weight DECIMAL(5,2),
@@ -44,7 +44,7 @@ CREATE TABLE clo_plo_mappings (
 
 -- 4. Assessment Schemes
 CREATE TABLE assessment_schemes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id) ON DELETE CASCADE,
     parent_id UUID REFERENCES assessment_schemes(id),
     name VARCHAR(255) NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE assessment_schemes (
 
 -- 5. Grading Scales
 CREATE TABLE grading_scales (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) NOT NULL,
     definition JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

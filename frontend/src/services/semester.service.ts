@@ -1,166 +1,169 @@
 import { Semester, SemesterFilters } from '@/types';
+import { apiClient as api } from '@/config/api-config';
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// API Response types
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
 
-// Mock semesters data
-export const mockSemesters: Semester[] = [
-  {
-    id: 'sem-1',
-    code: 'HK1-2024',
-    name: 'Học kỳ 1 năm 2024-2025',
-    startDate: '2024-09-01',
-    endDate: '2024-12-31',
-    academicYear: '2024-2025',
-    isActive: false,
-    createdAt: '2024-06-01T00:00:00Z',
-    createdBy: 'admin-1',
-    updatedAt: '2024-06-01T00:00:00Z',
-  },
-  {
-    id: 'sem-2',
-    code: 'HK2-2024',
-    name: 'Học kỳ 2 năm 2024-2025',
-    startDate: '2025-01-01',
-    endDate: '2025-05-31',
-    academicYear: '2024-2025',
-    isActive: true, // Current semester
-    createdAt: '2024-06-01T00:00:00Z',
-    createdBy: 'admin-1',
-    updatedAt: '2024-09-01T00:00:00Z',
-  },
-  {
-    id: 'sem-3',
-    code: 'HK1-2025',
-    name: 'Học kỳ 1 năm 2025-2026',
-    startDate: '2025-09-01',
-    endDate: '2025-12-31',
-    academicYear: '2025-2026',
-    isActive: false,
-    createdAt: '2024-11-01T00:00:00Z',
-    createdBy: 'admin-1',
-    updatedAt: '2024-11-01T00:00:00Z',
-  },
-  {
-    id: 'sem-4',
-    code: 'HK2-2025',
-    name: 'Học kỳ 2 năm 2025-2026',
-    startDate: '2026-01-01',
-    endDate: '2026-05-31',
-    academicYear: '2025-2026',
-    isActive: false,
-    createdAt: '2024-11-01T00:00:00Z',
-    createdBy: 'admin-1',
-    updatedAt: '2024-11-01T00:00:00Z',
-  },
-];
+interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+// Backend semester response type
+interface SemesterApiResponse {
+  id: string;
+  code: string;
+  name: string;
+  semesterNumber: number;
+  academicYear: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Request type for create/update
+interface SemesterRequest {
+  code: string;
+  name: string;
+  semesterNumber: number;
+  academicYear: string;
+  startDate: string;
+  endDate: string;
+  isActive?: boolean;
+}
+
+// Map API response to frontend Semester type
+const mapToSemester = (data: SemesterApiResponse): Semester => ({
+  id: data.id,
+  code: data.code,
+  name: data.name,
+  semesterNumber: data.semesterNumber,
+  academicYear: data.academicYear,
+  startDate: data.startDate,
+  endDate: data.endDate,
+  isActive: data.isActive,
+  createdAt: data.createdAt,
+  updatedAt: data.updatedAt,
+});
 
 export const semesterService = {
   // Get all semesters
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    await delay(300);
+    const response = await api.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
+      params: {
+        page: 0,
+        size: 100,
+        sort: 'startDate,desc',
+      },
+    });
 
-    let filtered = [...mockSemesters];
+    let semesters = response.data.data.content.map(mapToSemester);
 
+    // Apply client-side filtering
     if (filters?.isActive !== undefined) {
-      filtered = filtered.filter((s) => s.isActive === filters.isActive);
+      semesters = semesters.filter((s) => s.isActive === filters.isActive);
     }
 
     if (filters?.academicYear) {
-      filtered = filtered.filter((s) => s.academicYear === filters.academicYear);
+      semesters = semesters.filter((s) => s.academicYear === filters.academicYear);
     }
 
     if (filters?.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
+      semesters = semesters.filter(
         (s) =>
           s.code.toLowerCase().includes(searchLower) ||
           s.name.toLowerCase().includes(searchLower)
       );
     }
 
-    return filtered.sort((a, b) => 
+    return semesters.sort((a, b) =>
       new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
     );
   },
 
   // Get semester by ID
   getSemesterById: async (id: string): Promise<Semester> => {
-    await delay(200);
-    const semester = mockSemesters.find((s) => s.id === id);
-    if (!semester) throw new Error('Semester not found');
-    return semester;
+    const response = await api.get<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`);
+    return mapToSemester(response.data.data);
   },
 
   // Get active semester
   getActiveSemester: async (): Promise<Semester | null> => {
-    await delay(200);
-    return mockSemesters.find((s) => s.isActive) || null;
+    try {
+      const response = await api.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
+      return mapToSemester(response.data.data);
+    } catch {
+      // If no current semester is set, return null
+      return null;
+    }
   },
 
   // Create semester
   createSemester: async (data: Omit<Semester, 'id' | 'createdAt' | 'updatedAt'>): Promise<Semester> => {
-    await delay(500);
-
-    const newSemester: Semester = {
-      ...data,
-      id: `sem-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    const request: SemesterRequest = {
+      code: data.code,
+      name: data.name,
+      semesterNumber: data.semesterNumber || 1,
+      academicYear: data.academicYear,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      isActive: data.isActive,
     };
 
-    mockSemesters.push(newSemester);
-    return newSemester;
+    const response = await api.post<ApiResponse<SemesterApiResponse>>('/api/semesters', request);
+    return mapToSemester(response.data.data);
   },
 
   // Update semester
   updateSemester: async (id: string, data: Partial<Semester>): Promise<Semester> => {
-    await delay(500);
+    // First get the existing semester to merge with updates
+    const existing = await semesterService.getSemesterById(id);
 
-    const index = mockSemesters.findIndex((s) => s.id === id);
-    if (index === -1) throw new Error('Semester not found');
-
-    const updated = {
-      ...mockSemesters[index],
-      ...data,
-      updatedAt: new Date().toISOString(),
+    const request: SemesterRequest = {
+      code: data.code ?? existing.code,
+      name: data.name ?? existing.name,
+      semesterNumber: data.semesterNumber ?? existing.semesterNumber ?? 1,
+      academicYear: data.academicYear ?? existing.academicYear,
+      startDate: data.startDate ?? existing.startDate,
+      endDate: data.endDate ?? existing.endDate,
+      isActive: data.isActive ?? existing.isActive,
     };
 
-    mockSemesters[index] = updated;
-    return updated;
+    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
+    return mapToSemester(response.data.data);
   },
 
   // Delete semester
   deleteSemester: async (id: string): Promise<void> => {
-    await delay(300);
-
-    const index = mockSemesters.findIndex((s) => s.id === id);
-    if (index === -1) throw new Error('Semester not found');
-
-    // Check if semester is in use
-    const semester = mockSemesters[index];
-    if (semester.isActive) {
-      throw new Error('Cannot delete active semester');
-    }
-
-    mockSemesters.splice(index, 1);
+    await api.delete(`/api/semesters/${id}`);
   },
 
   // Set active semester (only one can be active at a time)
   setActiveSemester: async (id: string): Promise<Semester> => {
-    await delay(400);
+    // First get the existing semester
+    const existing = await semesterService.getSemesterById(id);
 
-    const index = mockSemesters.findIndex((s) => s.id === id);
-    if (index === -1) throw new Error('Semester not found');
+    const request: SemesterRequest = {
+      code: existing.code,
+      name: existing.name,
+      semesterNumber: existing.semesterNumber ?? 1,
+      academicYear: existing.academicYear,
+      startDate: existing.startDate,
+      endDate: existing.endDate,
+      isActive: true,
+    };
 
-    // Deactivate all others
-    mockSemesters.forEach((s) => {
-      s.isActive = false;
-    });
-
-    // Activate this one
-    mockSemesters[index].isActive = true;
-    mockSemesters[index].updatedAt = new Date().toISOString();
-
-    return mockSemesters[index];
+    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
+    return mapToSemester(response.data.data);
   },
 };

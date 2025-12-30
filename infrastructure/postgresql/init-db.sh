@@ -4,7 +4,10 @@ set -e
 # ============================================
 # PostgreSQL Initialization Script
 # Creates schemas for Core Service and AI Service
+# Then runs all migration files automatically
 # ============================================
+
+echo "🚀 Starting PostgreSQL initialization..."
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     -- Create schemas
@@ -22,4 +25,24 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     SELECT 'Database schemas created successfully!' AS status;
 EOSQL
 
-echo "PostgreSQL initialization completed!"
+echo "✅ Schemas created!"
+
+# ============================================
+# NOTE: Migrations are handled by Flyway in Spring Boot
+# Docker init only creates schemas, NOT running migrations
+# This ensures consistency when team members pull the code
+# ============================================
+echo "⚠️  Skipping migrations - Flyway will handle them"
+
+# ============================================
+# AI Service: Keep for pgvector-specific setup if needed
+# ============================================
+echo "📦 Checking AI Service setup..."
+
+AI_MIGRATIONS_DIR="/docker-entrypoint-initdb.d/migrations/ai-service"
+
+# AI Service migrations also handled by Flyway (if AI service uses Flyway)
+# Or keep them here if AI service doesn't use Flyway
+echo "⚠️  AI Service migrations also handled by application"
+
+echo "🎉 PostgreSQL initialization completed!"

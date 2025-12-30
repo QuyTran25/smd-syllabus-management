@@ -1,52 +1,38 @@
-/* * INIT-DB.SQL (FINAL HARDENED)
- * Mục tiêu: Chuẩn bị môi trường Microservices - Security Hardening
- * Yêu cầu: Docker Image phải là 'pgvector/pgvector:pg16' (cho Point 3)
+/* * INIT-DB.SQL (SMD HARDENED)
+ * Mục tiêu: Tự động tạo User/Schema khớp với Code Java
+ * Yêu cầu: Docker Image hỗ trợ pgvector (nếu dùng AI sau này)
  */
 
 -- 1. Enable Extensions
--- Lưu ý: Cần image hỗ trợ pgvector, nếu không sẽ lỗi dòng dưới
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector";
+CREATE EXTENSION IF NOT EXISTS "vector"; -- Có thể lỗi nếu image postgres thường, nhưng cứ để
 
--- 2. Tạo Schemas (Physical Isolation)
+-- 2. Tạo Schemas
 CREATE SCHEMA IF NOT EXISTS core_service;
-CREATE SCHEMA IF NOT EXISTS ai_service;
 
--- [FIX 2] REVOKE quyền mặc định từ PUBLIC (Security Hardening)
--- Đảm bảo chỉ user được cấp quyền mới thấy được schema
+-- [SECURITY] REVOKE quyền mặc định từ PUBLIC
 REVOKE ALL ON SCHEMA core_service FROM PUBLIC;
-REVOKE ALL ON SCHEMA ai_service FROM PUBLIC;
 
--- 3. Tạo Roles (Mô phỏng Microservices Security)
+-- 3. Tạo Roles (FIX: Dùng đúng tên smd_user để khớp với Java)
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'core_user') THEN
-        -- [FIX 1] Note: Password này chỉ dùng cho Demo/Dev. 
-        -- Trong Production, password sẽ được inject qua Secret Manager (Vault/AWS Secrets).
-        CREATE ROLE core_user LOGIN PASSWORD 'core_password';
-    END IF;
-    
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'ai_user') THEN
-        CREATE ROLE ai_user LOGIN PASSWORD 'ai_password';
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'smd_user') THEN
+        -- Password này khớp với cấu hình trong application.yml
+        CREATE ROLE smd_user LOGIN PASSWORD 'smd_password';
     END IF;
 END
 $$;
 
 -- 4. Cấp quyền sở hữu (Data Ownership)
-ALTER SCHEMA core_service OWNER TO core_user;
-ALTER SCHEMA ai_service OWNER TO ai_user;
+ALTER SCHEMA core_service OWNER TO smd_user;
 
--- Cấp quyền sử dụng cụ thể (Explicit Grant)
-GRANT USAGE ON SCHEMA core_service TO core_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA core_service TO core_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA core_service TO core_user;
+-- 5. Cấp quyền sử dụng cụ thể
+GRANT USAGE ON SCHEMA core_service TO smd_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA core_service TO smd_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA core_service TO smd_user;
 
-GRANT USAGE ON SCHEMA ai_service TO ai_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA ai_service TO ai_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA ai_service TO ai_user;
+-- 6. Set search_path (Quan trọng để Flyway không bị lạc)
+ALTER ROLE smd_user SET search_path TO core_service, public;
 
--- Set search_path để tránh lỗi Flyway
-ALTER ROLE core_user SET search_path TO core_service, public;
-ALTER ROLE ai_user SET search_path TO ai_service, public;
-
-RAISE NOTICE '--- DB INFRASTRUCTURE INITIALIZED & SECURED ---';
+-- Log kết thúc (Dùng DO block để in ra an toàn)
+DO $$ BEGIN RAISE NOTICE '--- SMD DB INFRASTRUCTURE INITIALIZED & SECURED ---'; END $$;

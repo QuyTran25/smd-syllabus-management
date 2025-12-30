@@ -79,8 +79,7 @@ export const SystemSettingsPage: React.FC = () => {
       title: 'Mã', 
       dataIndex: 'code', 
       key: 'code', 
-      width: 115,
-      align: 'center',
+      width: 180,
       render: (text, record) => (
         <Space size="small">
           {text}
@@ -92,7 +91,7 @@ export const SystemSettingsPage: React.FC = () => {
       title: 'Tên học kỳ', 
       dataIndex: 'name', 
       key: 'name',
-      align: 'center',
+      width: 200,
       ellipsis: { showTitle: false },
     },
     { 

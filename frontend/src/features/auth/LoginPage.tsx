@@ -101,7 +101,7 @@ export const LoginPage: React.FC = () => {
               onFinish={onFinish}
               layout="vertical"
               size="large"
-              autoComplete="off"
+              autoComplete="on"
             >
               <Form.Item
                 name="email"
@@ -117,12 +117,7 @@ export const LoginPage: React.FC = () => {
                 <Input 
                   prefix={<UserOutlined />} 
                   placeholder="lecturer@smd.edu.vn" 
-                  autoComplete="off"
-                  onBlur={(e) => {
-                    // Trim spaces
-                    const value = e.target.value.trim();
-                    form.setFieldValue('email', value);
-                  }}
+                  autoComplete="username"
                 />
               </Form.Item>
 
@@ -131,7 +126,11 @@ export const LoginPage: React.FC = () => {
                 label="Mật khẩu"
                 rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="••••••" />
+                <Input.Password 
+                  prefix={<LockOutlined />} 
+                  placeholder="••••••" 
+                  autoComplete="current-password"
+                />
               </Form.Item>
 
               <Form.Item>

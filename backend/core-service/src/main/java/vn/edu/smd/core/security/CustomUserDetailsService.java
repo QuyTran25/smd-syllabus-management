@@ -16,12 +16,15 @@ import java.util.UUID;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
-
-    @Override
     @Transactional
+    @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+
+                System.out.println("--- KIEM TRA MAT KHAU DB ---");
+                System.out.println("Hash: " + user.getPasswordHash());
+                System.out.println("Do dai: " + user.getPasswordHash().length());
         return UserPrincipal.create(user);
     }
 

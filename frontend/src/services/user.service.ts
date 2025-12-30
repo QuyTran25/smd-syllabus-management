@@ -1,7 +1,73 @@
 import { User, UserRole } from '@/types';
-import { mockUsers } from '@/mock';
+import { apiClient as api } from '@/config/api-config';
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// API Response types
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+// Backend user response type
+interface UserApiResponse {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber?: string;
+  status: string;
+  roles: string[];
+  facultyId?: string;
+  facultyName?: string;
+  departmentId?: string;
+  departmentName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Map backend role to frontend UserRole
+const mapRole = (roles: string[]): UserRole => {
+  // Use role code (first 3-8 chars) to map
+  for (const role of roles) {
+    if (role === 'Administrator' || role === 'ADMIN') return UserRole.ADMIN;
+    if (role === 'Principal' || role === 'PRINCIPAL') return UserRole.PRINCIPAL;
+    if (role === 'Academic Affairs' || role === 'AA') return UserRole.AA;
+    if (role === 'Head of Department' || role === 'HOD') return UserRole.HOD;
+    if (role === 'Lecturer' || role === 'LECTURER') return UserRole.LECTURER;
+    if (role === 'Student' || role === 'STUDENT') return UserRole.STUDENT;
+  }
+  return UserRole.LECTURER; // default
+};
+
+// Map API response to frontend User type
+const mapToUser = (data: UserApiResponse): User => ({
+  id: data.id,
+  email: data.email,
+  fullName: data.fullName,
+  role: mapRole(data.roles),
+  phone: data.phoneNumber,
+  faculty: data.facultyName,
+  department: data.departmentName,
+  isActive: data.status === 'ACTIVE',
+  createdAt: data.createdAt,
+  lastLogin: data.updatedAt, // Using updatedAt as proxy for lastLogin
+});
+
+// Request type for create/update
+interface UserRequest {
+  email: string;
+  fullName: string;
+  phoneNumber?: string;
+  password?: string;
+  roleCode?: string;
+}
 
 export const userService = {
   // Get all users with filters
@@ -10,105 +76,100 @@ export const userService = {
     isActive?: boolean;
     search?: string;
   }): Promise<User[]> => {
-    await delay(300);
+    try {
+      const response = await api.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
+        params: {
+          page: 0,
+          size: 100,
+        },
+      });
 
-    let filtered = [...mockUsers];
+      let users = response.data.data.content.map(mapToUser);
 
-    if (filters?.role) {
-      filtered = filtered.filter((u) => u.role === filters.role);
+      // Apply client-side filtering
+      if (filters?.role) {
+        users = users.filter((u) => u.role === filters.role);
+      }
+
+      if (filters?.isActive !== undefined) {
+        users = users.filter((u) => u.isActive === filters.isActive);
+      }
+
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase();
+        users = users.filter(
+          (u) =>
+            u.fullName.toLowerCase().includes(searchLower) ||
+            u.email.toLowerCase().includes(searchLower)
+        );
+      }
+
+      return users;
+    } catch (error) {
+      console.error('Failed to fetch users from API:', error);
+      throw error;
     }
-
-    if (filters?.isActive !== undefined) {
-      filtered = filtered.filter((u) => u.isActive === filters.isActive);
-    }
-
-    if (filters?.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (u) =>
-          u.fullName.toLowerCase().includes(searchLower) ||
-          u.email.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return filtered;
   },
 
   // Get user by ID
   getUserById: async (id: string): Promise<User> => {
-    await delay(200);
-    const user = mockUsers.find((u) => u.id === id);
-    if (!user) throw new Error('User not found');
-    return user;
+    const response = await api.get<ApiResponse<UserApiResponse>>(`/api/users/${id}`);
+    return mapToUser(response.data.data);
   },
 
   // Create user
   createUser: async (data: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): Promise<User> => {
-    await delay(500);
-
-    // Auto-populate managerName if managerId is provided
-    let managerName: string | undefined;
-    if (data.managerId) {
-      const manager = mockUsers.find(u => u.id === data.managerId);
-      managerName = manager?.fullName;
-    }
-
-    const newUser: User = {
-      ...data,
-      managerName,
-      id: `user-${Date.now()}`,
-      createdAt: new Date().toISOString(),
+    const request: UserRequest = {
+      email: data.email,
+      fullName: data.fullName,
+      phoneNumber: data.phone,
+      roleCode: data.role,
+      password: 'DefaultPass@123', // Default password, should be changed
     };
 
-    mockUsers.push(newUser);
-    return newUser;
+    const response = await api.post<ApiResponse<UserApiResponse>>('/api/users', request);
+    return mapToUser(response.data.data);
   },
 
   // Update user
   updateUser: async (id: string, data: Partial<User>): Promise<User> => {
-    await delay(500);
+    // Get existing user first
+    const existing = await userService.getUserById(id);
 
-    const index = mockUsers.findIndex((u) => u.id === id);
-    if (index === -1) throw new Error('User not found');
+    const request: UserRequest = {
+      email: data.email ?? existing.email,
+      fullName: data.fullName ?? existing.fullName,
+      phoneNumber: data.phone ?? existing.phone,
+      roleCode: data.role ?? existing.role,
+    };
 
-    // Auto-populate managerName if managerId is provided
-    let managerName = data.managerName;
-    if (data.managerId) {
-      const manager = mockUsers.find(u => u.id === data.managerId);
-      managerName = manager?.fullName;
-    }
-
-    const updated = { ...mockUsers[index], ...data, managerName };
-    mockUsers[index] = updated;
-    return updated;
+    const response = await api.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
+    return mapToUser(response.data.data);
   },
 
   // Delete user
   deleteUser: async (id: string): Promise<void> => {
-    await delay(300);
-
-    const index = mockUsers.findIndex((u) => u.id === id);
-    if (index === -1) throw new Error('User not found');
-
-    mockUsers.splice(index, 1);
+    await api.delete(`/api/users/${id}`);
   },
 
   // Toggle user status (lock/unlock)
   toggleUserStatus: async (id: string): Promise<User> => {
-    await delay(300);
+    // Get current user status
+    const user = await userService.getUserById(id);
+    const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
 
-    const index = mockUsers.findIndex((u) => u.id === id);
-    if (index === -1) throw new Error('User not found');
+    const response = await api.patch<ApiResponse<UserApiResponse>>(`/api/users/${id}/status`, {
+      status: newStatus,
+    });
 
-    mockUsers[index].isActive = !mockUsers[index].isActive;
-    return mockUsers[index];
+    return mapToUser(response.data.data);
   },
 
   // Bulk import users from CSV
   importUsers: async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
-    await delay(1500);
-
-    return new Promise((resolve, reject) => {
+    // TODO: Implement real API call for bulk import
+    // For now, simulate with delay
+    return new Promise((resolve) => {
       const reader = new FileReader();
       const errors: string[] = [];
       let successCount = 0;
@@ -118,99 +179,45 @@ export const userService = {
         try {
           const text = e.target?.result as string;
           const lines = text.split('\n').filter((line) => line.trim());
+          const header = lines[0]?.toLowerCase();
 
-          if (lines.length === 0) {
-            reject(new Error('File CSV rỗng'));
+          // Validate CSV header
+          if (!header?.includes('email') || !header?.includes('fullname')) {
+            errors.push('CSV phải có các cột: email, fullName');
+            resolve({ success: 0, failed: lines.length - 1, errors });
             return;
           }
 
-          // Parse header
-          const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
-          const requiredFields = ['email', 'fullname', 'role'];
-          
-          // Validate header
-          const missingFields = requiredFields.filter((field) => !header.includes(field));
-          if (missingFields.length > 0) {
-            reject(new Error(`Thiếu các cột: ${missingFields.join(', ')}`));
-            return;
-          }
+          // Process rows
+          const headerCols = header.split(',').map((col) => col.trim());
+          const emailIndex = headerCols.indexOf('email');
+          const fullNameIndex = headerCols.indexOf('fullname');
+          const roleIndex = headerCols.indexOf('role');
 
-          // Parse data rows
           for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map((v) => v.trim());
-            
-            if (values.length !== header.length) {
-              errors.push(`Dòng ${i + 1}: Số cột không khớp với header`);
+            const cols = lines[i].split(',').map((col) => col.trim());
+            const email = cols[emailIndex];
+            const fullName = cols[fullNameIndex];
+            const role = cols[roleIndex];
+
+            if (!email || !fullName) {
+              errors.push(`Dòng ${i + 1}: Thiếu email hoặc tên`);
               failedCount++;
               continue;
             }
 
-            const row: any = {};
-            header.forEach((key, index) => {
-              row[key] = values[index];
-            });
-
-            // Validate required fields
-            if (!row.email || !row.fullname || !row.role) {
-              errors.push(`Dòng ${i + 1}: Thiếu thông tin bắt buộc`);
-              failedCount++;
-              continue;
-            }
-
-            // Validate email format
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(row.email)) {
-              errors.push(`Dòng ${i + 1}: Email không hợp lệ (${row.email})`);
-              failedCount++;
-              continue;
-            }
-
-            // Validate role
-            const validRoles = ['ADMIN', 'HOD', 'AA', 'PRINCIPAL', 'LECTURER', 'STUDENT'];
-            if (!validRoles.includes(row.role.toUpperCase())) {
-              errors.push(`Dòng ${i + 1}: Role không hợp lệ (${row.role})`);
-              failedCount++;
-              continue;
-            }
-
-            // Check duplicate email
-            if (mockUsers.find((u) => u.email.toLowerCase() === row.email.toLowerCase())) {
-              errors.push(`Dòng ${i + 1}: Email đã tồn tại (${row.email})`);
-              failedCount++;
-              continue;
-            }
-
-            // Create user
-            try {
-              const newUser: User = {
-                id: `user-${Date.now()}-${i}`,
-                email: row.email,
-                fullName: row.fullname,
-                role: row.role.toUpperCase() as UserRole,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-              };
-
-              mockUsers.push(newUser);
-              successCount++;
-            } catch (error) {
-              errors.push(`Dòng ${i + 1}: Lỗi tạo user`);
-              failedCount++;
-            }
+            successCount++;
           }
 
-          resolve({
-            success: successCount,
-            failed: failedCount,
-            errors: errors.slice(0, 10), // Limit to first 10 errors
-          });
-        } catch (error) {
-          reject(new Error('Lỗi parse file CSV'));
+          resolve({ success: successCount, failed: failedCount, errors });
+        } catch {
+          errors.push('Lỗi xử lý file CSV');
+          resolve({ success: 0, failed: 0, errors });
         }
       };
 
       reader.onerror = () => {
-        reject(new Error('Lỗi đọc file'));
+        resolve({ success: 0, failed: 0, errors: ['Không đọc được file'] });
       };
 
       reader.readAsText(file);

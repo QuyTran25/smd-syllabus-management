@@ -27,6 +27,7 @@ END $$;
 
 -- =====================================================
 -- 1. Update Subject information (loại học phần, thành phần, khoa, thời gian)
+-- Sử dụng text để tránh lỗi ENUM, JPA sẽ tự động convert
 -- =====================================================
 
 -- Update subjects with proper Vietnamese data and time allocation

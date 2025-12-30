@@ -10,7 +10,7 @@ CREATE TYPE decision_type AS ENUM ('APPROVED', 'REJECTED');
 
 -- 1. Approval Workflows
 CREATE TABLE approval_workflows (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     steps JSONB NOT NULL, -- [{"role": "HOD", "order": 1}, ...]
     is_active BOOLEAN DEFAULT TRUE,
@@ -19,7 +19,7 @@ CREATE TABLE approval_workflows (
 
 -- 2. Approval History
 CREATE TABLE approval_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id),
     actor_id UUID NOT NULL REFERENCES users(id),
     action decision_type NOT NULL,

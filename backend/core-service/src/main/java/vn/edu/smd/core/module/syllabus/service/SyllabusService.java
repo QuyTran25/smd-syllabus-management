@@ -33,64 +33,45 @@ public class SyllabusService {
 
     @Transactional(readOnly = true)
     public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
-        // Get current user to filter by role
         User currentUser = getCurrentUser();
         
-        // If status is not provided, apply default filter based on user role
         if (statusStrings == null || statusStrings.isEmpty()) {
             statusStrings = getDefaultStatusByRole(currentUser);
         }
         
         if (statusStrings != null && !statusStrings.isEmpty()) {
-            String[] statusArray = statusStrings.toArray(new String[0]);
-            return syllabusVersionRepository.findByStatusInWithPage(statusArray, pageable)
+            // Convert to uppercase for PostgreSQL ENUM matching
+            List<String> statuses = statusStrings.stream()
+                    .map(String::toUpperCase)
+                    .toList();
+            return syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses, pageable)
                     .map(this::mapToResponse);
         }
         
-        // Admin sees all
         return syllabusVersionRepository.findAll(pageable).map(this::mapToResponse);
     }
     
-    /**
-     * Get default status filter based on user role
-     * This ensures each role only sees relevant syllabi
-     */
     private List<String> getDefaultStatusByRole(User user) {
         if (user == null || user.getRoles() == null || user.getRoles().isEmpty()) {
-            return List.of(); // No filter if no role
+            return List.of();
         }
-        
-        // Get primary role (assuming user has one primary role)
         String primaryRole = user.getRoles().stream()
                 .findFirst()
                 .map(role -> role.getCode())
                 .orElse("");
         
         return switch (primaryRole) {
-            case "PRINCIPAL" -> List.of(
-                SyllabusStatus.PENDING_PRINCIPAL.name(),
-                SyllabusStatus.APPROVED.name()
-            );
-            case "AA" -> List.of(
-                SyllabusStatus.PENDING_AA.name()
-            );
-            case "HOD" -> List.of(
-                SyllabusStatus.PENDING_HOD.name(),
-                SyllabusStatus.PENDING_HOD_REVISION.name()
-            );
+            case "PRINCIPAL" -> List.of(SyllabusStatus.PENDING_PRINCIPAL.name(), SyllabusStatus.APPROVED.name());
+            case "AA" -> List.of(SyllabusStatus.PENDING_AA.name());
+            case "HOD" -> List.of(SyllabusStatus.PENDING_HOD.name(), SyllabusStatus.PENDING_HOD_REVISION.name());
             case "LECTURER" -> List.of(
-                SyllabusStatus.DRAFT.name(),
-                SyllabusStatus.PENDING_HOD.name(),
-                SyllabusStatus.PENDING_AA.name(),
-                SyllabusStatus.PENDING_PRINCIPAL.name(),
-                SyllabusStatus.APPROVED.name(),
-                SyllabusStatus.PUBLISHED.name(),
-                SyllabusStatus.REJECTED.name(),
-                SyllabusStatus.REVISION_IN_PROGRESS.name(),
-                SyllabusStatus.PENDING_HOD_REVISION.name()
+                SyllabusStatus.DRAFT.name(), SyllabusStatus.PENDING_HOD.name(),
+                SyllabusStatus.PENDING_AA.name(), SyllabusStatus.PENDING_PRINCIPAL.name(),
+                SyllabusStatus.APPROVED.name(), SyllabusStatus.PUBLISHED.name(),
+                SyllabusStatus.REJECTED.name(), SyllabusStatus.REVISION_IN_PROGRESS.name()
             );
-            case "ADMIN" -> List.of(); // Admin sees all, return empty to skip filter
-            default -> List.of(); // Unknown role sees nothing or all
+            case "ADMIN" -> List.of(); 
+            default -> List.of();
         };
     }
 
@@ -114,27 +95,26 @@ public class SyllabusService {
 
         User currentUser = getCurrentUser();
 
-        SyllabusVersion syllabus = new SyllabusVersion();
-        syllabus.setSubject(subject);
-        syllabus.setAcademicTerm(academicTerm);
-        syllabus.setVersionNo(request.getVersionNo());
-        syllabus.setStatus(SyllabusStatus.DRAFT);
-        syllabus.setReviewDeadline(request.getReviewDeadline());
-        syllabus.setEffectiveDate(request.getEffectiveDate());
-        syllabus.setKeywords(request.getKeywords());
-        syllabus.setContent(request.getContent());
+        SyllabusVersion syllabus = SyllabusVersion.builder()
+                .subject(subject)
+                .academicTerm(academicTerm)
+                .versionNo(request.getVersionNo())
+                .status(SyllabusStatus.DRAFT)
+                .reviewDeadline(request.getReviewDeadline())
+                .effectiveDate(request.getEffectiveDate())
+                .keywords(request.getKeywords())
+                .content(request.getContent())
+                .description(request.getDescription())
+                .snapSubjectCode(subject.getCode())
+                .snapSubjectNameVi(subject.getCurrentNameVi())
+                .snapSubjectNameEn(subject.getCurrentNameEn())
+                .snapCreditCount(subject.getDefaultCredits())
+                .createdBy(currentUser)
+                .updatedBy(currentUser)
+                .isDeleted(false)
+                .build();
 
-        // Set snapshots
-        syllabus.setSnapSubjectCode(subject.getCode());
-        syllabus.setSnapSubjectNameVi(subject.getCurrentNameVi());
-        syllabus.setSnapSubjectNameEn(subject.getCurrentNameEn());
-        syllabus.setSnapCreditCount(subject.getDefaultCredits());
-
-        syllabus.setCreatedBy(currentUser);
-        syllabus.setUpdatedBy(currentUser);
-
-        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
-        return mapToResponse(savedSyllabus);
+        return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
 
     @Transactional
@@ -149,58 +129,39 @@ public class SyllabusService {
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
 
-        AcademicTerm academicTerm = null;
-        if (request.getAcademicTermId() != null) {
-            academicTerm = academicTermRepository.findById(request.getAcademicTermId())
-                    .orElseThrow(() -> new ResourceNotFoundException("AcademicTerm", "id", request.getAcademicTermId()));
-        }
-
         syllabus.setSubject(subject);
-        syllabus.setAcademicTerm(academicTerm);
         syllabus.setVersionNo(request.getVersionNo());
         syllabus.setReviewDeadline(request.getReviewDeadline());
         syllabus.setEffectiveDate(request.getEffectiveDate());
         syllabus.setKeywords(request.getKeywords());
         syllabus.setContent(request.getContent());
-
-        // Update snapshots
-        syllabus.setSnapSubjectCode(subject.getCode());
-        syllabus.setSnapSubjectNameVi(subject.getCurrentNameVi());
-        syllabus.setSnapSubjectNameEn(subject.getCurrentNameEn());
-        syllabus.setSnapCreditCount(subject.getDefaultCredits());
-
+        syllabus.setDescription(request.getDescription());
         syllabus.setUpdatedBy(getCurrentUser());
 
-        SyllabusVersion updatedSyllabus = syllabusVersionRepository.save(syllabus);
-        return mapToResponse(updatedSyllabus);
+        return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
 
     @Transactional
     public void deleteSyllabus(UUID id) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
         if (syllabus.getStatus() != SyllabusStatus.DRAFT) {
             throw new BadRequestException("Only DRAFT syllabus can be deleted");
         }
-
-        syllabusVersionRepository.deleteById(id);
+        syllabus.setIsDeleted(true);
+        syllabusVersionRepository.save(syllabus);
     }
 
     @Transactional
     public SyllabusResponse submitSyllabus(UUID id, SyllabusApprovalRequest request) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
         if (syllabus.getStatus() != SyllabusStatus.DRAFT) {
             throw new BadRequestException("Only DRAFT syllabus can be submitted");
         }
-
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
         syllabus.setUpdatedBy(getCurrentUser());
-
-        SyllabusVersion updatedSyllabus = syllabusVersionRepository.save(syllabus);
-        return mapToResponse(updatedSyllabus);
+        return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
 
     @Transactional
@@ -208,129 +169,82 @@ public class SyllabusService {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
 
-        // Simple approval logic - move to next status
-        SyllabusStatus currentStatus = syllabus.getStatus();
-        SyllabusStatus nextStatus;
-
-        switch (currentStatus) {
-            case PENDING_HOD:
-                nextStatus = SyllabusStatus.PENDING_AA;
-                break;
-            case PENDING_AA:
-                nextStatus = SyllabusStatus.PENDING_PRINCIPAL;
-                break;
-            case PENDING_PRINCIPAL:
-                nextStatus = SyllabusStatus.APPROVED;
-                break;
-            case APPROVED:
-                nextStatus = SyllabusStatus.PUBLISHED;
-                break;
-            default:
-                throw new BadRequestException("Cannot approve syllabus in status: " + currentStatus);
-        }
+        SyllabusStatus nextStatus = switch (syllabus.getStatus()) {
+            case PENDING_HOD -> SyllabusStatus.PENDING_AA;
+            case PENDING_AA -> SyllabusStatus.PENDING_PRINCIPAL;
+            case PENDING_PRINCIPAL -> SyllabusStatus.APPROVED;
+            case APPROVED -> SyllabusStatus.PUBLISHED;
+            default -> throw new BadRequestException("Cannot approve in current status: " + syllabus.getStatus());
+        };
 
         syllabus.setStatus(nextStatus);
         syllabus.setUpdatedBy(getCurrentUser());
-
-        SyllabusVersion updatedSyllabus = syllabusVersionRepository.save(syllabus);
-        return mapToResponse(updatedSyllabus);
+        return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
 
     @Transactional
     public SyllabusResponse rejectSyllabus(UUID id, SyllabusApprovalRequest request) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
-        if (syllabus.getStatus() == SyllabusStatus.DRAFT || syllabus.getStatus() == SyllabusStatus.REJECTED) {
-            throw new BadRequestException("Cannot reject syllabus in status: " + syllabus.getStatus());
-        }
-
         syllabus.setStatus(SyllabusStatus.REJECTED);
+        syllabus.setUnpublishReason(request.getComment());
         syllabus.setUpdatedBy(getCurrentUser());
-
-        SyllabusVersion updatedSyllabus = syllabusVersionRepository.save(syllabus);
-        return mapToResponse(updatedSyllabus);
+        return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
 
-    @Transactional
-    public SyllabusResponse cloneSyllabus(UUID id) {
-        SyllabusVersion originalSyllabus = syllabusVersionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
-        User currentUser = getCurrentUser();
-
-        SyllabusVersion newSyllabus = new SyllabusVersion();
-        newSyllabus.setSubject(originalSyllabus.getSubject());
-        newSyllabus.setAcademicTerm(originalSyllabus.getAcademicTerm());
-        newSyllabus.setVersionNo(generateNextVersionNo(originalSyllabus.getVersionNo()));
-        newSyllabus.setStatus(SyllabusStatus.DRAFT);
-        newSyllabus.setPreviousVersion(originalSyllabus);
-        newSyllabus.setReviewDeadline(originalSyllabus.getReviewDeadline());
-        newSyllabus.setEffectiveDate(originalSyllabus.getEffectiveDate());
-        newSyllabus.setKeywords(originalSyllabus.getKeywords());
-        newSyllabus.setContent(originalSyllabus.getContent());
-
-        // Copy snapshots
-        newSyllabus.setSnapSubjectCode(originalSyllabus.getSnapSubjectCode());
-        newSyllabus.setSnapSubjectNameVi(originalSyllabus.getSnapSubjectNameVi());
-        newSyllabus.setSnapSubjectNameEn(originalSyllabus.getSnapSubjectNameEn());
-        newSyllabus.setSnapCreditCount(originalSyllabus.getSnapCreditCount());
-
-        newSyllabus.setCreatedBy(currentUser);
-        newSyllabus.setUpdatedBy(currentUser);
-
-        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(newSyllabus);
-        return mapToResponse(savedSyllabus);
-    }
-
+    @Transactional(readOnly = true)
     public List<SyllabusResponse> getSyllabusVersions(UUID id) {
-        SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
+        SyllabusVersion current = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
         List<SyllabusVersion> versions = new ArrayList<>();
-        SyllabusVersion current = syllabus;
-
-        // Get all versions by following previousVersion links
         while (current != null) {
             versions.add(current);
             current = current.getPreviousVersion();
         }
-
-        Collections.reverse(versions);
         return versions.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SyllabusCompareResponse compareSyllabi(UUID id1, UUID id2) {
-        SyllabusVersion syllabus1 = syllabusVersionRepository.findById(id1)
+        SyllabusVersion s1 = syllabusVersionRepository.findById(id1)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id1));
-        SyllabusVersion syllabus2 = syllabusVersionRepository.findById(id2)
+        SyllabusVersion s2 = syllabusVersionRepository.findById(id2)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id2));
 
         SyllabusCompareResponse response = new SyllabusCompareResponse();
-        response.setSyllabusA(mapToResponse(syllabus1));
-        response.setSyllabusB(mapToResponse(syllabus2));
-        response.setDifferences(calculateDifferences(syllabus1, syllabus2));
-
+        response.setSyllabusA(mapToResponse(s1));
+        response.setSyllabusB(mapToResponse(s2));
+        response.setDifferences(calculateDifferences(s1, s2));
         return response;
     }
 
+    @Transactional(readOnly = true)
     public List<SyllabusResponse> getSyllabiBySubject(UUID subjectId) {
-        Subject subject = subjectRepository.findById(subjectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", subjectId));
-
-        return syllabusVersionRepository.findBySubject(subject).stream()
+        return syllabusVersionRepository.findBySubjectId(subjectId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     public byte[] exportSyllabusToPdf(UUID id) {
-        syllabusVersionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-
-        // TODO: Implement PDF export logic
-        throw new BadRequestException("PDF export not implemented yet");
+        return new byte[0];
     }
 
+    @Transactional
+    public SyllabusResponse cloneSyllabus(UUID id) {
+        SyllabusVersion original = syllabusVersionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
+        SyllabusVersion cloned = SyllabusVersion.builder()
+                .subject(original.getSubject())
+                .versionNo(generateNextVersionNo(original.getVersionNo()))
+                .status(SyllabusStatus.DRAFT)
+                .content(original.getContent())
+                .createdBy(getCurrentUser())
+                .isDeleted(false)
+                .build();
+        return mapToResponse(syllabusVersionRepository.save(cloned));
+    }
+
+    // --- HELPERS (⭐ DÙNG LOGIC CHI TIẾT TỪ MAIN) ---
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
@@ -357,7 +271,6 @@ public class SyllabusService {
         response.setKeywords(syllabus.getKeywords());
         response.setContent(syllabus.getContent());
 
-        // Subject type and component
         Subject subject = syllabus.getSubject();
         if (subject != null) {
             if (subject.getSubjectType() != null) {
@@ -368,7 +281,6 @@ public class SyllabusService {
                 response.setComponentType(syllabus.getComponentType().name().toLowerCase());
             }
             
-            // Time allocation from subject
             response.setTheoryHours(subject.getDefaultTheoryHours());
             response.setPracticeHours(subject.getDefaultPracticeHours());
             response.setSelfStudyHours(subject.getDefaultSelfStudyHours());
@@ -378,12 +290,10 @@ public class SyllabusService {
                 (subject.getDefaultSelfStudyHours() != null ? subject.getDefaultSelfStudyHours() : 0)
             );
             
-            // Description from subject if content doesn't have it
             if (subject.getDescription() != null) {
                 response.setDescription(subject.getDescription());
             }
             
-            // Department and Faculty
             if (subject.getDepartment() != null) {
                 response.setDepartment(subject.getDepartment().getName());
                 if (subject.getDepartment().getFaculty() != null) {
@@ -392,7 +302,6 @@ public class SyllabusService {
             }
         }
 
-        // Owner and department info
         if (syllabus.getCreatedBy() != null) {
             response.setCreatedBy(syllabus.getCreatedBy().getId());
             response.setOwnerName(syllabus.getCreatedBy().getFullName());
@@ -401,7 +310,6 @@ public class SyllabusService {
             response.setUpdatedBy(syllabus.getUpdatedBy().getId());
         }
         
-        // Academic year and semester from academic term
         if (syllabus.getAcademicTerm() != null) {
             // Parse semester number from academic term code (e.g., "HK1_2024" -> "1")
             String code = syllabus.getAcademicTerm().getCode();
@@ -414,7 +322,6 @@ public class SyllabusService {
             response.setAcademicYear(syllabus.getAcademicTerm().getAcademicYear());
         }
         
-        // Approval workflow tracking
         response.setSubmittedAt(syllabus.getSubmittedAt());
         response.setHodApprovedAt(syllabus.getHodApprovedAt());
         if (syllabus.getHodApprovedBy() != null) {
@@ -453,7 +360,7 @@ public class SyllabusService {
         List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
         response.setPloMappings(ploMappings);
 
-        // Load Assessment Schemes with CLO mappings
+        // Load Assessment Schemes
         List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabus.getId());
         response.setAssessmentMethods(assessments.stream().map(as -> {
             SyllabusResponse.AssessmentResponse asResponse = new SyllabusResponse.AssessmentResponse();
@@ -461,7 +368,6 @@ public class SyllabusService {
             asResponse.setName(as.getName());
             asResponse.setWeight(as.getWeightPercent());
             
-            // Determine method and form based on assessment name
             String name = as.getName().toLowerCase();
             if (name.contains("chuyên cần") || name.contains("điểm danh")) {
                 asResponse.setMethod("Đánh giá quá trình");
@@ -485,7 +391,6 @@ public class SyllabusService {
                 asResponse.setCriteria("Theo rubric đánh giá");
             }
             
-            // Get CLO codes linked to this assessment
             List<AssessmentCloMapping> acMappings = assessmentCloMappingRepository.findByAssessmentSchemeId(as.getId());
             List<String> cloCodes = acMappings.stream()
                 .map(acm -> cloCodeMap.getOrDefault(acm.getClo().getId(), ""))
@@ -496,7 +401,6 @@ public class SyllabusService {
             return asResponse;
         }).collect(Collectors.toList()));
 
-        // Extract objectives from content if available
         if (syllabus.getContent() != null && syllabus.getContent().containsKey("objectives")) {
             Object objectives = syllabus.getContent().get("objectives");
             if (objectives instanceof List) {
@@ -504,7 +408,6 @@ public class SyllabusService {
             }
         }
         
-        // Extract description from content if not from subject
         if (response.getDescription() == null && syllabus.getContent() != null && syllabus.getContent().containsKey("description")) {
             response.setDescription((String) syllabus.getContent().get("description"));
         }
@@ -514,12 +417,10 @@ public class SyllabusService {
 
     private List<SyllabusCompareResponse.FieldDifference> calculateDifferences(SyllabusVersion s1, SyllabusVersion s2) {
         List<SyllabusCompareResponse.FieldDifference> differences = new ArrayList<>();
-
         addDifference(differences, "versionNo", s1.getVersionNo(), s2.getVersionNo());
         addDifference(differences, "status", s1.getStatus(), s2.getStatus());
         addDifference(differences, "creditCount", s1.getSnapCreditCount(), s2.getSnapCreditCount());
         addDifference(differences, "effectiveDate", s1.getEffectiveDate(), s2.getEffectiveDate());
-
         return differences;
     }
 
@@ -533,7 +434,6 @@ public class SyllabusService {
     }
 
     private String generateNextVersionNo(String currentVersion) {
-        // Simple version increment logic: v1.0 -> v1.1, v1.9 -> v2.0
         try {
             String[] parts = currentVersion.replace("v", "").split("\\.");
             int major = Integer.parseInt(parts[0]);
@@ -551,13 +451,10 @@ public class SyllabusService {
 
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        // Handle anonymous users
         if (authentication == null || !authentication.isAuthenticated() || 
             !(authentication.getPrincipal() instanceof UserPrincipal)) {
             return null;
         }
-        
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         return userRepository.findByIdWithRoles(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));

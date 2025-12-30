@@ -13,6 +13,10 @@ public class UserResponse {
     private String phoneNumber;
     private String status;
     private Set<String> roles;
+    private UUID facultyId;
+    private String facultyName;
+    private UUID departmentId;
+    private String departmentName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

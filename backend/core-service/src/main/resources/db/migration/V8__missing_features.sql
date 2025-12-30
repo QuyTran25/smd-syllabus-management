@@ -21,7 +21,7 @@ CREATE TYPE mapping_level AS ENUM ('H', 'M', 'L');
 -- 1. SYLLABUS SUBSCRIPTIONS
 -- ==========================================
 CREATE TABLE syllabus_subscriptions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
     syllabus_version_id UUID REFERENCES syllabus_versions(id) ON DELETE CASCADE,
@@ -77,7 +77,7 @@ ALTER TABLE clos
 -- 4. ASSESSMENT-CLO MAPPING
 -- ==========================================
 CREATE TABLE assessment_clo_mappings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     assessment_scheme_id UUID NOT NULL REFERENCES assessment_schemes(id) ON DELETE CASCADE,
     clo_id UUID NOT NULL REFERENCES clos(id) ON DELETE CASCADE,
     contribution_percent DECIMAL(5,2) DEFAULT 100 CHECK (contribution_percent >= 0 AND contribution_percent <= 100),
@@ -93,7 +93,7 @@ CREATE TRIGGER update_assess_clo_time BEFORE UPDATE ON assessment_clo_mappings F
 -- 5. & 6. PROFILES
 -- ==========================================
 CREATE TABLE student_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     student_code VARCHAR(20) UNIQUE,
     curriculum_id UUID REFERENCES curriculums(id),
@@ -106,7 +106,7 @@ CREATE INDEX idx_student_code ON student_profiles(student_code);
 CREATE TRIGGER update_student_profile_time BEFORE UPDATE ON student_profiles FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
 CREATE TABLE lecturer_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     lecturer_code VARCHAR(20) UNIQUE,
     department_id UUID REFERENCES departments(id),
@@ -123,7 +123,7 @@ CREATE TRIGGER update_lecturer_profile_time BEFORE UPDATE ON lecturer_profiles F
 -- 7. PERFORMANCE INDICATORS (PI)
 -- ==========================================
 CREATE TABLE performance_indicators (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     plo_id UUID NOT NULL REFERENCES plos(id) ON DELETE CASCADE,
     code VARCHAR(20) NOT NULL,
     description TEXT NOT NULL,
@@ -138,7 +138,7 @@ CREATE TRIGGER update_pi_time BEFORE UPDATE ON performance_indicators FOR EACH R
 -- 8. CLO-PI MAPPINGS
 -- ==========================================
 CREATE TABLE clo_pi_mappings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     clo_id UUID NOT NULL REFERENCES clos(id) ON DELETE CASCADE,
     pi_id UUID NOT NULL REFERENCES performance_indicators(id) ON DELETE CASCADE,
     level mapping_level NOT NULL, 
@@ -158,7 +158,7 @@ ALTER TABLE plos ADD COLUMN category plo_category DEFAULT 'Knowledge';
 -- 10. TEACHING ASSIGNMENTS
 -- ==========================================
 CREATE TABLE teaching_assignments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     subject_id UUID NOT NULL REFERENCES subjects(id),
     academic_term_id UUID NOT NULL REFERENCES academic_terms(id),
     main_lecturer_id UUID NOT NULL REFERENCES users(id),
@@ -183,7 +183,7 @@ CREATE TRIGGER update_assignment_time BEFORE UPDATE ON teaching_assignments FOR 
 -- 11. CO-LECTURERS
 -- ==========================================
 CREATE TABLE teaching_assignment_collaborators (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     assignment_id UUID NOT NULL REFERENCES teaching_assignments(id) ON DELETE CASCADE,
     lecturer_id UUID NOT NULL REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -203,7 +203,7 @@ ALTER TABLE approval_history
 -- 13. PUBLICATION RECORDS
 -- ==========================================
 CREATE TABLE publication_records (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     syllabus_version_id UUID NOT NULL REFERENCES syllabus_versions(id),
     published_by UUID NOT NULL REFERENCES users(id),
     published_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

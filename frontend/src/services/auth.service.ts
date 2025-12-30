@@ -1,24 +1,24 @@
 import { LoginCredentials, AuthResponse, User, UserRole } from '@/types';
 import { apiClient } from '@/config/api-config';
 
-// Map backend role names to frontend UserRole enum
-const mapBackendRoleToFrontend = (backendRole: string): UserRole => {
-  const roleMapping: Record<string, UserRole> = {
+// Map backend role name to frontend role code
+const mapRoleToCode = (roleName: string): UserRole => {
+  const roleMap: Record<string, UserRole> = {
+    'Administrator': UserRole.ADMIN,
     'Principal': UserRole.PRINCIPAL,
     'Academic Affairs': UserRole.AA,
     'Head of Department': UserRole.HOD,
-    'Administrator': UserRole.ADMIN,
     'Lecturer': UserRole.LECTURER,
     'Student': UserRole.STUDENT,
-    // Also support uppercase versions
+    // Also support if backend sends code directly
+    'ADMIN': UserRole.ADMIN,
     'PRINCIPAL': UserRole.PRINCIPAL,
     'AA': UserRole.AA,
     'HOD': UserRole.HOD,
-    'ADMIN': UserRole.ADMIN,
     'LECTURER': UserRole.LECTURER,
     'STUDENT': UserRole.STUDENT,
   };
-  return roleMapping[backendRole] || UserRole.LECTURER;
+  return roleMap[roleName] || UserRole.LECTURER;
 };
 
 // Real authentication service using backend API
@@ -40,7 +40,7 @@ export const authService = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: mapBackendRoleToFrontend(rawRole),
+      role: mapRoleToCode(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -71,7 +71,7 @@ export const authService = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: mapBackendRoleToFrontend(rawRole),
+      role: mapRoleToCode(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -96,7 +96,7 @@ export const authService = {
       id: userInfo.id,
       email: userInfo.email,
       fullName: userInfo.fullName,
-      role: mapBackendRoleToFrontend(rawRole),
+      role: mapRoleToCode(rawRole),
       phone: userInfo.phoneNumber,
       isActive: userInfo.status === 'ACTIVE',
       createdAt: new Date().toISOString(),

@@ -6,6 +6,7 @@ import vn.edu.smd.shared.enums.PloCategory;
 
 /**
  * Converter to map between Java enum (KNOWLEDGE) and database enum (Knowledge)
+ * Bộ chuyển đổi dữ liệu từ Postgres (Knowledge) sang Java (KNOWLEDGE)
  */
 @Converter(autoApply = true)
 public class PloCategoryConverter implements AttributeConverter<PloCategory, String> {
@@ -25,7 +26,11 @@ public class PloCategoryConverter implements AttributeConverter<PloCategory, Str
         if (dbData == null) {
             return null;
         }
-        // Convert Knowledge -> KNOWLEDGE
-        return PloCategory.valueOf(dbData.toUpperCase());
+        try {
+            // Convert Knowledge -> KNOWLEDGE
+            return PloCategory.valueOf(dbData.toUpperCase());
+        } catch (Exception e) {
+            return PloCategory.KNOWLEDGE;
+        }
     }
 }

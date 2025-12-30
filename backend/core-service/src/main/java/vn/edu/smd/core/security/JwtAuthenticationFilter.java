@@ -29,10 +29,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
+            // ⭐ QUAN TRỌNG: Chỉ bypass những endpoint không cần auth
+            String requestPath = request.getRequestURI();
+            if (requestPath.contains("/api/auth/login") || 
+                requestPath.contains("/api/auth/register") ||
+                requestPath.contains("/api/auth/forgot-password") ||
+                requestPath.contains("/api/auth/reset-password") ||
+                requestPath.contains("/api/auth/refresh") ||
+                requestPath.contains("/api/auth/debug-password")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromToken(jwt);
+                
                 UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -42,7 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
+            // Nếu có lỗi xác thực, log lại và vẫn cho request đi tiếp
+            // SecurityConfig sẽ chặn lại ở bước sau nếu cần thiết
+            log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

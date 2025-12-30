@@ -1,70 +1,83 @@
-import { mockDetailsById, mockSyllabi } from './studentSyllabus.mock';
+import { http } from './http';
 import {
-  ReportIssuePayload,
-  StudentSyllabiFilters,
-  SyllabusDetail,
   SyllabusListItem,
+  SyllabusDetail,
+  // ReportIssuePayload,  <-- XÓA DÒNG NÀY (Không import từ types nữa)
+  StudentSyllabiFilters,
 } from '../types';
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// ⭐ THÊM MỚI: Định nghĩa ngay tại đây để làm chuẩn cho toàn bộ app
+export interface ReportIssuePayload {
+  syllabusId: string;
+  section: string;
+  description: string;
+}
 
-export async function listStudentSyllabi(filters: StudentSyllabiFilters): Promise<{
-  rows: SyllabusListItem[];
-  trackedCount: number;
-}> {
-  await delay(250);
+/**
+ * Lấy danh sách Syllabus từ Backend
+ */
+export async function listStudentSyllabi(
+  filters?: StudentSyllabiFilters
+): Promise<SyllabusListItem[]> {
+  const res = await http.get('/student/syllabi', { params: filters });
+  const rawData = (Array.isArray(res.data) ? res.data : []) as any[];
 
-  const q = (filters.q ?? '').toLowerCase().trim();
-
-  let rows = mockSyllabi.filter((x) => {
-    if (filters.scope === 'TRACKED' && !x.tracked) return false;
-    if (filters.faculty && x.faculty !== filters.faculty) return false;
-    if (filters.program && x.program !== filters.program) return false;
-    if (filters.term && x.term !== filters.term) return false;
-
-    if (q) {
-      const blob = `${x.code} ${x.nameVi} ${x.nameEn ?? ''} ${x.lecturerName}`.toLowerCase();
-      if (!blob.includes(q)) return false;
-    }
-
-    return true;
-  });
-
-  rows = rows.sort((a, b) => {
-    const da = new Date(a.publishedAt).getTime();
-    const db = new Date(b.publishedAt).getTime();
-    return filters.sort === 'newest' ? db - da : da - db;
-  });
-
-  const trackedCount = mockSyllabi.filter((x) => x.tracked).length;
-
-  return { rows, trackedCount };
+  return rawData.map((item) => ({
+    id: item.id,
+    code: item.code || 'N/A',
+    nameVi: item.nameVi || 'Chưa có tên',
+    term: item.term || 'HK2 2024-2025',
+    credits: item.credits || 0,
+    status: item.status || 'PUBLISHED',
+    tracked: item.tracked || false,
+    progress: item.progress || 100,
+    majorShort: item.majorShort || (item.code ? item.code.substring(0, 2) : 'IT'),
+    lecturerName: item.lecturerName || 'Chưa cập nhật',
+    faculty: item.faculty || 'Khoa Công nghệ Thông tin',
+    program: item.program || 'Chương trình đào tạo',
+    publishedAt: item.publishedAt || new Date().toISOString().split('T')[0],
+  }));
 }
 
 export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDetail> {
-  await delay(200);
-  const detail = mockDetailsById[id];
-  if (!detail) throw new Error('Syllabus not found');
-  return detail;
+  const res = await http.get(`/student/syllabi/${id}`);
+  const d = res.data;
+
+  return {
+    ...d,
+    id: d.id,
+    code: d.code,
+    nameVi: d.nameVi,
+    faculty: d.faculty || 'Khoa Công nghệ Thông tin',
+    program: d.program || 'Chương trình đào tạo',
+    lecturerName: d.lecturerName || 'Giảng viên hướng dẫn',
+    status: d.status || 'PUBLISHED',
+    summaryInline: d.description || 'Chưa có tóm tắt nội dung môn học.',
+    assessmentMatrix: d.assessmentMatrix || [],
+    clos: d.clos || [],
+    timeAllocation: {
+      theory: d.theoryHours || 30,
+      practice: d.practiceHours || 30,
+      selfStudy: d.selfStudyHours || 90,
+    },
+    objectives: d.objectives || [],
+    studentTasks: d.studentTasks || [],
+    teachingMethods: d.teachingMethods || 'Giảng dạy lý thuyết và thực hành nhóm',
+  };
 }
 
-export async function toggleTrackSyllabus(id: string): Promise<{ tracked: boolean }> {
-  await delay(150);
-  const item = mockSyllabi.find((x) => x.id === id);
-  if (!item) throw new Error('Syllabus not found');
-  item.tracked = !item.tracked;
-  return { tracked: item.tracked };
+export async function toggleTrackSyllabus(id: string) {
+  const res = await http.post(`/student/syllabi/${id}/track`);
+  return res.data;
 }
 
-export async function downloadPdfMock(_id: string): Promise<void> {
-  await delay(300);
-  // Mock: không làm gì. UI sẽ show message thành công.
+/** Báo cáo lỗi: Sử dụng Interface vừa định nghĩa bên trên */
+export async function reportIssue(payload: ReportIssuePayload) {
+  const res = await http.post('/student/issues/report', payload);
+  return res.data;
 }
 
-export async function reportIssue(payload: ReportIssuePayload): Promise<{ ok: true }> {
-  await delay(400);
-  // Mock: có thể console.log để debug
-  // eslint-disable-next-line no-console
-  console.log('[MOCK] reportIssue', payload);
-  return { ok: true };
+export async function downloadPdfMock(id: string) {
+  const res = await http.get(`/student/syllabi/${id}/export-pdf`, { responseType: 'blob' });
+  return res.data;
 }

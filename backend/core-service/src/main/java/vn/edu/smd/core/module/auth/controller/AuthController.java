@@ -5,10 +5,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.smd.core.common.dto.ApiResponse;
 import vn.edu.smd.core.module.auth.dto.*;
 import vn.edu.smd.core.module.auth.service.AuthService;
+import vn.edu.smd.core.repository.UserRepository;
 
 @Tag(name = "Authentication", description = "Authentication & Authorization APIs")
 @RestController
@@ -17,6 +19,22 @@ import vn.edu.smd.core.module.auth.service.AuthService;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+
+    @GetMapping("/test-password/{email}/{password}")
+    public ResponseEntity<ApiResponse<String>> testPassword(@PathVariable String email, @PathVariable String password) {
+        var userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.error("User not found: " + email));
+        }
+        var user = userOpt.get();
+        String hashInDb = user.getPassword();
+        boolean matches = passwordEncoder.matches(password, hashInDb);
+        String result = String.format("Email: %s, Hash: %s, Password: %s, Matches: %s", 
+            email, hashInDb, password, matches);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 
     @Operation(summary = "Login", description = "User login with email and password")
     @PostMapping("/login")
@@ -58,6 +76,31 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.success("Password reset successful", null));
+    }
+
+    @Operation(summary = "Test BCrypt", description = "Test BCrypt hash generation and verification")
+    @GetMapping("/test-bcrypt")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> testBcrypt(
+            @RequestParam(defaultValue = "123456") String password,
+            @RequestParam(required = false) String hash) {
+        org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder = 
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+        
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("password", password);
+        result.put("newHash", encoder.encode(password));
+        
+        if (hash != null && !hash.isEmpty()) {
+            result.put("providedHash", hash);
+            result.put("matches", encoder.matches(password, hash));
+        }
+        
+        // Test với hash chuẩn
+        String standardHash = "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
+        result.put("standardHash", standardHash);
+        result.put("matchesStandard", encoder.matches(password, standardHash));
+        
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @Operation(summary = "Get Current User", description = "Get current authenticated user information")
