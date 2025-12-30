@@ -54,7 +54,7 @@ const SyllabusReviewPage: React.FC = () => {
 
   const getStatusTag = (status: SyllabusStatus) => {
     const statusConfig: Record<string, { color: string; text: string }> = {
-      [SyllabusStatus.PENDING_AA]: { color: 'orange', text: 'Chờ P.Đào tạo duyệt' },
+      [SyllabusStatus.PENDING_AA]: { color: 'orange', text: 'Chờ Phòng ĐT' },
       [SyllabusStatus.APPROVED]: { color: 'green', text: 'Đã duyệt' },
       [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
     };

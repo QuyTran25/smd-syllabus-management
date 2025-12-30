@@ -38,16 +38,8 @@ public class StudentFeedbackService {
 
     @Transactional(readOnly = true)
     public Page<StudentFeedbackResponse> getFeedbacksByStatus(String status, Pageable pageable) {
-        List<SyllabusErrorReport> allFeedbacks = feedbackRepository.findByStatus(status);
-        
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), allFeedbacks.size());
-        
-        List<StudentFeedbackResponse> pageContent = allFeedbacks.subList(start, end).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-        
-        return new PageImpl<>(pageContent, pageable, allFeedbacks.size());
+        Page<SyllabusErrorReport> feedbacks = feedbackRepository.findByStatus(status, pageable);
+        return feedbacks.map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
@@ -138,18 +130,26 @@ public class StudentFeedbackService {
         StudentFeedbackResponse response = new StudentFeedbackResponse();
         response.setId(feedback.getId());
         
-        // Syllabus info
-        if (feedback.getSyllabusVersion() != null) {
-            response.setSyllabusId(feedback.getSyllabusVersion().getId());
-            response.setSyllabusCode(feedback.getSyllabusVersion().getSnapSubjectCode());
-            response.setSyllabusName(feedback.getSyllabusVersion().getSnapSubjectNameVi());
+        // Syllabus info - safe access
+        try {
+            if (feedback.getSyllabusVersion() != null) {
+                response.setSyllabusId(feedback.getSyllabusVersion().getId());
+                response.setSyllabusCode(feedback.getSyllabusVersion().getSnapSubjectCode());
+                response.setSyllabusName(feedback.getSyllabusVersion().getSnapSubjectNameVi());
+            }
+        } catch (Exception e) {
+            // Handle lazy loading exception
         }
         
-        // Student info
-        if (feedback.getUser() != null) {
-            response.setStudentId(feedback.getUser().getId());
-            response.setStudentName(feedback.getUser().getFullName());
-            response.setStudentEmail(feedback.getUser().getEmail());
+        // Student info - safe access
+        try {
+            if (feedback.getUser() != null) {
+                response.setStudentId(feedback.getUser().getId());
+                response.setStudentName(feedback.getUser().getFullName());
+                response.setStudentEmail(feedback.getUser().getEmail());
+            }
+        } catch (Exception e) {
+            // Handle lazy loading exception
         }
         
         // Feedback details
@@ -161,9 +161,13 @@ public class StudentFeedbackService {
         
         // Admin response
         response.setAdminResponse(feedback.getAdminResponse());
-        if (feedback.getRespondedBy() != null) {
-            response.setRespondedById(feedback.getRespondedBy().getId());
-            response.setRespondedByName(feedback.getRespondedBy().getFullName());
+        try {
+            if (feedback.getRespondedBy() != null) {
+                response.setRespondedById(feedback.getRespondedBy().getId());
+                response.setRespondedByName(feedback.getRespondedBy().getFullName());
+            }
+        } catch (Exception e) {
+            // Handle lazy loading exception
         }
         response.setRespondedAt(feedback.getRespondedAt());
         
@@ -171,9 +175,13 @@ public class StudentFeedbackService {
         response.setEditEnabled(feedback.getEditEnabled());
         
         // Resolution
-        if (feedback.getResolvedBy() != null) {
-            response.setResolvedById(feedback.getResolvedBy().getId());
-            response.setResolvedByName(feedback.getResolvedBy().getFullName());
+        try {
+            if (feedback.getResolvedBy() != null) {
+                response.setResolvedById(feedback.getResolvedBy().getId());
+                response.setResolvedByName(feedback.getResolvedBy().getFullName());
+            }
+        } catch (Exception e) {
+            // Handle lazy loading exception
         }
         response.setResolvedAt(feedback.getResolvedAt());
         

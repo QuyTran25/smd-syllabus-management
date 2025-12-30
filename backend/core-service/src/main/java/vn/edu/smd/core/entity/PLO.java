@@ -6,7 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import vn.edu.smd.core.converter.PloCategoryConverter;
 import vn.edu.smd.shared.enums.PloCategory;
-import vn.edu.smd.core.converter.PloCategoryConverter; // ⭐ Import từ core.converter
 
 import java.time.LocalDateTime;
 import java.util.UUID;

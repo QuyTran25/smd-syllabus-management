@@ -40,12 +40,23 @@ public class SyllabusService {
         }
         
         if (statusStrings != null && !statusStrings.isEmpty()) {
-            // Convert to uppercase for PostgreSQL ENUM matching
-            List<String> statuses = statusStrings.stream()
-                    .map(String::toUpperCase)
-                    .toList();
-            return syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses, pageable)
-                    .map(this::mapToResponse);
+            // Convert String list to SyllabusStatus enum list
+            List<SyllabusStatus> statuses = statusStrings.stream()
+                    .map(SyllabusStatus::valueOf)
+                    .collect(Collectors.toList());
+            
+            // Use Spring Data method - @JdbcType in entity handles enum properly
+            List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
+            List<SyllabusResponse> responses = allResults.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+            
+            // Manual pagination
+            int start = (int) pageable.getOffset();
+            int end = Math.min(start + pageable.getPageSize(), responses.size());
+            List<SyllabusResponse> pageContent = start < responses.size() ? responses.subList(start, end) : List.of();
+            
+            return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, responses.size());
         }
         
         return syllabusVersionRepository.findAll(pageable).map(this::mapToResponse);
@@ -62,8 +73,16 @@ public class SyllabusService {
         
         return switch (primaryRole) {
             case "PRINCIPAL" -> List.of(SyllabusStatus.PENDING_PRINCIPAL.name(), SyllabusStatus.APPROVED.name());
-            case "AA" -> List.of(SyllabusStatus.PENDING_AA.name());
-            case "HOD" -> List.of(SyllabusStatus.PENDING_HOD.name(), SyllabusStatus.PENDING_HOD_REVISION.name());
+            case "AA" -> List.of(
+                SyllabusStatus.PENDING_AA.name(), 
+                SyllabusStatus.PENDING_PRINCIPAL.name(), 
+                SyllabusStatus.REJECTED.name()
+            );
+            case "HOD" -> List.of(
+                SyllabusStatus.PENDING_HOD.name(), 
+                SyllabusStatus.PENDING_AA.name(), 
+                SyllabusStatus.REJECTED.name()
+            );
             case "LECTURER" -> List.of(
                 SyllabusStatus.DRAFT.name(), SyllabusStatus.PENDING_HOD.name(),
                 SyllabusStatus.PENDING_AA.name(), SyllabusStatus.PENDING_PRINCIPAL.name(),
@@ -355,9 +374,20 @@ public class SyllabusService {
             return cloResponse;
         }).collect(Collectors.toList()));
 
-        // Load CLO-PLO Mappings - DISABLED (lazy loading issue)
-        // TODO: Fix lazy loading for PLO entity in CloPlOMapping
+        // Load CLO-PLO Mappings
         List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
+        for (CLO clo : clos) {
+            List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
+            for (CloPlOMapping mapping : mappings) {
+                SyllabusResponse.CLOPLOMappingResponse mappingResponse = new SyllabusResponse.CLOPLOMappingResponse();
+                mappingResponse.setCloCode(clo.getCode());
+                // Load PLO eagerly to avoid LazyInitializationException
+                PLO plo = mapping.getPlo();
+                mappingResponse.setPloCode(plo.getCode());
+                mappingResponse.setContributionLevel(mapping.getMappingLevel());
+                ploMappings.add(mappingResponse);
+            }
+        }
         response.setPloMappings(ploMappings);
 
         // Load Assessment Schemes

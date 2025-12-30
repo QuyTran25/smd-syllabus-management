@@ -52,7 +52,8 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
-    @Convert(converter = vn.edu.smd.core.converter.SyllabusStatusConverter.class)
+    @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
     @Builder.Default
     private SyllabusStatus status = SyllabusStatus.DRAFT;
