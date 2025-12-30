@@ -29,14 +29,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // 1. Giữ logic xử lý OPTIONS từ bản HEAD để tránh lỗi CORS khi Browser gửi preflight request
+        // Giữ logic xử lý OPTIONS để tránh lỗi CORS (Cần thiết cho Frontend)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            // ⭐ QUAN TRỌNG: Chỉ bypass những endpoint không cần auth
+            // Bypass những endpoint Auth để tránh check token thừa
             String requestPath = request.getRequestURI();
             if (requestPath.contains("/api/auth/login") || 
                 requestPath.contains("/api/auth/register") ||
@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromToken(jwt);
                 
-                // Load user từ database bằng UUID
+                // ƯU TIÊN MAIN: Xóa comment thừa, giữ code sạch
                 UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
 
                 if (userDetails != null) {
@@ -67,8 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception ex) {
-            // Nếu có lỗi xác thực, log lại và vẫn cho request đi tiếp
-            // SecurityConfig sẽ chặn lại ở bước sau nếu cần thiết
+            // Log lỗi nhưng không chặn request, để SecurityConfig xử lý
             log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 

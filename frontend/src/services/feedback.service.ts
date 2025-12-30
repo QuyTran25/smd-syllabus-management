@@ -1,4 +1,4 @@
-import axiosClient from '@/api/axiosClient';
+import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
 import {
   StudentFeedback,
   FeedbackStatus,
@@ -6,7 +6,7 @@ import {
   FeedbackFilters,
 } from '@/types';
 
-// MERGE: Giữ interface Response chi tiết của Team để map dữ liệu chính xác
+// Interface Response chi tiết của Team (Giữ nguyên)
 export interface StudentFeedbackResponse {
   id: string;
   syllabusId: string;
@@ -34,7 +34,7 @@ export interface StudentFeedbackResponse {
   updatedAt: string;
 }
 
-// Map backend response to frontend type
+// Map backend response to frontend type (Logic của Team)
 const mapToStudentFeedback = (response: StudentFeedbackResponse): StudentFeedback => ({
   id: response.id,
   syllabusId: response.syllabusId,
@@ -66,17 +66,19 @@ export const feedbackService = {
       params.append('size', '100');
       params.append('sort', 'createdAt,desc');
       
-      // MERGE: Dùng axiosClient nhưng giữ đường dẫn /api/ của Team
+      // Dùng axiosClient và bỏ prefix /api để khớp với Gateway StripPrefix
       const response = await axiosClient.get<{ data: { content: StudentFeedbackResponse[] } }>(
         `/student-feedbacks?${params.toString()}`
       );
       
-      // Xử lý payload trả về (axiosClient đôi khi đã unwrap data, cần check kỹ)
-      // Giả sử axiosClient trả về response gốc, ta truy cập .data.data
-      const rawContent = response.data?.data?.content || [];
+      // Xử lý payload an toàn (Logic của Bạn nhưng cần thiết)
+      const rawContent = response.data?.data?.content || 
+                         (response.data as any)?.content || 
+                         [];
+                         
       let feedbacks = rawContent.map(mapToStudentFeedback);
       
-      // Apply client-side filters (Logic của Team - Rất quan trọng)
+      // Apply client-side filters (Logic của Team)
       if (filters.status && filters.status.length > 0) {
         feedbacks = feedbacks.filter((f) => filters.status?.includes(f.status));
       }
@@ -157,8 +159,7 @@ export const feedbackService = {
 
   getStatistics: async (): Promise<Record<string, number>> => {
     try {
-      // Logic của Team: Tính toán thống kê dựa trên dữ liệu tải về
-      // (Do backend chưa có endpoint statistics riêng biệt cho phần này)
+      // Logic của Team: Tính toán thống kê client-side
       const feedbacks = await feedbackService.getFeedbacks();
       const stats: Record<string, number> = {};
 

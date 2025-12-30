@@ -1,11 +1,11 @@
-import axiosClient from '@/api/axiosClient';
+import axiosClient from '@/api/axiosClient'; // Ưu tiên dùng axiosClient đã cấu hình chuẩn
 import {
   SyllabusListItem,
   SyllabusDetail,
   StudentSyllabiFilters,
 } from '../types';
 
-// MERGE: Giữ định nghĩa Interface của Team ở đây để làm chuẩn
+// ⭐ ƯU TIÊN MAIN: Định nghĩa Interface ngay tại đây để làm chuẩn cho module này
 export interface ReportIssuePayload {
   syllabusId: string;
   section: string;
@@ -18,14 +18,14 @@ export interface ReportIssuePayload {
 export async function listStudentSyllabi(
   filters?: StudentSyllabiFilters
 ): Promise<SyllabusListItem[]> {
-  // MERGE: Dùng axiosClient + Endpoint có /api/ prefix
+  // Dùng axiosClient và bỏ prefix /api để khớp với Gateway
   const res = await axiosClient.get('/student/syllabi', { params: filters });
   
-  // Xử lý dữ liệu an toàn (Logic của Team)
+  // Xử lý dữ liệu an toàn (Logic của Bạn giúp tránh lỗi null)
   const payload = res.data?.data || res.data;
   const rawData = (Array.isArray(payload) ? payload : (payload.rows || [])) as any[];
 
-  // Map dữ liệu để đảm bảo không bị lỗi null/undefined trên UI
+  // Map dữ liệu cẩn thận
   return rawData.map((item) => ({
     id: item.id,
     code: item.code || 'N/A',
@@ -47,7 +47,7 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
   const res = await axiosClient.get(`/student/syllabi/${id}`);
   const d = res.data?.data || res.data;
 
-  // MERGE: Giữ logic map chi tiết của Team để đảm bảo có đủ các trường con (assessmentMatrix, clos...)
+  // MERGE: Giữ logic map chi tiết để đảm bảo các trường con (assessmentMatrix, clos...) không bị thiếu
   return {
     ...d,
     id: d.id,
@@ -76,7 +76,7 @@ export async function toggleTrackSyllabus(id: string): Promise<{ tracked: boolea
   return res.data?.data || res.data;
 }
 
-/** Báo cáo lỗi */
+/** Báo cáo lỗi: Sử dụng Interface vừa định nghĩa bên trên (Theo Main) */
 export async function reportIssue(payload: ReportIssuePayload) {
   const res = await axiosClient.post('/student/issues/report', payload);
   return res.data?.data || res.data;
@@ -84,10 +84,10 @@ export async function reportIssue(payload: ReportIssuePayload) {
 
 export async function downloadPdfMock(id: string): Promise<void> {
   try {
-    // MERGE: Kết hợp endpoint của Team và logic xử lý Blob download của Bạn
+    // MERGE: Endpoint của Main, nhưng giữ logic xử lý file của Bạn để trình duyệt tải xuống được
     const resp = await axiosClient.get(`/student/syllabi/${id}/export-pdf`, { responseType: 'blob' });
     
-    // Logic kích hoạt tải xuống trình duyệt (Code của bạn)
+    // Logic kích hoạt tải xuống trình duyệt
     const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

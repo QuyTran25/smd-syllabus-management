@@ -31,10 +31,9 @@ public class SyllabusRequest {
     private Map<String, Object> content;
 
     // =========================================================================
-    // PHẦN MERGE: CHỌN CODE CỦA TEAM (origin/main) VÌ ĐẦY ĐỦ HƠN
+    // FIX CONFLICT: Sử dụng các trường từ nhánh Main (origin/main) 
+    // để đảm bảo đầy đủ dữ liệu (Description, Objectives, StudentTasks)
     // =========================================================================
-    // Team đã bổ sung thêm description và objectives, đồng thời cũng có cả 
-    // trường studentTasks mà bạn cần.
     
     private String description;
     private String objectives;

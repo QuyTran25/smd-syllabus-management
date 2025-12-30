@@ -1,5 +1,5 @@
 /*
- * V17__seed_admin_data.sql
+ * V22__seed_admin_data.sql
  * Mục tiêu: Seed dữ liệu cho các trang Admin
  * - Tạo bảng semesters nếu chưa tồn tại
  * - Audit logs (lịch sử hoạt động hệ thống)
@@ -90,103 +90,103 @@ BEGIN
     -- 2. Admin cấu hình học kỳ
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Semester', NULL, 'CREATE', v_admin_id, 'Tạo học kỳ mới: HK1 2025-2026', 'SUCCESS', '192.168.1.100', NOW() - INTERVAL '7 days' + INTERVAL '10 minutes');
-    
+
     -- 3. AA tạo môn học
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Subject', NULL, 'CREATE', v_aa1_id, 'Tạo môn học mới: Nhập môn Lập trình (CS101)', 'SUCCESS', '192.168.1.110', NOW() - INTERVAL '6 days');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Subject', NULL, 'CREATE', v_aa1_id, 'Tạo môn học mới: Cấu trúc Dữ liệu (CS201)', 'SUCCESS', '192.168.1.110', NOW() - INTERVAL '6 days' + INTERVAL '5 minutes');
-    
+
     -- 4. AA tạo PLO
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('PLO', NULL, 'CREATE', v_aa2_id, 'Tạo PLO1: Kiến thức nền tảng CNTT', 'SUCCESS', '192.168.1.111', NOW() - INTERVAL '6 days' + INTERVAL '30 minutes');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('PLO', NULL, 'UPDATE', v_aa2_id, 'Cập nhật mô tả PLO5: Năng lực tự học và nghiên cứu', 'SUCCESS', '192.168.1.111', NOW() - INTERVAL '5 days');
-    
+
     -- 5. HoD phân công giảng viên
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('TeachingAssignment', NULL, 'CREATE', v_hod_ktpm_id, 'Phân công GV Nguyễn Văn A soạn đề cương CS101', 'SUCCESS', '192.168.1.105', NOW() - INTERVAL '5 days' + INTERVAL '2 hours');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('TeachingAssignment', NULL, 'CREATE', v_hod_ktpm_id, 'Phân công GV Trần Thị B soạn đề cương CS201', 'SUCCESS', '192.168.1.105', NOW() - INTERVAL '5 days' + INTERVAL '2 hours' + INTERVAL '15 minutes');
-    
+
     -- 6. Lecturer tạo đề cương
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'CREATE', v_lecturer1_id, 'Tạo đề cương mới: Nhập môn Lập trình v1.0', 'SUCCESS', '192.168.1.115', NOW() - INTERVAL '4 days');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('CLO', NULL, 'CREATE', v_lecturer1_id, 'Thêm 5 CLO cho đề cương CS101', 'SUCCESS', '192.168.1.115', NOW() - INTERVAL '4 days' + INTERVAL '30 minutes');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'UPDATE', v_lecturer1_id, 'Cập nhật nội dung đề cương CS101', 'SUCCESS', '192.168.1.115', NOW() - INTERVAL '4 days' + INTERVAL '1 hour');
-    
+
     -- 7. Lecturer submit đề cương
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'SUBMIT', v_lecturer1_id, 'Nộp đề cương CS101 để phê duyệt', 'SUCCESS', '192.168.1.115', NOW() - INTERVAL '3 days' - INTERVAL '12 hours');
-    
+
     -- 8. HoD duyệt
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'APPROVE', v_hod_ktpm_id, 'Trưởng BM duyệt đề cương CS101 - Nhập môn Lập trình', 'SUCCESS', '192.168.1.105', NOW() - INTERVAL '3 days');
-    
+
     -- 9. AA duyệt
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'APPROVE', v_aa1_id, 'Phòng Đào tạo duyệt đề cương CS101', 'SUCCESS', '192.168.1.110', NOW() - INTERVAL '2 days' - INTERVAL '6 hours');
-    
+
     -- 10. Principal duyệt
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'APPROVE', v_principal_id, 'Hiệu trưởng phê duyệt đề cương CS101', 'SUCCESS', '192.168.1.120', NOW() - INTERVAL '2 days');
-    
+
     -- 11. Admin xuất bản
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id, 'PUBLISH', v_admin_id, 'Xuất bản đề cương CS101 - Nhập môn Lập trình', 'SUCCESS', '192.168.1.100', NOW() - INTERVAL '1 day' - INTERVAL '12 hours');
-    
+
     -- 12. Thêm một số hoạt động khác
     -- HoD từ chối một đề cương
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id3, 'REJECT', v_hod_khmt_id, 'Từ chối đề cương CS301 - Thiếu CLO ánh xạ PLO', 'SUCCESS', '192.168.1.106', NOW() - INTERVAL '1 day');
-    
+
     -- Lecturer login
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('System', NULL, 'LOGIN', v_lecturer2_id, 'Giảng viên đăng nhập hệ thống', 'SUCCESS', '192.168.1.125', NOW() - INTERVAL '18 hours');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('System', NULL, 'LOGIN', v_lecturer3_id, 'Giảng viên đăng nhập hệ thống', 'SUCCESS', '192.168.1.126', NOW() - INTERVAL '16 hours');
-    
+
     -- Principal login
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('System', NULL, 'LOGIN', v_principal_id, 'Hiệu trưởng đăng nhập hệ thống', 'SUCCESS', '192.168.1.120', NOW() - INTERVAL '12 hours');
-    
+
     -- Batch approval by Principal
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', NULL, 'APPROVE', v_principal_id, 'Phê duyệt hàng loạt 5 đề cương', 'SUCCESS', '192.168.1.120', NOW() - INTERVAL '10 hours');
-    
+
     -- Admin cập nhật cấu hình
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('SystemConfig', NULL, 'UPDATE', v_admin_id, 'Cập nhật thời gian phê duyệt tối đa: HoD=3 ngày, AA=5 ngày', 'SUCCESS', '192.168.1.100', NOW() - INTERVAL '8 hours');
-    
+
     -- Export log
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', NULL, 'EXPORT', v_aa1_id, 'Xuất danh sách đề cương ra Excel', 'SUCCESS', '192.168.1.110', NOW() - INTERVAL '6 hours');
-    
+
     -- Thêm các hoạt động gần đây
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('System', NULL, 'LOGIN', v_admin_id, 'Admin đăng nhập hệ thống', 'SUCCESS', '192.168.1.100', NOW() - INTERVAL '4 hours');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('User', NULL, 'CREATE', v_admin_id, 'Tạo tài khoản mới cho giảng viên Lê Văn D', 'SUCCESS', '192.168.1.100', NOW() - INTERVAL '3 hours');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id2, 'SUBMIT', v_lecturer2_id, 'Nộp đề cương CS201 để phê duyệt', 'SUCCESS', '192.168.1.125', NOW() - INTERVAL '2 hours');
-    
+
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('Syllabus', v_syllabus_id2, 'APPROVE', v_hod_ktpm_id, 'Trưởng BM duyệt đề cương CS201', 'SUCCESS', '192.168.1.105', NOW() - INTERVAL '1 hour');
-    
+
     -- Failed login attempt
     INSERT INTO audit_logs (entity_name, entity_id, action, actor_id, description, status, ip_address, created_at)
     VALUES ('System', NULL, 'LOGIN', NULL, 'Đăng nhập thất bại - Sai mật khẩu (user: unknown@smd.edu.vn)', 'FAILED', '192.168.1.200', NOW() - INTERVAL '30 minutes');
-    
+
     RAISE NOTICE 'Inserted audit logs successfully';
 END $$;
 
@@ -399,99 +399,22 @@ DECLARE
     published_count INT;
 BEGIN
     SELECT id INTO v_admin_id FROM users WHERE email = 'admin@smd.edu.vn' LIMIT 1;
-    
     SELECT COUNT(*) INTO published_count FROM syllabus_versions WHERE status = 'PUBLISHED';
-    
-    -- Nếu chưa đủ 3 đề cương PUBLISHED, chuyển từ APPROVED
+
     IF published_count < 3 THEN
         UPDATE syllabus_versions 
         SET 
             status = 'PUBLISHED',
-            published_at = NOW() - INTERVAL '12 hours',
-            effective_date = CURRENT_DATE,
+            published_at = NOW() - INTERVAL '1 day',
+            published_by = v_admin_id,
             updated_at = NOW()
         WHERE id IN (
             SELECT id FROM syllabus_versions 
             WHERE status = 'APPROVED' 
-            ORDER BY principal_approved_at NULLS LAST
+            ORDER BY created_at 
             LIMIT (3 - published_count)
         );
-        
-        RAISE NOTICE 'Updated % syllabi to PUBLISHED status', (3 - published_count);
     END IF;
 END $$;
 
--- ==========================================
--- 4. SEED SEMESTERS (Học kỳ)
--- ==========================================
-
-DO $$
-DECLARE
-    v_admin_id UUID;
-    semester_count INT;
-BEGIN
-    SELECT id INTO v_admin_id FROM users WHERE email = 'admin@smd.edu.vn' LIMIT 1;
-    SELECT COUNT(*) INTO semester_count FROM semesters;
-    
-    -- Chỉ insert nếu chưa có semester nào
-    IF semester_count = 0 THEN
-        -- Học kỳ 1 năm 2023-2024 (đã kết thúc)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HK1-2023', 'Học kỳ 1 năm 2023-2024', 1, '2023-2024', '2023-09-01', '2024-01-15', FALSE, v_admin_id);
-        
-        -- Học kỳ 2 năm 2023-2024 (đã kết thúc)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HK2-2023', 'Học kỳ 2 năm 2023-2024', 2, '2023-2024', '2024-02-01', '2024-06-15', FALSE, v_admin_id);
-        
-        -- Học kỳ hè 2023-2024 (đã kết thúc)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HKH-2023', 'Học kỳ hè năm 2023-2024', 3, '2023-2024', '2024-06-20', '2024-08-15', FALSE, v_admin_id);
-        
-        -- Học kỳ 1 năm 2024-2025 (đang diễn ra - ACTIVE)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HK1-2024', 'Học kỳ 1 năm 2024-2025', 1, '2024-2025', '2024-09-01', '2025-01-15', TRUE, v_admin_id);
-        
-        -- Học kỳ 2 năm 2024-2025 (sắp tới)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HK2-2024', 'Học kỳ 2 năm 2024-2025', 2, '2024-2025', '2025-02-01', '2025-06-15', FALSE, v_admin_id);
-        
-        -- Học kỳ hè 2024-2025 (sắp tới)
-        INSERT INTO semesters (code, name, semester_number, academic_year, start_date, end_date, is_active, created_by)
-        VALUES ('HKH-2024', 'Học kỳ hè năm 2024-2025', 3, '2024-2025', '2025-06-20', '2025-08-15', FALSE, v_admin_id);
-        
-        RAISE NOTICE 'Seeded 6 semesters successfully';
-    ELSE
-        RAISE NOTICE 'Semesters already exist, skipping seed';
-    END IF;
-END $$;
-
--- ==========================================
--- 5. LOG SUMMARY
--- ==========================================
-
-DO $$
-DECLARE
-    audit_count INT;
-    feedback_count INT;
-    approved_count INT;
-    published_count INT;
-    semester_count INT;
-BEGIN
-    SELECT COUNT(*) INTO audit_count FROM audit_logs;
-    SELECT COUNT(*) INTO feedback_count FROM syllabus_error_reports;
-    SELECT COUNT(*) INTO approved_count FROM syllabus_versions WHERE status = 'APPROVED';
-    SELECT COUNT(*) INTO published_count FROM syllabus_versions WHERE status = 'PUBLISHED';
-    SELECT COUNT(*) INTO semester_count FROM semesters;
-    
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'V17 Admin Data Seed completed!';
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'Audit logs: %', audit_count;
-    RAISE NOTICE 'Student feedbacks: %', feedback_count;
-    RAISE NOTICE 'Semesters: %', semester_count;
-    RAISE NOTICE 'APPROVED syllabi: %', approved_count;
-    RAISE NOTICE 'PUBLISHED syllabi: %', published_count;
-    RAISE NOTICE '================================';
-END $$;
-
-COMMIT;
+-- End of V22 migration

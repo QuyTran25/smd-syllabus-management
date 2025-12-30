@@ -41,12 +41,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.id = :id")
     Optional<User> findByIdWithRoles(@Param("id") UUID id);
 
-    // =========================================================================
-    // PHẦN MERGE: LẤY CODE CỦA TEAM (origin/main)
-    // =========================================================================
-    // Method này giúp lấy danh sách User có phân trang và tự động join các bảng
-    // Role, Faculty, Department để tránh lỗi N+1 query. Rất cần thiết.
-    
+    // ƯU TIÊN MAIN: Sử dụng EntityGraph gọn gàng thay vì comment dài dòng
     @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
     @Query("SELECT u FROM User u")
     Page<User> findAllWithRoles(Pageable pageable);

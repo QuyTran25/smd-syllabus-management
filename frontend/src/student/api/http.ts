@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export const http = axios.create({
   // ⭐ SỬA LẠI: Trỏ về Gateway (8080) thay vì Core (8081)
-  baseURL: 'http://localhost:8888/api',
+  baseURL: 'http://localhost:8080/api',
   headers: {
     'Content-Type': 'application/json',
   },

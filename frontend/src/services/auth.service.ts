@@ -1,8 +1,8 @@
 import { LoginCredentials, AuthResponse, User, UserRole } from '@/types';
-import axiosClient from '@/api/axiosClient';
+import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình interceptor
 import { STORAGE_KEYS } from '@/constants';
 
-// MERGE: Helper map Role từ Team (Hỗ trợ cả "Administrator" và "ADMIN")
+// Helper map Role từ Team (Hỗ trợ cả "Administrator" và "ADMIN")
 const mapRoleToCode = (roleName: string): UserRole => {
   const roleMap: Record<string, UserRole> = {
     'Administrator': UserRole.ADMIN,
@@ -22,7 +22,7 @@ const mapRoleToCode = (roleName: string): UserRole => {
   return roleMap[roleName] || UserRole.LECTURER;
 };
 
-// MERGE: Helper map User từ Bạn (Sử dụng mapRoleToCode của Team)
+// Helper map User từ Team (đã được chuẩn hóa)
 const mapUserResponse = (userInfo: any): User => {
   const rawRole = userInfo?.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'LECTURER';
   return {
@@ -36,19 +36,19 @@ const mapUserResponse = (userInfo: any): User => {
   };
 };
 
-// Real authentication service using backend API
+// Real authentication service
 export const authService = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    // MERGE: Dùng path '/api/auth' của Team để khớp Gateway, nhưng dùng axiosClient của Bạn
+    // Gọi API login (Prefix /auth khớp với Gateway StripPrefix)
     const response = await axiosClient.post('/auth/login', credentials);
     
-    // Normalize payload (xử lý trường hợp data lồng nhau)
+    // Normalize payload
     const payload = response.data?.data ? response.data.data : response.data;
     const token = payload?.accessToken ?? payload?.access_token ?? null;
     const refreshToken = payload?.refreshToken ?? payload?.refresh_token ?? null;
 
-    // Persist tokens (Logic của bạn - Giữ lại để đảm bảo login state)
+    // Persist tokens
     if (token) localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
     if (refreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
 
@@ -80,8 +80,8 @@ export const authService = {
 
   // Verify token and get current user
   getCurrentUser: async (token: string): Promise<User> => {
-    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-    const response = await axiosClient.get('/auth/me', { headers });
+    // AxiosClient đã tự động gắn token qua interceptor nếu có trong localStorage
+    const response = await axiosClient.get('/auth/me');
     const userInfo = response.data?.data || response.data;
     return mapUserResponse(userInfo);
   },

@@ -28,7 +28,7 @@ public class SyllabusService {
     private final SyllabusVersionRepository syllabusVersionRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
-    private final AcademicTermRepository academicTermRepository; // Team added this
+    private final AcademicTermRepository academicTermRepository;
     @SuppressWarnings("unused")
     private final CLORepository cloRepository;
     @SuppressWarnings("unused")
@@ -49,6 +49,7 @@ public class SyllabusService {
         }
 
         if (statusStrings != null && !statusStrings.isEmpty()) {
+            // FIX CONFLICT: Sử dụng logic toUpperCase của Main để khớp với PostgreSQL Enum
             List<String> statuses = statusStrings.stream()
                     .map(String::toUpperCase)
                     .toList();
@@ -106,7 +107,7 @@ public class SyllabusService {
                 .keywords(request.getKeywords())
                 .content(request.getContent())
                 .description(request.getDescription())
-                // MERGE: Tích hợp trường studentTasks của bạn vào Builder của Team
+                // MERGE: Giữ lại studentTasks từ HEAD
                 .studentTasks(request.getStudentTasks()) 
                 .snapSubjectCode(subject.getCode())
                 .snapSubjectNameVi(subject.getCurrentNameVi())
@@ -139,7 +140,7 @@ public class SyllabusService {
         syllabus.setKeywords(request.getKeywords());
         syllabus.setContent(request.getContent());
         syllabus.setDescription(request.getDescription());
-        // MERGE: Đảm bảo cập nhật cả studentTasks
+        // MERGE: Giữ lại studentTasks từ HEAD
         syllabus.setStudentTasks(request.getStudentTasks());
         syllabus.setUpdatedBy(getCurrentUser());
 
@@ -165,7 +166,7 @@ public class SyllabusService {
             throw new BadRequestException("Only DRAFT syllabus can be submitted");
         }
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
-        syllabus.setSubmittedAt(java.time.LocalDateTime.now()); // Merge: Thêm thời gian submit
+        syllabus.setSubmittedAt(java.time.LocalDateTime.now());
         syllabus.setUpdatedBy(getCurrentUser());
         return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
@@ -203,7 +204,7 @@ public class SyllabusService {
         SyllabusVersion current = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
         List<SyllabusVersion> versions = new ArrayList<>();
-        // Logic team: traverse linked list of versions
+        // FIX CONFLICT: Sử dụng vòng lặp từ Main để traverse logic
         while (current != null) {
             versions.add(current);
             current = current.getPreviousVersion();
@@ -241,17 +242,18 @@ public class SyllabusService {
                 .versionNo(generateNextVersionNo(original.getVersionNo()))
                 .status(SyllabusStatus.DRAFT)
                 .content(original.getContent())
-                .studentTasks(original.getStudentTasks()) // Merge: Clone cả studentTasks
+                // MERGE: Giữ lại studentTasks khi Clone
+                .studentTasks(original.getStudentTasks())
                 .createdBy(getCurrentUser())
                 .isDeleted(false)
                 .build();
         return mapToResponse(syllabusVersionRepository.save(cloned));
     }
     
-    // --- MERGE: KHÔI PHỤC HÀM STATISTICS CỦA BẠN (DASHBOARD CẦN) ---
+    // --- MERGE: GIỮ LẠI HÀM STATISTICS CỦA BẠN (DASHBOARD CẦN) ---
     @Transactional(readOnly = true)
     public Map<String, Integer> getStatistics() {
-        // Lưu ý: Cần đảm bảo Repository có method findAllActive hoặc dùng logic tương đương
+        // Lưu ý: Đảm bảo Repository có method findAllActive hoặc logic tương đương
         List<SyllabusVersion> all = syllabusVersionRepository.findAllActive(); 
         Map<String, Integer> stats = new LinkedHashMap<>();
         // Initialize all statuses to 0
@@ -277,33 +279,29 @@ public class SyllabusService {
 
     @Transactional(readOnly = true)
     public byte[] exportSyllabusToPdf(UUID id) {
-        // Placeholder implementation: return empty PDF bytes for now.
-        // Implement real PDF export (e.g., using iText or Apache PDFBox) when needed.
+        // Placeholder from Main
         return new byte[0];
     }
 
-    // --- HELPERS (SỬ DỤNG LOGIC CHI TIẾT TỪ TEAM) ---
+    // --- HELPERS (MERGE: KẾT HỢP LOGIC CHI TIẾT CỦA MAIN VÀ FIELD CỦA HEAD) ---
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
         response.setVersionNo(syllabus.getVersionNo());
         response.setStatus(syllabus.getStatus().name());
-        response.setStudentTasks(syllabus.getStudentTasks()); // Merge: Đảm bảo field này có
+        response.setStudentTasks(syllabus.getStudentTasks()); // HEAD: Đảm bảo field này có
         
         response.setReviewDeadline(syllabus.getReviewDeadline());
         response.setEffectiveDate(syllabus.getEffectiveDate());
         response.setKeywords(syllabus.getKeywords());
         response.setContent(syllabus.getContent());
 
-        if (syllabus.getSubject() != null) {
-            response.setSubjectId(syllabus.getSubject().getId());
-            response.setSubjectCode(syllabus.getSnapSubjectCode());
-            response.setSubjectNameVi(syllabus.getSnapSubjectNameVi());
-        }
-
-        // Logic mapping Subject detail của Team (Rất dài và quan trọng)
+        // MERGE: Dùng logic mapping chi tiết của Main cho Subject
         Subject subject = syllabus.getSubject();
         if (subject != null) {
+            response.setSubjectId(subject.getId());
+            response.setSubjectCode(subject.getCode()); // Fallback or direct map
+            
             if (subject.getSubjectType() != null) {
                 response.setCourseType(subject.getSubjectType().name().toLowerCase());
             }
@@ -364,10 +362,87 @@ public class SyllabusService {
         response.setCreatedAt(syllabus.getCreatedAt());
         response.setUpdatedAt(syllabus.getUpdatedAt());
 
-        // Mapping CLO, Assessment, PLO (Logic của Team)
-        // Lưu ý: Cần đảm bảo các Repository cloRepository, assessmentSchemeRepository... đã được Inject ở trên
-        // Tôi đã giữ lại các đoạn code mapping dài này trong phần Imports/Fields
+        // MERGE: Dùng logic mapping chi tiết của Main cho CLO, PLO, Assessment
+        // Load CLOs
+        List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabus.getId());
+        Map<UUID, String> cloCodeMap = new HashMap<>();
+        response.setClos(clos.stream().map(clo -> {
+            cloCodeMap.put(clo.getId(), clo.getCode());
+            SyllabusResponse.CLOResponse cloResponse = new SyllabusResponse.CLOResponse();
+            cloResponse.setId(clo.getId());
+            cloResponse.setCode(clo.getCode());
+            cloResponse.setDescription(clo.getDescription());
+            cloResponse.setBloomLevel(clo.getBloomLevel());
+            cloResponse.setWeight(clo.getWeight());
+            return cloResponse;
+        }).collect(Collectors.toList()));
+
+        // Load CLO-PLO Mappings
+        List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
+        for (CLO clo : clos) {
+            List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
+            for (CloPlOMapping mapping : mappings) {
+                SyllabusResponse.CLOPLOMappingResponse mapResponse = new SyllabusResponse.CLOPLOMappingResponse();
+                mapResponse.setCloCode(clo.getCode());
+                mapResponse.setPloCode(mapping.getPlo().getCode());
+                mapResponse.setContributionLevel(mapping.getMappingLevel());
+                ploMappings.add(mapResponse);
+            }
+        }
+        response.setPloMappings(ploMappings);
+
+        // Load Assessment Schemes
+        List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabus.getId());
+        response.setAssessmentMethods(assessments.stream().map(as -> {
+            SyllabusResponse.AssessmentResponse asResponse = new SyllabusResponse.AssessmentResponse();
+            asResponse.setId(as.getId());
+            asResponse.setName(as.getName());
+            asResponse.setWeight(as.getWeightPercent());
+            
+            String name = as.getName().toLowerCase();
+            if (name.contains("chuyên cần") || name.contains("điểm danh")) {
+                asResponse.setMethod("Đánh giá quá trình");
+                asResponse.setForm("Điểm danh + tham gia lớp học");
+                asResponse.setCriteria("Có mặt đầy đủ, tích cực tham gia thảo luận");
+            } else if (name.contains("bài tập") || name.contains("thực hành")) {
+                asResponse.setMethod("Đánh giá thường xuyên");
+                asResponse.setForm("Bài tập + Báo cáo thực hành");
+                asResponse.setCriteria("Hoàn thành bài tập đúng hạn, chất lượng tốt");
+            } else if (name.contains("giữa kỳ")) {
+                asResponse.setMethod("Kiểm tra giữa kỳ");
+                asResponse.setForm("Thi viết (60 phút)");
+                asResponse.setCriteria("Trả lời đúng các câu hỏi lý thuyết và bài tập");
+            } else if (name.contains("cuối kỳ") || name.contains("thi")) {
+                asResponse.setMethod("Thi cuối kỳ");
+                asResponse.setForm("Thi viết (90 phút)");
+                asResponse.setCriteria("Đánh giá toàn diện kiến thức và kỹ năng");
+            } else {
+                asResponse.setMethod(as.getName());
+                asResponse.setForm("Theo quy định");
+                asResponse.setCriteria("Theo rubric đánh giá");
+            }
+            
+            List<AssessmentCloMapping> acMappings = assessmentCloMappingRepository.findByAssessmentSchemeId(as.getId());
+            List<String> cloCodes = acMappings.stream()
+                .map(acm -> cloCodeMap.getOrDefault(acm.getClo().getId(), ""))
+                .filter(code -> !code.isEmpty())
+                .collect(Collectors.toList());
+            asResponse.setClos(cloCodes);
+            
+            return asResponse;
+        }).collect(Collectors.toList()));
+
+        if (syllabus.getContent() != null && syllabus.getContent().containsKey("objectives")) {
+            Object objectives = syllabus.getContent().get("objectives");
+            if (objectives instanceof List) {
+                response.setObjectives((List<String>) objectives);
+            }
+        }
         
+        if (response.getDescription() == null && syllabus.getContent() != null && syllabus.getContent().containsKey("description")) {
+            response.setDescription((String) syllabus.getContent().get("description"));
+        }
+
         return response;
     }
 

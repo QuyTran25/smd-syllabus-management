@@ -1,7 +1,7 @@
-import axiosClient from '@/api/axiosClient';
+import axiosClient from '@/api/axiosClient'; // Ưu tiên axiosClient đã cấu hình chuẩn
 import { Semester, SemesterFilters } from '@/types';
 
-// MERGE: Giữ các interface Response chi tiết của Team
+// API Response types (Giữ lại của Main)
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -57,7 +57,7 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 
 export const semesterService = {
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    // MERGE: Dùng axiosClient nhưng giữ endpoint /api/ của Team
+    // Dùng axiosClient và bỏ prefix /api để khớp với Gateway StripPrefix
     const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/semesters', {
       params: {
         page: 0,
@@ -66,8 +66,11 @@ export const semesterService = {
       },
     });
 
-    // Xử lý payload trả về an toàn
-    const rawContent = response.data?.data?.content || [];
+    // Xử lý payload an toàn (Logic của Bạn nhưng cần thiết)
+    const rawContent = response.data?.data?.content || 
+                       (response.data as any)?.content || 
+                       [];
+                       
     let semesters = rawContent.map(mapToSemester);
 
     // Apply client-side filtering (Logic của Team)
@@ -101,12 +104,10 @@ export const semesterService = {
 
   getActiveSemester: async (): Promise<Semester | null> => {
     try {
-      // Endpoint /current chuẩn RESTful của Team
       const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/semesters/current');
       const data = response.data?.data || response.data;
       return mapToSemester(data as unknown as SemesterApiResponse);
     } catch {
-      // If no current semester is set, return null
       return null;
     }
   },
@@ -128,7 +129,7 @@ export const semesterService = {
   },
 
   updateSemester: async (id: string, data: Partial<Semester>): Promise<Semester> => {
-    // First get the existing semester to merge with updates (Logic an toàn của Team)
+    // First get the existing semester to merge with updates
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {
@@ -151,7 +152,6 @@ export const semesterService = {
   },
 
   setActiveSemester: async (id: string): Promise<Semester> => {
-    // Logic của Team: Update field isActive=true cho semester được chọn
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {

@@ -1,5 +1,5 @@
 /*
- * V16__seed_plos_and_approved_syllabi.sql
+ * V21__seed_plos_and_approved_syllabi.sql
  * Bổ sung dữ liệu:
  * - PLOs (Program Learning Outcomes) cho chương trình đào tạo
  * - CLO-PLO Mappings 
@@ -10,7 +10,7 @@ BEGIN;
 
 SET search_path TO core_service;
 
-DO $$BEGIN RAISE NOTICE 'Starting V16 Migration: Seeding PLOs and APPROVED syllabi...'; END$$;
+DO $$BEGIN RAISE NOTICE 'Starting V21 Migration: Seeding PLOs and APPROVED syllabi...'; END$$;
 
 -- ==========================================
 -- 1. INSERT PROGRAM LEARNING OUTCOMES (PLOs)
@@ -150,7 +150,7 @@ BEGIN
     SELECT COUNT(*) INTO pending_count FROM syllabus_versions WHERE status = 'PENDING_PRINCIPAL';
     
     RAISE NOTICE '================================';
-    RAISE NOTICE 'V16 Migration completed!';
+    RAISE NOTICE 'V21 Migration completed!';
     RAISE NOTICE '================================';
     RAISE NOTICE 'PLOs created: %', plo_count;
     RAISE NOTICE 'CLO-PLO mappings created: %', mapping_count;

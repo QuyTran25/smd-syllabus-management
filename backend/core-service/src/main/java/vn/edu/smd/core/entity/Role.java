@@ -26,10 +26,10 @@ public class Role {
     private String description;
 
     @Column(name = "is_system")
-    @Builder.Default // Good practice with Builder and default values, though not strictly in conflict
+    @Builder.Default // Giữ lại để đảm bảo Builder nhận giá trị mặc định là false (Logic của Main được bảo toàn)
     private Boolean isSystem = false;
 
-    // Keep HEAD changes (User's work)
+    // --- Giữ lại phần chức năng bạn đang làm (Auditing) ---
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

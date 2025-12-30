@@ -70,10 +70,10 @@ if ($coreRunning) {
 Write-Host ""
 
 # Step 4: Start Gateway
-Write-Host "[4/5] Starting Gateway on port 8888..." -ForegroundColor Yellow
-$gatewayRunning = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
+Write-Host "[4/5] Starting Gateway on port 8080..." -ForegroundColor Yellow
+$gatewayRunning = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
 if ($gatewayRunning) {
-    Write-Host "  ✓ Gateway already running on port 8888" -ForegroundColor Green
+    Write-Host "  ✓ Gateway already running on port 8080" -ForegroundColor Green
 } else {
     Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\gateway && java -jar target\gateway-1.0.0.jar" -WindowStyle Normal
     Write-Host "  Waiting for Gateway to start (up to 30 seconds)..." -ForegroundColor Yellow
@@ -83,13 +83,13 @@ if ($gatewayRunning) {
     while (-not $gatewayRunning -and $retryCount -lt $maxRetries) {
         Start-Sleep -Seconds 5
         $retryCount++
-        $gatewayRunning = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
+        $gatewayRunning = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
         if (-not $gatewayRunning) {
             Write-Host "    Waiting... ($($retryCount * 5)s)" -ForegroundColor Gray
         }
     }
     if ($gatewayRunning) {
-        Write-Host "  ✓ Gateway is running on port 8888" -ForegroundColor Green
+        Write-Host "  ✓ Gateway is running on port 8080" -ForegroundColor Green
     } else {
         Write-Host "  ✗ Gateway failed to start after 30 seconds" -ForegroundColor Red
     }
@@ -131,7 +131,7 @@ Write-Host "    RabbitMQ:    http://localhost:15672" -ForegroundColor White
 Write-Host ""
 Write-Host "  Application:" -ForegroundColor White
 Write-Host "    Core Service:     http://localhost:8081" -ForegroundColor White
-Write-Host "    Gateway:          http://localhost:8888" -ForegroundColor White
+Write-Host "    Gateway:          http://localhost:8080" -ForegroundColor White
 Write-Host "    Admin Frontend:   http://localhost:3000" -ForegroundColor Green
 Write-Host "    Student Frontend: http://localhost:3001" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan

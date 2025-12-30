@@ -146,4 +146,11 @@ public class User {
             });
         }
     }
+    public String getPasswordHash() {
+        return this.password;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.password = passwordHash;
+    }
 }

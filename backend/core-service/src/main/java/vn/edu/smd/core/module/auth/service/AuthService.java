@@ -14,8 +14,8 @@ import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.auth.dto.*;
-import vn.edu.smd.core.repository.UserRepository;
 import vn.edu.smd.core.repository.RoleRepository;
+import vn.edu.smd.core.repository.UserRepository;
 import vn.edu.smd.core.security.JwtTokenProvider;
 import vn.edu.smd.core.security.UserPrincipal;
 import vn.edu.smd.shared.enums.AuthProvider;
@@ -37,12 +37,13 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // MERGE: Lấy logic trim() từ Team để tránh lỗi khoảng trắng
+        // MERGE: Logic trim() từ cả 2 nhánh để tránh lỗi khoảng trắng
         String email = request.getEmail().trim();
         String password = request.getPassword().trim();
 
         Authentication authentication;
         try {
+            // Sử dụng AuthenticationManager chuẩn thay vì check tay như nhánh Main
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password)
             );
@@ -51,13 +52,14 @@ public class AuthService {
             throw ex;
         }
 
-        // MERGE: Bổ sung từ code Team - Đặt authentication vào context
+        // Đặt authentication vào context
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        // MERGE: Giữ lại logic của BẠN (HEAD) để lấy thông tin User trả về cho Dashboard
+        // MERGE: Giữ lại logic của BẠN để lấy thông tin User trả về cho Dashboard
+        // (Nhánh Main chỉ trả về token, nhưng Dashboard cần UserInfo)
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
@@ -75,7 +77,10 @@ public class AuthService {
 
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        
+        // FIX CONFLICT: Đổi setPassword -> setPasswordHash theo nhánh Main
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        
         user.setFullName(request.getFullName());
         user.setPhoneNumber(request.getPhoneNumber());
         user.setAuthProvider(AuthProvider.LOCAL);
@@ -170,7 +175,8 @@ public class AuthService {
 
         // TODO: Thêm logic kiểm tra tính hợp lệ của token tại đây nếu cần
         
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        // FIX CONFLICT: Đổi setPassword -> setPasswordHash theo nhánh Main
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         
         log.info("Password reset successfully for user: {}", user.getEmail());

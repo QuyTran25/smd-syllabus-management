@@ -8,7 +8,7 @@ services:
     image: pgvector/pgvector:pg15
     container_name: smd-postgres
     environment:
-      # MERGE: Chọn cấu hình của Team (origin/main) để khớp user/pass
+      # ⭐ FIX CỨNG: Để khớp với application.properties của Core Service
       POSTGRES_DB: smd_database
       POSTGRES_USER: smd_user
       POSTGRES_PASSWORD: smd_password
@@ -22,7 +22,7 @@ services:
     networks:
       - smd-network
     healthcheck:
-      # User healthcheck fix cứng theo user smd_user
+      # ⭐ FIX CỨNG: User healthcheck
       test: ["CMD-SHELL", "pg_isready -U smd_user"]
       interval: 10s
       timeout: 5s
@@ -131,11 +131,11 @@ services:
     container_name: smd-gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SERVER_PORT=8888 # ⭐ Ép chạy port 8888
+      - SERVER_PORT=8080 # ⭐ Ép chạy port 8080 for Gateway
       - CORE_SERVICE_URL=http://core-service:8081
       - AI_SERVICE_URL=http://ai-service:8082
     ports:
-      - "8888:8888" # ⭐ Map ra ngoài port 8888 cho Frontend gọi
+      - "8080:8080" # ⭐ Map ra ngoài port 8080 cho Frontend gọi
     depends_on:
       - core-service
     networks:
@@ -152,7 +152,7 @@ services:
     container_name: smd-core-service
     environment:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
-      # ⭐ FIX CỨNG: Cập nhật connection string để khớp với Postgres
+      # ⭐ FIX CỨNG: Cập nhật connection string để khớp với Postgres container
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/smd_database
       - SPRING_DATASOURCE_USERNAME=smd_user
       - SPRING_DATASOURCE_PASSWORD=smd_password
@@ -224,8 +224,8 @@ services:
       dockerfile: ../infrastructure/docker/frontend/Dockerfile
     container_name: smd-frontend
     environment:
-      # MERGE: Sửa default port thành 8888 để khớp với Gateway
-      - VITE_API_GATEWAY_URL=http://localhost:${GATEWAY_PORT:-8888}
+      # MERGE: Sửa default port thành 8080 để khớp với Gateway
+      - VITE_API_GATEWAY_URL=http://localhost:${GATEWAY_PORT:-8080}
       - VITE_FIREBASE_API_KEY=${FIREBASE_API_KEY}
       - VITE_FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
     ports:

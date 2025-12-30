@@ -1,4 +1,4 @@
--- V21: Fix Vietnamese encoding for all tables (moved to avoid version collisions)
+-- V14: Fix Vietnamese encoding for all tables
 
 SET client_encoding = 'UTF8';
 
@@ -197,3 +197,94 @@ BEGIN
         );
     END LOOP;
 END $$;
+
+-- ============================================
+-- 3. Recreate CLO-PLO mappings
+-- ============================================
+DO $$
+DECLARE
+    clo RECORD;
+    plo RECORD;
+    mapping_level TEXT;
+BEGIN
+    FOR clo IN SELECT id, code FROM core_service.clos LOOP
+        FOR plo IN SELECT id, code FROM core_service.plos ORDER BY RANDOM() LIMIT 3 LOOP
+            -- Determine mapping level based on CLO code
+            IF clo.code IN ('CLO1', 'CLO2') THEN
+                mapping_level := 'I'; -- Introduce
+            ELSIF clo.code IN ('CLO3', 'CLO4') THEN
+                mapping_level := 'R'; -- Reinforce
+            ELSE
+                mapping_level := 'M'; -- Master
+            END IF;
+            
+            INSERT INTO core_service.clo_plo_mappings (id, clo_id, plo_id, mapping_level, created_at, updated_at)
+            VALUES (gen_random_uuid(), clo.id, plo.id, mapping_level, NOW(), NOW())
+            ON CONFLICT DO NOTHING;
+        END LOOP;
+    END LOOP;
+END $$;
+
+-- ============================================
+-- 4. Recreate Assessment-CLO mappings
+-- ============================================
+DO $$
+DECLARE
+    assessment RECORD;
+    clo RECORD;
+BEGIN
+    FOR assessment IN 
+        SELECT a.id as assessment_id, a.syllabus_version_id, a.name
+        FROM core_service.assessment_schemes a
+    LOOP
+        -- Link each assessment to 2-3 CLOs from the same syllabus
+        FOR clo IN 
+            SELECT id FROM core_service.clos 
+            WHERE syllabus_version_id = assessment.syllabus_version_id
+            ORDER BY RANDOM() LIMIT 3
+        LOOP
+            INSERT INTO core_service.assessment_clo_mappings (id, assessment_scheme_id, clo_id, created_at)
+            VALUES (gen_random_uuid(), assessment.assessment_id, clo.id, NOW())
+            ON CONFLICT DO NOTHING;
+        END LOOP;
+    END LOOP;
+END $$;
+
+-- ============================================
+-- 5. Update syllabus_versions content with proper Vietnamese
+-- ============================================
+UPDATE core_service.syllabus_versions sv
+SET 
+    content = jsonb_set(
+        jsonb_set(
+            jsonb_set(
+                COALESCE(content, '{}'::jsonb),
+                '{objectives}',
+                '"Trình bày được các khái niệm cơ bản và nguyên lý nền tảng của môn học. Áp dụng kiến thức lý thuyết vào việc giải quyết các bài toán thực tế. Phân tích và đánh giá các giải pháp kỹ thuật trong lĩnh vực liên quan. Thiết kế và triển khai các giải pháp phù hợp với yêu cầu. Làm việc nhóm hiệu quả và trình bày kết quả một cách chuyên nghiệp."'
+            ),
+            '{teachingMethods}',
+            '"Thuyết trình kết hợp slides và video minh họa. Thảo luận nhóm và nghiên cứu tình huống. Thực hành tại phòng lab với bài tập có hướng dẫn. Làm đồ án nhóm với báo cáo và thuyết trình. Tự học với tài liệu và video được cung cấp."'
+        ),
+        '{description}',
+        to_jsonb(s.description)
+    ),
+    keywords = ARRAY['Lập trình', 'Phần mềm', 'Công nghệ']
+FROM core_service.subjects s
+WHERE sv.subject_id = s.id;
+
+-- ============================================
+-- 6. Update time allocation in syllabus_versions
+-- ============================================
+UPDATE core_service.syllabus_versions sv
+SET 
+    theory_hours = s.default_theory_hours,
+    practice_hours = s.default_practice_hours,
+    self_study_hours = s.default_self_study_hours
+FROM core_service.subjects s
+WHERE sv.subject_id = s.id;
+
+-- Verify the updates
+SELECT 'Subjects updated:' as info, COUNT(*) as count FROM core_service.subjects WHERE current_name_vi NOT LIKE '%?%';
+SELECT 'CLOs created:' as info, COUNT(*) as count FROM core_service.clos;
+SELECT 'CLO-PLO mappings:' as info, COUNT(*) as count FROM core_service.clo_plo_mappings;
+SELECT 'Assessment-CLO mappings:' as info, COUNT(*) as count FROM core_service.assessment_clo_mappings;

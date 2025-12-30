@@ -11,20 +11,21 @@ spring:
           uri: http://127.0.0.1:8081
           predicates:
             - Path=/api/**
-          # StripPrefix=0 giúp giữ nguyên /api/ khi chuyển tiếp sang backend port 8081
           filters:
-            - StripPrefix=1  # Strip the first /api segment before forwarding
+            # Lưu ý: Không loại bỏ tiền tố `/api` — forward nguyên đường dẫn đến backend.
+            # Nếu backend của bạn là /api/users -> dùng StripPrefix=0 (hoặc không set)
+            # Nếu backend của bạn là /users -> dùng StripPrefix=1
+            - StripPrefix=0
             - PreserveHostHeader
             - SetRequestHeader=Content-Type, application/json
       globalcors:
         add-to-simple-url-handler-mapping: true
-        cors-configurations: # Thêm dấu gạch ngang ở đây chuẩn cú pháp
+        cors-configurations:
           '[/**]':
             allowedOrigins:
               - "http://localhost:3000"
               - "http://localhost:3001"
               - "http://localhost:3002"
-              # MERGE: Giữ các port mở rộng của bạn (HEAD)
               - "http://localhost:3003"
               - "http://localhost:3004"
               - "http://localhost:3005"
@@ -39,8 +40,6 @@ spring:
             allowCredentials: true
             maxAge: 3600
 
-# MERGE: Giữ cấu hình Management từ Team nhưng bỏ qua phần Logging trùng lặp của họ.
-# Chúng ta sẽ dùng block logging (TRACE) ở cuối file của bạn.
 management:
   endpoints:
     web:
@@ -50,7 +49,7 @@ management:
     health:
       show-details: always
 
-# Enable detailed gateway/reactor/netty logging to trace header/body changes
+# Cấu hình logging chi tiết (Giữ lại cấu hình của bạn vì nó TRACE kỹ hơn DEBUG của main)
 logging:
   level:
     org.springframework.cloud.gateway: TRACE
