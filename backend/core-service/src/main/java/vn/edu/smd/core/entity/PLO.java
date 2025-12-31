@@ -12,7 +12,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "plos", schema = "core_service")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter 
+@Setter 
+@NoArgsConstructor 
+@AllArgsConstructor 
+@Builder
 public class PLO {
 
     @Id
@@ -28,6 +32,7 @@ public class PLO {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // Dùng @Convert để Hibernate hiểu được chữ "Knowledge" từ DB (Chuẩn Main)
     @Convert(converter = PloCategoryConverter.class)
     @Column(name = "category", length = 20)
     @Builder.Default

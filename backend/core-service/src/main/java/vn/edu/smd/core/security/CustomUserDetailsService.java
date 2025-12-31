@@ -20,6 +20,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Transactional
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        // ANTI-CONFLICT: Sử dụng findByEmailWithRoles để lấy User kèm quyền hạn ngay lập tức
         User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
@@ -28,6 +29,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Transactional(readOnly = true)
     public UserDetails loadUserById(UUID id) {
+        // ANTI-CONFLICT: Sử dụng findByIdWithRoles để tối ưu Fetch Join
         User user = userRepository.findByIdWithRoles(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
         return UserPrincipal.create(user);

@@ -34,8 +34,10 @@ interface UserApiResponse {
 
 /**
  * Map backend role to frontend UserRole
+ * Hỗ trợ cả tên hiển thị và mã code từ Backend
  */
 const mapRole = (roles: string[]): UserRole => {
+  // Duyệt qua danh sách quyền để tìm quyền phù hợp nhất
   for (const role of roles) {
     if (role === 'Administrator' || role === 'ADMIN') return UserRole.ADMIN;
     if (role === 'Principal' || role === 'PRINCIPAL') return UserRole.PRINCIPAL;
@@ -44,7 +46,7 @@ const mapRole = (roles: string[]): UserRole => {
     if (role === 'Lecturer' || role === 'LECTURER') return UserRole.LECTURER;
     if (role === 'Student' || role === 'STUDENT') return UserRole.STUDENT;
   }
-  return UserRole.LECTURER;
+  return UserRole.LECTURER; // Mặc định là Giảng viên nếu không khớp
 };
 
 /**
@@ -60,7 +62,7 @@ const mapToUser = (data: UserApiResponse): User => ({
   department: data.departmentName,
   isActive: data.status === 'ACTIVE',
   createdAt: data.createdAt,
-  lastLogin: data.updatedAt,
+  lastLogin: data.updatedAt, // Sử dụng updatedAt làm proxy cho lần hoạt động cuối
 });
 
 // Request type for create/update
@@ -80,7 +82,7 @@ export const userService = {
     search?: string;
   }): Promise<User[]> => {
     try {
-      // Gọi qua Gateway 8888 sử dụng axiosClient
+      // Gọi qua Gateway 8888 sử dụng axiosClient (Interceptor tự động gắn Token)
       const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
         params: {
           page: 0,
@@ -88,14 +90,14 @@ export const userService = {
         },
       });
 
-      // Xử lý payload an toàn hỗ trợ cả trường hợp có hoặc không có bọc trường 'data'
+      // Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let users = rawContent.map(mapToUser);
 
-      // Client-side filtering
+      // Client-side filtering logic
       if (filters?.role) {
         users = users.filter((u) => u.role === filters.role);
       }
@@ -134,7 +136,7 @@ export const userService = {
       fullName: data.fullName,
       phoneNumber: data.phone,
       roleCode: data.role,
-      password: 'DefaultPass@123',
+      password: 'DefaultPass@123', // Mật khẩu mặc định khởi tạo
     };
 
     const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/api/users', request);
@@ -144,6 +146,7 @@ export const userService = {
 
   // Update user
   updateUser: async (id: string, data: Partial<User>): Promise<User> => {
+    // Lấy thông tin user hiện tại để merge
     const existing = await userService.getUserById(id);
 
     const request: UserRequest = {
@@ -189,6 +192,7 @@ export const userService = {
           const lines = text.split('\n').filter((line) => line.trim());
           const header = lines[0]?.toLowerCase();
 
+          // Validate CSV header
           if (!header?.includes('email') || !header?.includes('fullname')) {
             errors.push('CSV phải có các cột: email, fullName');
             resolve({ success: 0, failed: lines.length - 1, errors });
@@ -198,7 +202,6 @@ export const userService = {
           const headerCols = header.split(',').map((col) => col.trim());
           const emailIndex = headerCols.indexOf('email');
           const fullNameIndex = headerCols.indexOf('fullname');
-          const roleIndex = headerCols.indexOf('role');
 
           for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map((col) => col.trim());
@@ -210,21 +213,17 @@ export const userService = {
               failedCount++;
               continue;
             }
-
             successCount++;
           }
-
           resolve({ success: successCount, failed: failedCount, errors });
         } catch {
           errors.push('Lỗi xử lý file CSV');
           resolve({ success: 0, failed: 0, errors });
         }
       };
-
       reader.onerror = () => {
         resolve({ success: 0, failed: 0, errors: ['Không đọc được file'] });
       };
-
       reader.readAsText(file);
     });
   },

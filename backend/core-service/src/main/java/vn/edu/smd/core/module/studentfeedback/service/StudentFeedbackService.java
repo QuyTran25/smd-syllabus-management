@@ -2,6 +2,7 @@ package vn.edu.smd.core.module.studentfeedback.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Service xử lý phản hồi/báo cáo lỗi từ sinh viên về đề cương.
+ * Đã fix xung đột: Hợp nhất các chú thích an toàn và giữ cấu trúc logic của Service.
+ */
 @Service
 @RequiredArgsConstructor
 public class StudentFeedbackService {
@@ -92,6 +97,7 @@ public class StudentFeedbackService {
         
         if (Boolean.TRUE.equals(request.getEnableEdit())) {
             feedback.setEditEnabled(true);
+            // Ghi chú: editEnabledBy và editEnabledAt có thể cần thêm field trong Entity sau này
         }
         
         feedback = feedbackRepository.save(feedback);
@@ -128,6 +134,7 @@ public class StudentFeedbackService {
         StudentFeedbackResponse response = new StudentFeedbackResponse();
         response.setId(feedback.getId());
         
+        // Syllabus info - Truy cập an toàn tránh Lazy Loading Exception
         try {
             if (feedback.getSyllabusVersion() != null) {
                 response.setSyllabusId(feedback.getSyllabusVersion().getId());
@@ -135,9 +142,10 @@ public class StudentFeedbackService {
                 response.setSyllabusName(feedback.getSyllabusVersion().getSnapSubjectNameVi());
             }
         } catch (Exception e) {
-            // Safe fallback for Lazy Loading
+            // Xử lý fallback cho Lazy Loading
         }
         
+        // Student info - Truy cập an toàn
         try {
             if (feedback.getUser() != null) {
                 response.setStudentId(feedback.getUser().getId());
@@ -145,15 +153,17 @@ public class StudentFeedbackService {
                 response.setStudentEmail(feedback.getUser().getEmail());
             }
         } catch (Exception e) {
-            // Safe fallback for Lazy Loading
+            // Xử lý fallback cho Lazy Loading
         }
         
+        // Chi tiết Feedback
         response.setType(feedback.getType());
         response.setSection(feedback.getSection());
         response.setTitle(feedback.getTitle());
         response.setDescription(feedback.getDescription());
         response.setStatus(feedback.getStatus());
         
+        // Phản hồi từ Admin
         response.setAdminResponse(feedback.getAdminResponse());
         try {
             if (feedback.getRespondedBy() != null) {
@@ -161,22 +171,25 @@ public class StudentFeedbackService {
                 response.setRespondedByName(feedback.getRespondedBy().getFullName());
             }
         } catch (Exception e) {
-            // Safe fallback for Lazy Loading
+            // Xử lý fallback cho Lazy Loading
         }
         response.setRespondedAt(feedback.getRespondedAt());
         
+        // Trạng thái cho phép chỉnh sửa
         response.setEditEnabled(feedback.getEditEnabled());
         
+        // Thông tin giải quyết (Resolution)
         try {
             if (feedback.getResolvedBy() != null) {
                 response.setResolvedById(feedback.getResolvedBy().getId());
                 response.setResolvedByName(feedback.getResolvedBy().getFullName());
             }
         } catch (Exception e) {
-            // Safe fallback for Lazy Loading
+            // Xử lý fallback cho Lazy Loading
         }
         response.setResolvedAt(feedback.getResolvedAt());
         
+        // Timestamps
         response.setCreatedAt(feedback.getCreatedAt());
         response.setUpdatedAt(feedback.getUpdatedAt());
         

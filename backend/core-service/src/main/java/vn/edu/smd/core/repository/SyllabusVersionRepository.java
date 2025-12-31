@@ -20,8 +20,13 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
+    // FIX: Thống nhất kiểu SyllabusStatus để đồng nhất với Entity và Enum Postgres
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
+    /**
+     * Tìm danh sách Syllabus theo trạng thái và chưa bị xóa.
+     * ANTI-CONFLICT: Dùng JPQL Query để tránh lỗi casting Enum với PostgreSQL.
+     */
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
 
@@ -29,6 +34,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findBySubject(Subject subject);
 
+    // FIX: Khôi phục lại hàm này từ HEAD để không làm hỏng logic trong SyllabusService.getStatistics()
     List<SyllabusVersion> findByIsDeletedFalse();
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.isDeleted = false")

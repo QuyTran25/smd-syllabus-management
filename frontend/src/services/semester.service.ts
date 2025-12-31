@@ -41,7 +41,9 @@ interface SemesterRequest {
   isActive?: boolean;
 }
 
-// Map API response to frontend Semester type
+/**
+ * Map API response to frontend Semester type
+ */
 const mapToSemester = (data: SemesterApiResponse): Semester => ({
   id: data.id,
   code: data.code,
@@ -57,7 +59,7 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 
 export const semesterService = {
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    // Gọi qua Gateway 8888 sử dụng axiosClient
+    // FIX: Gọi qua Gateway 8888 sử dụng axiosClient (Đồng bộ Token tự động)
     const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
       params: {
         page: 0,
@@ -66,14 +68,14 @@ export const semesterService = {
       },
     });
 
-    // Xử lý payload an toàn hỗ trợ cả trường hợp có hoặc không có bọc trường 'data'
+    // Xử lý payload an toàn: hỗ trợ cả trường hợp có hoặc không bọc trường 'data'
     const rawContent = response.data?.data?.content || 
                        (response.data as any)?.content || 
                        [];
                        
     let semesters = rawContent.map(mapToSemester);
 
-    // Client-side filtering
+    // Apply client-side filtering logic
     if (filters?.isActive !== undefined) {
       semesters = semesters.filter((s) => s.isActive === filters.isActive);
     }
@@ -107,7 +109,8 @@ export const semesterService = {
       const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
       const data = response.data?.data || response.data;
       return mapToSemester(data as unknown as SemesterApiResponse);
-    } catch {
+    } catch (error) {
+      // Nếu không có học kỳ hiện tại được thiết lập, trả về null
       return null;
     }
   },
@@ -129,6 +132,7 @@ export const semesterService = {
   },
 
   updateSemester: async (id: string, data: Partial<Semester>): Promise<Semester> => {
+    // Lấy thông tin hiện tại để merge các trường không thay đổi
     const existing = await semesterService.getSemesterById(id);
 
     const request: SemesterRequest = {

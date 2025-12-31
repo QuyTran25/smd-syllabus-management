@@ -6,7 +6,8 @@ import {
 } from '../types';
 
 /**
- * Định nghĩa Interface báo cáo lỗi ngay tại đây để đảm bảo tính nhất quán (Theo Main)
+ * ⭐ THÊM MỚI: Định nghĩa Interface báo cáo lỗi ngay tại đây (Theo chuẩn Main)
+ * Giúp các component sử dụng service này không cần import từ file types cồng kềnh.
  */
 export interface ReportIssuePayload {
   syllabusId: string;
@@ -15,17 +16,17 @@ export interface ReportIssuePayload {
 }
 
 /**
- * Lấy danh sách Syllabus từ Backend dành cho sinh viên
+ * Lấy danh sách Syllabus dành cho sinh viên
+ * Đã fix: Đi qua Gateway 8888 và xử lý dữ liệu an toàn
  */
 export async function listStudentSyllabi(
   filters?: StudentSyllabiFilters
 ): Promise<SyllabusListItem[]> {
-  // Thêm /api để đi qua Gateway 8888 và sử dụng axiosClient
   const res = await axiosClient.get('/api/student/syllabi', { params: filters });
   
-  // Xử lý dữ liệu an toàn để tránh lỗi Array.map trên giá trị null/undefined
+  // Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc (Unwrap)
   const payload = res.data?.data || res.data;
-  const rawData = (Array.isArray(payload) ? payload : (payload.rows || [])) as any[];
+  const rawData = (Array.isArray(payload) ? payload : (payload.content || payload.rows || [])) as any[];
 
   return rawData.map((item) => ({
     id: item.id,
@@ -51,7 +52,7 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
   const res = await axiosClient.get(`/api/student/syllabi/${id}`);
   const d = res.data?.data || res.data;
 
-  // Map chi tiết và cung cấp giá trị mặc định cho các trường quan trọng
+  // Cung cấp giá trị mặc định (Fallback) để tránh crash giao diện React
   return {
     ...d,
     id: d.id,
@@ -90,7 +91,7 @@ export async function reportIssue(payload: ReportIssuePayload) {
   return res.data?.data || res.data;
 }
 
-/** * Xuất và tải xuống file PDF 
+/** * Xuất và tải xuống file PDF thực tế
  */
 export async function downloadPdfMock(id: string): Promise<void> {
   try {
@@ -98,17 +99,19 @@ export async function downloadPdfMock(id: string): Promise<void> {
       responseType: 'blob' 
     });
     
-    // Logic tạo URL ảo và kích hoạt tải xuống trên trình duyệt
-    const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+    // Tạo link tải xuống an toàn
+    const blob = new Blob([resp.data], { type: resp.headers['content-type'] || 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `Syllabus_${id}.pdf`;
     document.body.appendChild(a);
     a.click();
+    
+    // Dọn dẹp bộ nhớ
     a.remove();
     URL.revokeObjectURL(url);
   } catch (e) {
-    console.error("Download failed:", e);
+    console.error("PDF download failed:", e);
   }
 }

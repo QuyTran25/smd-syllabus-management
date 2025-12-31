@@ -16,12 +16,14 @@ import java.util.UUID;
 
 /**
  * Repository for User entity
+ * Đã dọn sạch xung đột giả và đảm bảo các phương thức Fetch Join hoạt động ổn định.
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
     
     Optional<User> findByEmail(String email);
     
+    // ANTI-CONFLICT: Sử dụng FETCH JOIN để giải quyết vấn đề N+1 query khi lấy User kèm Roles
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.email = :email")
     Optional<User> findByEmailWithRoles(@Param("email") String email);
     
@@ -40,6 +42,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.userRoles ur LEFT JOIN FETCH ur.role WHERE u.id = :id")
     Optional<User> findByIdWithRoles(@Param("id") UUID id);
     
+    // Sử dụng EntityGraph để tối ưu hóa việc tải dữ liệu quan hệ cho danh sách trang (Pagination)
     @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
     @Query("SELECT u FROM User u")
     Page<User> findAllWithRoles(Pageable pageable);

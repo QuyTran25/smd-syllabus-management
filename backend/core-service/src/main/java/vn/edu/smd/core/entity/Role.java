@@ -8,6 +8,16 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * =========================================================================
+ * Entity: Role
+ * -------------------------------------------------------------------------
+ * ANTI-CONFLICT STRATEGY:
+ * - Khôi phục các trường Auditing (createdAt, updatedAt) để fix lỗi compile 
+ * trong RoleService.
+ * - Sử dụng JPA Auditing thay vì Hibernate Annotation để thống nhất với Core.
+ * =========================================================================
+ */
 @Entity
 @Table(name = "roles", schema = "core_service")
 @EntityListeners(AuditingEntityListener.class)
@@ -31,6 +41,7 @@ public class Role {
     @Builder.Default
     private Boolean isSystem = false;
 
+    // FIX: Khôi phục các trường này để fix lỗi biên dịch Severity 8
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

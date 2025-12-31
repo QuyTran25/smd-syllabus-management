@@ -31,36 +31,50 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    
+    /**
+     * FIX: Đảm bảo tên biến là 'roleRepository' (chữ r viết thường) 
+     * và kiểu dữ liệu là 'RoleRepository' (chữ R viết hoa).
+     */
+    private final RoleRepository roleRepository; 
+    
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().trim();
-        String password = request.getPassword().trim();
+        String rawPassword = request.getPassword().trim();
 
-        Authentication authentication;
-        try {
-            authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(email, password)
-            );
-        } catch (AuthenticationException ex) {
-            log.warn("Login failed for user {}", email);
-            throw ex;
-        }
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        String accessToken = tokenProvider.generateToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        log.info("User {} logged in successfully", user.getEmail());
+        log.debug("=== LOGIN ATTEMPT: {} ===", email);
         
-        return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
+        // Kiểm tra hash trực tiếp để debug nếu cần
+        userRepository.findByEmail(email).ifPresent(dbUser -> {
+            boolean matches = passwordEncoder.matches(rawPassword, dbUser.getPasswordHash());
+            log.debug("Direct password match check: {}", matches);
+        });
+
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, rawPassword)
+            );
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            String accessToken = tokenProvider.generateToken(authentication);
+            String refreshToken = tokenProvider.generateRefreshToken(authentication);
+
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+            log.info("User {} logged in successfully", user.getEmail());
+            
+            return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
+
+        } catch (AuthenticationException e) {
+            log.error("Login failed for user {}: {}", email, e.getMessage());
+            throw e;
+        }
     }
 
     @Transactional
@@ -77,9 +91,13 @@ public class AuthService {
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setStatus(UserStatus.ACTIVE);
 
+        // FIX: Sử dụng đúng biến 'roleRepository' đã khai báo ở trên
         try {
-            roleRepository.findByCode("LECTURER").ifPresent(role -> user.setRoles(java.util.Set.of(role)));
-        } catch (Exception ignored) { }
+            roleRepository.findByCode("LECTURER")
+                .ifPresent(role -> user.setRoles(java.util.Set.of(role)));
+        } catch (Exception e) {
+            log.warn("Could not assign default role: {}", e.getMessage());
+        }
 
         userRepository.save(user);
 
@@ -91,10 +109,6 @@ public class AuthService {
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
         return new AuthResponse(accessToken, refreshToken, mapToUserInfo(user));
-    }
-
-    public void logout() {
-        SecurityContextHolder.clearContext();
     }
 
     @Transactional
@@ -151,24 +165,6 @@ public class AuthService {
         return mapToUserInfo(user);
     }
 
-    public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
-
-        log.info("Generating reset token for user: {}", user.getEmail());
-    }
-
-    @Transactional
-    public void resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
-
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-        
-        log.info("Password reset successfully for user: {}", user.getEmail());
-    }
-
     private UserInfoResponse mapToUserInfo(User user) {
         return new UserInfoResponse(
                 user.getId(),
@@ -179,5 +175,9 @@ public class AuthService {
                 user.getRoles().stream().map(role -> role.getName()).collect(Collectors.toSet()),
                 user.getStatus().name()
         );
+    }
+
+    public void logout() {
+        SecurityContextHolder.clearContext();
     }
 }

@@ -29,12 +29,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // Bỏ qua filter cho các request OPTIONS (CORS preflight)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
+            // ⭐ QUAN TRỌNG (Theo Main): Chỉ bypass những endpoint không cần auth
+            // Việc này giúp giảm tải cho hệ thống khi không phải parse Token cho các request công khai
             String requestPath = request.getRequestURI();
             if (requestPath.contains("/api/auth/login") || 
                 requestPath.contains("/api/auth/register") ||
@@ -51,6 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromToken(jwt);
                 
+                // Sử dụng CustomUserDetailsService để load user từ DB dựa trên ID trong Token
                 UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
 
                 if (userDetails != null) {
@@ -58,11 +62,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
+                    // Lưu thông tin xác thực vào SecurityContext của Spring
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     log.debug("Authenticated user with ID: {}", userId);
                 }
             }
         } catch (Exception ex) {
+            // Nếu có lỗi xác thực, log lại và vẫn cho request đi tiếp
+            // SecurityConfig sẽ chặn lại ở bước sau nếu cần thiết (Tránh treo request)
             log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 

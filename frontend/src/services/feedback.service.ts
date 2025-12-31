@@ -35,6 +35,7 @@ export interface StudentFeedbackResponse {
 
 /**
  * Map backend response to frontend StudentFeedback type
+ * ANTI-CONFLICT: Đảm bảo fallback giá trị rỗng để tránh lỗi giao diện
  */
 const mapToStudentFeedback = (response: StudentFeedbackResponse): StudentFeedback => ({
   id: response.id,
@@ -67,19 +68,19 @@ export const feedbackService = {
       params.append('size', '100');
       params.append('sort', 'createdAt,desc');
       
-      // Gọi qua Gateway 8888 sử dụng axiosClient đã cấu hình interceptor
+      // FIX: Gọi qua Gateway 8888 sử dụng axiosClient
       const response = await axiosClient.get<{ data: { content: StudentFeedbackResponse[] } }>(
         `/api/student-feedbacks?${params.toString()}`
       );
       
-      // Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc
+      // ANTI-CONFLICT: Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc
       const rawContent = response.data?.data?.content || 
                          (response.data as any)?.content || 
                          [];
                          
       let feedbacks = rawContent.map(mapToStudentFeedback);
       
-      // Client-side filtering
+      // Client-side filtering logic
       if (filters.status && filters.status.length > 0) {
         feedbacks = feedbacks.filter((f) => filters.status?.includes(f.status));
       }

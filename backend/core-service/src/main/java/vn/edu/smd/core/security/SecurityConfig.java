@@ -51,14 +51,25 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            // ⭐ QUAN TRỌNG NHẤT: Tắt CORS ở Core Service (Theo chuẩn Main).
+            // Lý do: Gateway (port 8888) đã thêm header CORS rồi.
+            // Nếu Core thêm nữa sẽ bị lỗi "Duplicate Access-Control-Allow-Origin".
             .cors(AbstractHttpConfigurer::disable) 
+            
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Cho phép truy cập không cần Token vào các API Auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                
+                // ⭐ CHO PHÉP STUDENT API PUBLIC (Sinh viên không cần đăng nhập để xem đề cương)
                 .requestMatchers("/api/student/**").permitAll()
+                
+                // Cho phép Swagger và Actuator để debug/monitor
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
+                
+                // Tất cả các API nghiệp vụ khác (/api/admin/**, /api/syllabus/**...) bắt buộc phải có Token
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )

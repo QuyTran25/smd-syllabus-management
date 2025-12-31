@@ -25,11 +25,11 @@ import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage
 // --- PAGES: PRINCIPAL ---
 import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
 
-// --- PAGES: HOD ---
+// --- PAGES: HOD (Head of Department) ---
 import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';
 import HodSyllabusReviewPage from './features/hod/SyllabusReviewPage';
 
-// --- PAGES: AA ---
+// --- PAGES: AA (Academic Affairs) ---
 import { PLOManagementPage } from './features/aa/PLOManagementPage';
 import { CourseManagementPage } from './features/aa/CourseManagementPage';
 import AaSyllabusReviewPage from './features/aa/SyllabusReviewPage';
