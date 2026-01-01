@@ -11,22 +11,22 @@ public enum AssignmentStatus {
     /**
      * Assignment created, not started yet
      */
-    PENDING("pending"),
+    PENDING("PENDING"),
 
     /**
      * Lecturer is working on the syllabus
      */
-    IN_PROGRESS("in-progress"),
+    IN_PROGRESS("IN_PROGRESS"),
 
     /**
      * Syllabus submitted for approval
      */
-    SUBMITTED("submitted"),
+    SUBMITTED("SUBMITTED"),
 
     /**
      * Syllabus approved and published
      */
-    COMPLETED("completed");
+    COMPLETED("COMPLETED");
 
     private final String dbValue;
 

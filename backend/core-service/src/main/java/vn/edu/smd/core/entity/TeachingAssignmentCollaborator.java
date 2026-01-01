@@ -39,9 +39,6 @@ public class TeachingAssignmentCollaborator {
     @JoinColumn(name = "lecturer_id", nullable = false)
     private User lecturer;
 
-    @Column(name = "comments", columnDefinition = "TEXT")
-    private String comments;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

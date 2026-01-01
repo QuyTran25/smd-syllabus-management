@@ -26,11 +26,15 @@ public interface TeachingAssignmentRepository extends JpaRepository<TeachingAssi
     Page<TeachingAssignment> findAll(Pageable pageable);
 
     /**
-     * Find all with eager loading (no pagination)
+     * Find by status list with eager loading and pagination
      */
-    @EntityGraph(attributePaths = {"subject", "academicTerm", "mainLecturer", "syllabusVersion", "assignedBy", "subject.department", "subject.department.faculty"})
-    @org.springframework.data.jpa.repository.Query("SELECT t FROM TeachingAssignment t")
-    List<TeachingAssignment> findAllWithDetails();
+    @EntityGraph(attributePaths = {"subject", "academicTerm", "mainLecturer", "syllabusVersion", "assignedBy", "collaborators"})
+    Page<TeachingAssignment> findByStatusIn(List<AssignmentStatus> statuses, Pageable pageable);
+
+    // Deprecated: Causes enum conversion issues, use findAll with Pageable instead
+    // @EntityGraph(attributePaths = {"subject", "academicTerm", "mainLecturer", "syllabusVersion", "assignedBy", "subject.department", "subject.department.faculty"})
+    // @org.springframework.data.jpa.repository.Query("SELECT t FROM TeachingAssignment t")
+    // List<TeachingAssignment> findAllWithDetails();
 
     /**
      * Find assignment by subject and academic term
