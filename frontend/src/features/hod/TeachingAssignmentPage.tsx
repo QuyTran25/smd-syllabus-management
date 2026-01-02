@@ -115,16 +115,6 @@ export const TeachingAssignmentPage: React.FC = () => {
     }
   }, [error]);
 
-  // Fetch comments for selected assignment
-  const { data: comments } = useQuery({
-    queryKey: ['assignment-comments', selectedAssignment?.id],
-    queryFn: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return mockComments.filter(c => c.assignmentId === selectedAssignment?.id);
-    },
-    enabled: !!selectedAssignment && isCommentModalVisible,
-  });
-
   // Create assignment mutation
   const createAssignmentMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -215,12 +205,12 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 140,
       render: (status) => {
         const config = {
-          pending: { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
-          'in-progress': { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
-          submitted: { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
-          completed: { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
+          PENDING: { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
+          IN_PROGRESS: { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
+          SUBMITTED: { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
+          COMPLETED: { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
         };
-        const { color, text, icon } = config[status as keyof typeof config];
+        const { color, text, icon } = config[status as keyof typeof config] || config.PENDING;
         return <Tag color={color} icon={icon}>{text}</Tag>;
       },
     },
@@ -230,7 +220,7 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 100,
       align: 'center',
       render: (_, record) => (
-        <Badge count={record.commentCount} showZero>
+        <Badge count={record.comments ? 1 : 0} showZero>
           <Button
             type="text"
             icon={<MessageOutlined />}
@@ -406,22 +396,17 @@ export const TeachingAssignmentPage: React.FC = () => {
             </Card>
 
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-              {comments && comments.length > 0 ? (
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  {comments.map((comment) => (
-                    <Card key={comment.id} size="small">
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <strong>{comment.userName}</strong>
-                          <span style={{ fontSize: '12px', color: '#999' }}>{comment.createdAt}</span>
-                        </div>
-                        <div style={{ padding: '8px 12px', backgroundColor: '#f0f0f0', borderRadius: 4 }}>
-                          {comment.content}
-                        </div>
-                      </Space>
-                    </Card>
-                  ))}
-                </Space>
+              {selectedAssignment.comments ? (
+                <Card size="small">
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <strong>Ghi chú</strong>
+                    </div>
+                    <div style={{ padding: '8px 12px', backgroundColor: '#f0f0f0', borderRadius: 4 }}>
+                      {selectedAssignment.comments}
+                    </div>
+                  </Space>
+                </Card>
               ) : (
                 <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
                   <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />

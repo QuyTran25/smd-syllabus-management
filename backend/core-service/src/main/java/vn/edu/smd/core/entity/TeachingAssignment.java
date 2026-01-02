@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import vn.edu.smd.core.converter.AssignmentStatusConverter;
 import vn.edu.smd.shared.enums.AssignmentStatus;
 
 import java.time.LocalDate;
@@ -48,9 +49,9 @@ public class TeachingAssignment {
     @Column(name = "deadline", nullable = false)
     private LocalDate deadline;
 
-    @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
-    @Column(name = "status", length = 20)
+    @Column(name = "status")
+    @Convert(converter = AssignmentStatusConverter.class)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     @Builder.Default
     private AssignmentStatus status = AssignmentStatus.PENDING;
 

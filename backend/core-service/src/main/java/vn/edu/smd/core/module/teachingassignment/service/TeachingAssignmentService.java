@@ -32,38 +32,26 @@ public class TeachingAssignmentService {
 
     /**
      * Get all teaching assignments with pagination
+     * Database handles filtering and pagination for better performance
      */
     public Page<TeachingAssignmentResponse> getAllAssignments(Pageable pageable, List<String> statusList) {
-        // Use findAllWithDetails() with EntityGraph to prevent N+1 query
-        List<TeachingAssignment> allAssignments = teachingAssignmentRepository.findAllWithDetails();
+        Page<TeachingAssignment> assignmentPage;
         
-        List<TeachingAssignment> assignments;
         if (statusList != null && !statusList.isEmpty()) {
-            // Filter by status
+            // Convert status strings to enums for filtering using safe fromString method
             List<AssignmentStatus> statuses = statusList.stream()
-                .map(s -> AssignmentStatus.valueOf(s.toUpperCase().replace("-", "_")))
+                .map(AssignmentStatus::fromString)
                 .collect(Collectors.toList());
             
-            assignments = allAssignments.stream()
-                .filter(a -> statuses.contains(a.getStatus()))
-                .collect(Collectors.toList());
+            // Let database handle filtering and pagination
+            assignmentPage = teachingAssignmentRepository.findByStatusIn(statuses, pageable);
         } else {
-            assignments = allAssignments;
+            // Get all with pagination
+            assignmentPage = teachingAssignmentRepository.findAll(pageable);
         }
         
-        List<TeachingAssignmentResponse> responses = assignments.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
-        
-        // Simple pagination
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), responses.size());
-        
-        if (start > responses.size()) {
-            return new PageImpl<>(List.of(), pageable, responses.size());
-        }
-        
-        return new PageImpl<>(responses.subList(start, end), pageable, responses.size());
+        // Map to response DTOs
+        return assignmentPage.map(this::mapToResponse);
     }
 
     /**
