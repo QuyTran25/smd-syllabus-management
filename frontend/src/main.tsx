@@ -44,7 +44,7 @@ const smdTheme = {
     },
     Menu: {
       itemSelectedBg: '#e6f7f7',
-      itemSelectedColor: '#018486',
+      itemSelectedColor: '#018486', 
       itemHoverBg: '#f0fafa',
       itemHoverColor: '#018486',
     },
@@ -52,7 +52,8 @@ const smdTheme = {
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  // Tắt React.StrictMode để tránh double-mount trong development
+  // <React.StrictMode>
     <BrowserRouter
       future={{
         v7_startTransition: true,
@@ -70,5 +71,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </BrowserRouter>
-  </React.StrictMode>
+  // </React.StrictMode>
 );

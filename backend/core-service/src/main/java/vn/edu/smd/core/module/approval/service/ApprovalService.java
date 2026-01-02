@@ -11,6 +11,7 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.approval.dto.ApprovalRequest;
 import vn.edu.smd.core.module.approval.dto.ApprovalResponse;
 import vn.edu.smd.core.repository.ApprovalHistoryRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.util.List;
@@ -48,7 +49,6 @@ public class ApprovalService {
 
     public List<ApprovalResponse> getPendingApprovalsForUser(UUID userId) {
         // Get all approvals where the user is the actor
-        // Filter to include only pending approvals or use repository query
         return approvalRepository.findByActorId(userId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

@@ -9,6 +9,7 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.teachingmethod.dto.TeachingMethodRequest;
 import vn.edu.smd.core.module.teachingmethod.dto.TeachingMethodResponse;
 import vn.edu.smd.core.repository.TeachingMethodRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.util.List;

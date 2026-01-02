@@ -15,6 +15,7 @@ import vn.edu.smd.core.module.workflowstep.dto.WorkflowStepListRequest;
 import vn.edu.smd.core.module.workflowstep.dto.WorkflowStepRequest;
 import vn.edu.smd.core.module.workflowstep.dto.WorkflowStepResponse;
 import vn.edu.smd.core.repository.WorkflowStepRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.core.repository.UserRepository;
 

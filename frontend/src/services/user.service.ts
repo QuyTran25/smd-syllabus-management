@@ -83,7 +83,7 @@ export const userService = {
   }): Promise<User[]> => {
     try {
       // Gọi qua Gateway 8888 sử dụng axiosClient (Interceptor tự động gắn Token)
-      const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
+      const response = await axiosClient.get<ApiResponse<PageResponse<UserApiResponse>>>('/users', {
         params: {
           page: 0,
           size: 100,
@@ -124,7 +124,7 @@ export const userService = {
 
   // Get user by ID
   getUserById: async (id: string): Promise<User> => {
-    const response = await axiosClient.get<ApiResponse<UserApiResponse>>(`/api/users/${id}`);
+    const response = await axiosClient.get<ApiResponse<UserApiResponse>>(`/users/${id}`);
     const data = response.data?.data || response.data;
     return mapToUser(data as unknown as UserApiResponse);
   },
@@ -139,7 +139,7 @@ export const userService = {
       password: 'DefaultPass@123', // Mật khẩu mặc định khởi tạo
     };
 
-    const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/api/users', request);
+    const response = await axiosClient.post<ApiResponse<UserApiResponse>>('/users', request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
   },
@@ -156,14 +156,14 @@ export const userService = {
       roleCode: data.role ?? existing.role,
     };
 
-    const response = await axiosClient.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
+    const response = await axiosClient.put<ApiResponse<UserApiResponse>>(`/users/${id}`, request);
     const responseData = response.data?.data || response.data;
     return mapToUser(responseData as unknown as UserApiResponse);
   },
 
   // Delete user
   deleteUser: async (id: string): Promise<void> => {
-    await axiosClient.delete(`/api/users/${id}`);
+    await axiosClient.delete(`/users/${id}`);
   },
 
   // Toggle user status (lock/unlock)
@@ -171,7 +171,7 @@ export const userService = {
     const user = await userService.getUserById(id);
     const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
 
-    const response = await axiosClient.patch<ApiResponse<UserApiResponse>>(`/api/users/${id}/status`, {
+    const response = await axiosClient.patch<ApiResponse<UserApiResponse>>(`/users/${id}/status`, {
       status: newStatus,
     });
     const data = response.data?.data || response.data;

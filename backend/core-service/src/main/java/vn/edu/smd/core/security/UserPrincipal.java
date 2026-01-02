@@ -26,10 +26,10 @@ public class UserPrincipal implements UserDetails {
                 .collect(Collectors.toList());
 
         return new UserPrincipal(
-                user.getId(),
-                user.getEmail(),
-                user.getPassword(),
-                authorities
+            user.getId(),
+            user.getEmail(),
+            user.getPassword(),
+            authorities
         );
     }
 

@@ -29,51 +29,71 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Bỏ qua filter cho các request OPTIONS (CORS preflight)
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        String requestPath = request.getRequestURI();
+        String method = request.getMethod();
+
+        // Bỏ qua filter cho các endpoint public (khớp với SecurityConfig permitAll)
+        if (isPublicEndpoint(requestPath, method)) {
+            log.debug("Bypassing JWT filter for public endpoint: {} {}", method, requestPath);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Bỏ qua CORS preflight (OPTIONS) để tránh lỗi duplicate header
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            // ⭐ QUAN TRỌNG (Theo Main): Chỉ bypass những endpoint không cần auth
-            // Việc này giúp giảm tải cho hệ thống khi không phải parse Token cho các request công khai
-            String requestPath = request.getRequestURI();
-            if (requestPath.contains("/api/auth/login") || 
-                requestPath.contains("/api/auth/register") ||
-                requestPath.contains("/api/auth/forgot-password") ||
-                requestPath.contains("/api/auth/reset-password") ||
-                requestPath.contains("/api/auth/refresh") ||
-                requestPath.contains("/api/auth/debug-password")) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
             String jwt = getJwtFromRequest(request);
+            System.out.println("JWT Filter: Processing request " + method + " " + requestPath);
+            System.out.println("JWT Token found: " + (StringUtils.hasText(jwt) ? "YES" : "NO"));
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String userId = tokenProvider.getUserIdFromToken(jwt);
-                
-                // Sử dụng CustomUserDetailsService để load user từ DB dựa trên ID trong Token
-                UserDetails userDetails = customUserDetailsService.loadUserById(UUID.fromString(userId));
+                String userIdStr = tokenProvider.getUserIdFromToken(jwt);
+                System.out.println("JWT Valid. User ID: " + userIdStr);
+                UUID userId = UUID.fromString(userIdStr);
+
+                UserDetails userDetails = customUserDetailsService.loadUserById(userId);
 
                 if (userDetails != null) {
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // Lưu thông tin xác thực vào SecurityContext của Spring
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     log.debug("Authenticated user with ID: {}", userId);
+                    System.out.println("User authenticated: " + userDetails.getUsername());
+                } else {
+                    System.out.println("User details not found for ID: " + userId);
                 }
+            } else {
+                log.debug("No valid JWT token found for request: {} {}", method, requestPath);
+                System.out.println("JWT Invalid or not found");
             }
         } catch (Exception ex) {
-            // Nếu có lỗi xác thực, log lại và vẫn cho request đi tiếp
-            // SecurityConfig sẽ chặn lại ở bước sau nếu cần thiết (Tránh treo request)
-            log.error("Could not set user authentication in security context: {}", ex.getMessage());
+            log.error("Could not set user authentication for request {} {}: {}", method, requestPath, ex.getMessage(), ex);
+            System.out.println("JWT Filter Error: " + ex.getMessage());
+            ex.printStackTrace();
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Kiểm tra endpoint có thuộc danh sách public (không cần JWT) hay không.
+     * Đồng bộ với SecurityConfig để tránh sai lệch.
+     */
+    private boolean isPublicEndpoint(String path, String method) {
+        return path.startsWith("/api/auth/") ||
+               path.startsWith("/api/v1/auth/") ||
+               path.startsWith("/api/student/") ||
+               path.startsWith("/swagger-ui/") ||
+               path.startsWith("/v3/api-docs/") ||
+               path.startsWith("/swagger-resources/") ||
+               path.startsWith("/webjars/") ||
+               path.startsWith("/actuator/");
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

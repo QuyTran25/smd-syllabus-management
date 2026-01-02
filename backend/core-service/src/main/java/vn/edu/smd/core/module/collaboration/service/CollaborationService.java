@@ -11,8 +11,9 @@ import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.collaboration.dto.CollaborationRequest;
 import vn.edu.smd.core.module.collaboration.dto.CollaborationResponse;
 import vn.edu.smd.core.repository.SyllabusCollaboratorRepository;
-import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.core.repository.UserRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
+import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -49,16 +50,20 @@ public class CollaborationService {
 
     @Transactional
     public CollaborationResponse createCollaboration(CollaborationRequest request) {
+        // 1. Validate Syllabus
         SyllabusVersion syllabus = syllabusRepository.findById(request.getSyllabusVersionId())
                 .orElseThrow(() -> new ResourceNotFoundException("SyllabusVersion", "id", request.getSyllabusVersionId()));
 
+        // 2. Validate User
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getUserId()));
 
+        // 3. Check existing collaboration
         if (collaboratorRepository.findBySyllabusVersionIdAndUserId(request.getSyllabusVersionId(), request.getUserId()).isPresent()) {
             throw new BadRequestException("User is already a collaborator for this syllabus");
         }
 
+        // 4. Save
         SyllabusCollaborator collaborator = SyllabusCollaborator.builder()
                 .syllabusVersion(syllabus)
                 .user(user)

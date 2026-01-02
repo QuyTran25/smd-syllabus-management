@@ -9,7 +9,9 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.assessment.dto.AssessmentRequest;
 import vn.edu.smd.core.module.assessment.dto.AssessmentResponse;
 import vn.edu.smd.core.repository.AssessmentSchemeRepository;
-import vn.edu.smd.core.repository.SyllabusVersionRepository;
+
+// ⭐ ĐÃ SỬA: Import đúng package gốc của Repository
+import vn.edu.smd.core.repository.SyllabusVersionRepository; 
 
 import java.math.BigDecimal;
 import java.util.List;

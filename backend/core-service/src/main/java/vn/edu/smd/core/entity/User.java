@@ -10,7 +10,6 @@ import vn.edu.smd.shared.enums.AuthProvider;
 import vn.edu.smd.shared.enums.Gender;
 import vn.edu.smd.shared.enums.RoleScope;
 import vn.edu.smd.shared.enums.UserStatus;
-// removed incorrect import of shared enum to avoid shadowing the entity UserRole
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -18,10 +17,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * User Entity
- * Maps to table: users
- */
 @Entity
 @Table(name = "users", schema = "core_service")
 @Getter
@@ -41,18 +36,16 @@ public class User {
     @Column(name = "username", unique = true, length = 100)
     private String username;
 
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
+
     @Column(name = "password", length = 255)
     private String password;
 
-    // --- THÊM TRƯỜNG PRIMARY ROLE (GIẢI PHÁP LÂU DÀI) ---
-    // Trường này sẽ lưu quyền chính của user (VD: "LECTURER", "STUDENT")
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     @Column(name = "primary_role", length = 50)
     private vn.edu.smd.shared.enums.UserRole primaryRole;
-    // ----------------------------------------------------
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false, length = 20)
     @Builder.Default
@@ -67,7 +60,6 @@ public class User {
     @Column(name = "phone", length = 20)
     private String phone;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 20)
     private Gender gender;
@@ -75,7 +67,6 @@ public class User {
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
@@ -102,7 +93,7 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private Set<UserRole> userRoles = new HashSet<>();
+    private Set<vn.edu.smd.core.entity.UserRole> userRoles = new HashSet<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -111,13 +102,25 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-    // Helper methods for backward compatibility - store and return `password` field
+
+    // --- HELPER METHODS ---
+
     public String getPassword() {
-        return this.password;
+        return this.passwordHash != null ? this.passwordHash : this.password;
     }
 
     public void setPassword(String password) {
+        this.passwordHash = password;
         this.password = password;
+    }
+
+    public String getPasswordHash() {
+        return this.passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.password = passwordHash;
     }
 
     public String getPhoneNumber() {
@@ -130,7 +133,7 @@ public class User {
 
     public Set<Role> getRoles() {
         return this.userRoles.stream()
-                .map(UserRole::getRole)
+                .map(vn.edu.smd.core.entity.UserRole::getRole)
                 .collect(Collectors.toSet());
     }
 
@@ -138,19 +141,12 @@ public class User {
         this.userRoles.clear();
         if (roles != null) {
             roles.forEach(role -> {
-                UserRole userRole = new UserRole();
-                userRole.setUser(this);
-                userRole.setRole(role);
-                userRole.setScopeType(RoleScope.GLOBAL);
-                this.userRoles.add(userRole);
+                vn.edu.smd.core.entity.UserRole ur = new vn.edu.smd.core.entity.UserRole();
+                ur.setUser(this);
+                ur.setRole(role);
+                ur.setScopeType(RoleScope.GLOBAL);
+                this.userRoles.add(ur);
             });
         }
-    }
-    public String getPasswordHash() {
-        return this.password;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.password = passwordHash;
     }
 }

@@ -1,7 +1,5 @@
 package vn.edu.smd.core.repository;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,26 +18,26 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
-    // FIX: Thống nhất kiểu SyllabusStatus để đồng nhất với Entity và Enum Postgres
+    // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
-    /**
-     * Tìm danh sách Syllabus theo trạng thái và chưa bị xóa.
-     * ANTI-CONFLICT: Dùng JPQL Query để tránh lỗi casting Enum với PostgreSQL.
-     */
+    // Use custom query to avoid PostgreSQL enum casting issues
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
+
+    // Eager load createdBy for access control checks
+    @Query("SELECT s FROM SyllabusVersion s LEFT JOIN FETCH s.createdBy WHERE s.status IN :statuses AND s.isDeleted = false")
+    List<SyllabusVersion> findByStatusInAndIsDeletedFalseWithCreatedBy(@Param("statuses") List<SyllabusStatus> statuses);
 
     List<SyllabusVersion> findByCreatedById(UUID createdById);
 
     List<SyllabusVersion> findBySubject(Subject subject);
-
-    // FIX: Khôi phục lại hàm này từ HEAD để không làm hỏng logic trong SyllabusService.getStatistics()
-    List<SyllabusVersion> findByIsDeletedFalse();
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.isDeleted = false")
     List<SyllabusVersion> findAllActive();
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status = :status AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusAndNotDeleted(@Param("status") SyllabusStatus status);
+
+    long countByStatusAndIsDeletedFalse(SyllabusStatus status);
 }

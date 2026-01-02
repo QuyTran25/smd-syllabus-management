@@ -60,7 +60,7 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 export const semesterService = {
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
     // FIX: Gọi qua Gateway 8888 sử dụng axiosClient (Đồng bộ Token tự động)
-    const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
+    const response = await axiosClient.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/semesters', {
       params: {
         page: 0,
         size: 100,
@@ -99,14 +99,14 @@ export const semesterService = {
   },
 
   getSemesterById: async (id: string): Promise<Semester> => {
-    const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`);
+    const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`);
     const data = response.data?.data || response.data;
     return mapToSemester(data as unknown as SemesterApiResponse);
   },
 
   getActiveSemester: async (): Promise<Semester | null> => {
     try {
-      const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
+      const response = await axiosClient.get<ApiResponse<SemesterApiResponse>>('/semesters/current');
       const data = response.data?.data || response.data;
       return mapToSemester(data as unknown as SemesterApiResponse);
     } catch (error) {
@@ -126,7 +126,7 @@ export const semesterService = {
       isActive: data.isActive,
     };
 
-    const response = await axiosClient.post<ApiResponse<SemesterApiResponse>>('/api/semesters', request);
+    const response = await axiosClient.post<ApiResponse<SemesterApiResponse>>('/semesters', request);
     const responseData = response.data?.data || response.data;
     return mapToSemester(responseData as unknown as SemesterApiResponse);
   },
@@ -151,7 +151,7 @@ export const semesterService = {
   },
 
   deleteSemester: async (id: string): Promise<void> => {
-    await axiosClient.delete(`/api/semesters/${id}`);
+    await axiosClient.delete(`/semesters/${id}`);
   },
 
   setActiveSemester: async (id: string): Promise<Semester> => {

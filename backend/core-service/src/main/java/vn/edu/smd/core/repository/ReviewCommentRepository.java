@@ -1,6 +1,8 @@
 package vn.edu.smd.core.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.ReviewComment;
 
@@ -21,5 +23,9 @@ public interface ReviewCommentRepository extends JpaRepository<ReviewComment, UU
     
     List<ReviewComment> findBySyllabusVersionIdAndIsResolved(UUID syllabusVersionId, Boolean isResolved);
     
-    List<ReviewComment> findBySyllabusVersionIdOrderByCreatedAtDesc(UUID syllabusVersionId);
+    @Query("SELECT rc FROM ReviewComment rc " +
+           "LEFT JOIN FETCH rc.createdBy " +
+           "WHERE rc.syllabusVersion.id = :syllabusVersionId " +
+           "ORDER BY rc.createdAt DESC")
+    List<ReviewComment> findBySyllabusVersionIdOrderByCreatedAtDesc(@Param("syllabusVersionId") UUID syllabusVersionId);
 }

@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { Card, Descriptions, Tag, Button, Space, Input, List, Avatar, Typography, Divider } from 'antd';
-import { ArrowLeftOutlined, CommentOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Descriptions, Tag, Button, Space, Input, List, Avatar, Typography, Divider, Spin, Timeline, Alert, message } from 'antd';
+import { ArrowLeftOutlined, CommentOutlined, SendOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
+import { syllabusService } from '@/services/syllabus.service';
+import { Syllabus } from '@/types';
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -39,84 +42,198 @@ const SyllabusDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: '1',
-      author: 'TS. Nguyễn Văn A',
-      content: 'CLO 2 cần bổ sung thêm phương pháp đánh giá cụ thể hơn.',
-      timestamp: '2024-12-10 14:30',
-    },
-    {
-      id: '2',
-      author: 'ThS. Trần Thị B',
-      content: 'Tài liệu tham khảo số 3 đã cũ, nên thay bằng phiên bản 2023.',
-      timestamp: '2024-12-10 15:45',
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [syllabus, setSyllabus] = useState<Syllabus | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  // Mock data - in real app, fetch from API based on id
-  const syllabus: SyllabusDetail = {
-    id: id || '1',
-    subjectCode: 'CS401',
-    subjectName: 'Trí tuệ nhân tạo',
-    credits: 3,
-    semester: 'HK2 2024-2025',
-    department: 'Công nghệ Thông tin',
-    status: 'PENDING_REVIEW',
-    version: 'v2.0',
-    description:
-      'Môn học cung cấp kiến thức cơ bản về trí tuệ nhân tạo, bao gồm các thuật toán tìm kiếm, học máy, xử lý ngôn ngữ tự nhiên và thị giác máy tính.',
-    objectives: [
-      'Hiểu các khái niệm cơ bản về AI',
-      'Áp dụng các thuật toán AI vào bài toán thực tế',
-      'Phát triển ứng dụng AI đơn giản',
-    ],
-    clos: [
-      { code: 'CLO1', description: 'Giải thích các khái niệm cơ bản về AI', weight: 20 },
-      { code: 'CLO2', description: 'Vận dụng thuật toán tìm kiếm', weight: 30 },
-      { code: 'CLO3', description: 'Xây dựng mô hình học máy cơ bản', weight: 30 },
-      { code: 'CLO4', description: 'Phát triển ứng dụng AI hoàn chỉnh', weight: 20 },
-    ],
-    plos: ['PLO1', 'PLO2', 'PLO5', 'PLO6'],
-    prerequisites: ['CS301 - Cơ sở dữ liệu', 'CS201 - Cấu trúc dữ liệu'],
-    teachingMethod: 'Kết hợp giảng dạy lý thuyết và thực hành',
-    assessment: 'Thi cuối kỳ: 50%, Giữa kỳ: 20%, Bài tập: 20%, Dự án: 10%',
-    references: [
-      'Stuart Russell, Peter Norvig - Artificial Intelligence: A Modern Approach (2020)',
-      'Ian Goodfellow - Deep Learning (2016)',
-    ],
-    mainLecturer: 'PGS.TS Lê Văn C',
-    coLecturers: ['ThS. Nguyễn Thị D', 'TS. Trần Văn E'],
-  };
+  // Fetch syllabus data from API
+  useEffect(() => {
+    const fetchSyllabus = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        const data = await syllabusService.getSyllabusById(id);
+        setSyllabus(data);
+        
+        // Fetch comments if available
+        try {
+          const commentsData = await syllabusService.getComments(id);
+          setComments(commentsData.map((c: any) => ({
+            id: c.id,
+            author: c.authorName || 'Unknown',
+            content: c.content,
+            timestamp: dayjs(c.createdAt).format('DD/MM/YYYY HH:mm'),
+          })));
+        } catch (err) {
+          console.log('No comments available');
+        }
+      } catch (error) {
+        console.error('Error fetching syllabus:', error);
+        message.error('Không thể tải thông tin đề cương');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      const comment: Comment = {
-        id: String(comments.length + 1),
-        author: 'Tôi', // Current user
-        content: newComment,
-        timestamp: new Date().toLocaleString('vi-VN'),
-      };
-      setComments([...comments, comment]);
-      setNewComment('');
+    fetchSyllabus();
+  }, [id]);
+
+  const handleAddComment = async () => {
+    if (newComment.trim() && id && syllabus) {
+      try {
+        // Backend expects syllabusVersionId, not syllabusId
+        const response = await syllabusService.addComment({
+          syllabusVersionId: id, // Send syllabus ID as syllabusVersionId
+          content: newComment,
+        } as any);
+        
+        const comment: Comment = {
+          id: response?.id || String(comments.length + 1),
+          author: response?.userName || 'Tôi',
+          content: newComment,
+          timestamp: dayjs().format('DD/MM/YYYY HH:mm'),
+        };
+        setComments([...comments, comment]);
+        setNewComment('');
+        message.success('Đã gửi góp ý');
+      } catch (error: any) {
+        console.error('Error adding comment:', error);
+        const errorMsg = error?.response?.data?.message || 'Lỗi khi gửi góp ý';
+        message.error(errorMsg);
+      }
     }
   };
 
   const statusColors: Record<string, string> = {
     DRAFT: 'default',
-    PENDING_REVIEW: 'processing',
-    WAITING_HOD: 'processing',
+    PENDING_HOD: 'processing',
+    PENDING_HOD_REVISION: 'warning',
+    PENDING_AA: 'processing',
+    PENDING_PRINCIPAL: 'processing',
+    APPROVED: 'success',
     PUBLISHED: 'success',
-    HOD_REJECTED: 'error',
+    REJECTED: 'error',
+    REVISION_IN_PROGRESS: 'orange',
   };
 
   const statusLabels: Record<string, string> = {
     DRAFT: 'Bản nháp',
-    PENDING_REVIEW: 'Đang review',
-    WAITING_HOD: 'Chờ TBM duyệt',
+    PENDING_HOD: 'Chờ Trưởng BM duyệt',
+    PENDING_HOD_REVISION: 'Chờ TBM (Sửa lỗi)',
+    PENDING_AA: 'Chờ Phòng ĐT duyệt',
+    PENDING_PRINCIPAL: 'Chờ Hiệu trưởng duyệt',
+    APPROVED: 'Đã phê duyệt',
     PUBLISHED: 'Đã xuất bản',
-    HOD_REJECTED: 'TBM từ chối',
+    REJECTED: 'Bị từ chối',
+    REVISION_IN_PROGRESS: 'Đang chỉnh sửa',
   };
+
+  const renderApprovalTimeline = () => {
+    if (!syllabus) return null;
+
+    const events = [];
+
+    if (syllabus.createdAt) {
+      events.push({
+        color: 'blue',
+        icon: <ClockCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Tạo đề cương</Text>
+            <Text type="secondary">{dayjs(syllabus.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
+            <Text type="secondary">Bởi: {syllabus.ownerName}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    if (syllabus.submittedAt) {
+      events.push({
+        color: 'cyan',
+        icon: <CheckCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Gửi phê duyệt</Text>
+            <Text type="secondary">{dayjs(syllabus.submittedAt).format('DD/MM/YYYY HH:mm')}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    if (syllabus.hodApprovedAt) {
+      events.push({
+        color: 'green',
+        icon: <CheckCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Trưởng Bộ môn duyệt</Text>
+            <Text type="secondary">{dayjs(syllabus.hodApprovedAt).format('DD/MM/YYYY HH:mm')}</Text>
+            <Text type="secondary">Bởi: {syllabus.hodApprovedBy}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    if (syllabus.aaApprovedAt) {
+      events.push({
+        color: 'green',
+        icon: <CheckCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Phòng Đào tạo duyệt</Text>
+            <Text type="secondary">{dayjs(syllabus.aaApprovedAt).format('DD/MM/YYYY HH:mm')}</Text>
+            <Text type="secondary">Bởi: {syllabus.aaApprovedBy}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    if (syllabus.principalApprovedAt) {
+      events.push({
+        color: 'green',
+        icon: <CheckCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Hiệu trưởng duyệt</Text>
+            <Text type="secondary">{dayjs(syllabus.principalApprovedAt).format('DD/MM/YYYY HH:mm')}</Text>
+            <Text type="secondary">Bởi: {syllabus.principalApprovedBy}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    if (syllabus.publishedAt) {
+      events.push({
+        color: 'purple',
+        icon: <CheckCircleOutlined />,
+        children: (
+          <Space direction="vertical" size={0}>
+            <Text strong>Xuất hành</Text>
+            <Text type="secondary">{dayjs(syllabus.publishedAt).format('DD/MM/YYYY HH:mm')}</Text>
+          </Space>
+        ),
+      });
+    }
+
+    return events.length > 0 ? <Timeline items={events} /> : <Text type="secondary">Chưa có lịch sử phê duyệt</Text>;
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!syllabus) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Alert message="Không tìm thấy đề cương" type="error" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '24px' }}>
@@ -129,103 +246,81 @@ const SyllabusDetailPage: React.FC = () => {
           title={
             <Space>
               <span>
-                {syllabus.subjectCode} - {syllabus.subjectName}
+                {syllabus.subjectCode} - {syllabus.subjectNameVi}
               </span>
               <Tag color={statusColors[syllabus.status]}>
                 {statusLabels[syllabus.status] || syllabus.status}
               </Tag>
-              <Tag color="blue">{syllabus.version}</Tag>
+              <Tag color="blue">v{syllabus.version}</Tag>
             </Space>
           }
         >
           <Descriptions bordered column={2}>
-            <Descriptions.Item label="Số tín chỉ">{syllabus.credits}</Descriptions.Item>
+            <Descriptions.Item label="Số tín chỉ">{syllabus.creditCount}</Descriptions.Item>
             <Descriptions.Item label="Học kỳ">{syllabus.semester}</Descriptions.Item>
-            <Descriptions.Item label="Khoa/Bộ môn" span={2}>
+            <Descriptions.Item label="Khoa" span={2}>
+              {syllabus.faculty}
+            </Descriptions.Item>
+            <Descriptions.Item label="Bộ môn" span={2}>
               {syllabus.department}
             </Descriptions.Item>
-            <Descriptions.Item label="Giảng viên chính" span={2}>
-              {syllabus.mainLecturer}
-            </Descriptions.Item>
-            <Descriptions.Item label="Giảng viên cộng tác" span={2}>
-              {syllabus.coLecturers.join(', ')}
+            <Descriptions.Item label="Giảng viên" span={2}>
+              {syllabus.ownerName}
             </Descriptions.Item>
           </Descriptions>
         </Card>
 
+        {/* Approval Timeline */}
+        {syllabus.submittedAt && (
+          <Card title={<Space><ClockCircleOutlined /> Lịch sử phê duyệt</Space>}>
+            {renderApprovalTimeline()}
+          </Card>
+        )}
+
         <Card title="Mô tả môn học">
-          <Text>{syllabus.description}</Text>
+          <Text>{(syllabus as any).description || 'Chưa có mô tả'}</Text>
         </Card>
 
-        <Card title="Mục tiêu môn học">
-          <List
-            dataSource={syllabus.objectives}
-            renderItem={(item, index) => (
-              <List.Item>
-                <Text>
-                  {index + 1}. {item}
-                </Text>
-              </List.Item>
-            )}
-          />
-        </Card>
-
-        <Card title="Chuẩn đầu ra môn học (CLO)">
-          <List
-            dataSource={syllabus.clos}
-            renderItem={(clo) => (
-              <List.Item>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text strong>{clo.code}:</Text>
-                  <Text style={{ flex: 1 }}>{clo.description}</Text>
-                  <Tag color="blue">{clo.weight}%</Tag>
-                </Space>
-              </List.Item>
-            )}
-          />
-        </Card>
-
-        <Card title="Mapping với PLO">
-          <Space wrap>
-            {syllabus.plos.map((plo) => (
-              <Tag key={plo} color="green">
-                {plo}
-              </Tag>
-            ))}
-          </Space>
-        </Card>
-
-        <Card title="Môn học tiên quyết">
-          {syllabus.prerequisites.length > 0 ? (
+        {(syllabus as any).clos && (syllabus as any).clos.length > 0 && (
+          <Card title="Chuẩn đầu ra môn học (CLO)">
             <List
-              dataSource={syllabus.prerequisites}
-              renderItem={(item) => <List.Item>{item}</List.Item>}
+              dataSource={(syllabus as any).clos}
+              renderItem={(clo: any) => (
+                <List.Item>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text strong>{clo.code}:</Text>
+                    <Text style={{ flex: 1 }}>{clo.description}</Text>
+                    <Tag color="blue">{clo.weight}%</Tag>
+                  </Space>
+                </List.Item>
+              )}
             />
-          ) : (
-            <Text type="secondary">Không có</Text>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        <Card title="Phương pháp giảng dạy">
-          <Text>{syllabus.teachingMethod}</Text>
-        </Card>
+        {(syllabus as any).prerequisites && (syllabus as any).prerequisites.length > 0 && (
+          <Card title="Môn học tiên quyết">
+            <List
+              dataSource={(syllabus as any).prerequisites}
+              renderItem={(item: any) => <List.Item>{item}</List.Item>}
+            />
+          </Card>
+        )}
 
-        <Card title="Phương pháp đánh giá">
-          <Text>{syllabus.assessment}</Text>
-        </Card>
-
-        <Card title="Tài liệu tham khảo">
-          <List
-            dataSource={syllabus.references}
-            renderItem={(item, index) => (
-              <List.Item>
-                <Text>
-                  [{index + 1}] {item}
-                </Text>
-              </List.Item>
-            )}
-          />
-        </Card>
+        {(syllabus as any).references && (syllabus as any).references.length > 0 && (
+          <Card title="Tài liệu tham khảo">
+            <List
+              dataSource={(syllabus as any).references}
+              renderItem={(item: any, index: number) => (
+                <List.Item>
+                  <Text>
+                    [{index + 1}] {item}
+                  </Text>
+                </List.Item>
+              )}
+            />
+          </Card>
+        )}
 
         {/* Comment Section for Collaborative Review */}
         <Card

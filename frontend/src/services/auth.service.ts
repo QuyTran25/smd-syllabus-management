@@ -44,7 +44,7 @@ export const authService = {
   // Đăng nhập
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     // Gọi qua Gateway 8888 (đã bọc trong axiosClient)
-    const response = await axiosClient.post('/api/auth/login', credentials);
+    const response = await axiosClient.post('/auth/login', credentials);
     
     // Xử lý dữ liệu linh hoạt (Hỗ trợ cả object lồng 'data' hoặc object phẳng)
     const payload = response.data?.data ? response.data.data : response.data;
@@ -59,7 +59,7 @@ export const authService = {
     
     // Nếu login chưa trả về user, gọi API /me để lấy thông tin chi tiết
     if (!userInfo) {
-      const userResponse = await axiosClient.get('/api/auth/me');
+      const userResponse = await axiosClient.get('/auth/me');
       userInfo = userResponse.data?.data || userResponse.data;
     }
 
@@ -73,7 +73,7 @@ export const authService = {
   // Đăng xuất
   logout: async (): Promise<void> => {
     try {
-      await axiosClient.post('/api/auth/logout');
+      await axiosClient.post('/auth/logout');
     } finally {
       // Luôn xóa token ở client kể cả khi API logout gặp lỗi
       localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -85,14 +85,14 @@ export const authService = {
   // Verify token và lấy thông tin người dùng hiện tại
   getCurrentUser: async (): Promise<User> => {
     // axiosClient tự động gắn Bearer Token từ interceptor (Không cần truyền token thủ công)
-    const response = await axiosClient.get('/api/auth/me');
+    const response = await axiosClient.get('/auth/me');
     const userInfo = response.data?.data || response.data;
     return mapUserResponse(userInfo);
   },
 
   // Làm mới Token
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-    const response = await axiosClient.post('/api/auth/refresh-token', { refreshToken });
+    const response = await axiosClient.post('/auth/refresh-token', { refreshToken });
     const payload = response.data?.data ? response.data.data : response.data;
     
     const newToken = payload?.accessToken ?? payload?.access_token ?? null;
@@ -103,7 +103,7 @@ export const authService = {
 
     let userInfo = payload?.user ?? null;
     if (!userInfo) {
-      const userResponse = await axiosClient.get('/api/auth/me');
+      const userResponse = await axiosClient.get('/auth/me');
       userInfo = userResponse.data?.data || userResponse.data;
     }
 

@@ -3,7 +3,9 @@ package vn.edu.smd.core.entity;
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import vn.edu.smd.shared.enums.ComponentType;
@@ -49,7 +51,7 @@ public class SyllabusVersion {
     private String versionNo;
 
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
+    @JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
     @Builder.Default
     private SyllabusStatus status = SyllabusStatus.DRAFT;
@@ -113,12 +115,12 @@ public class SyllabusVersion {
     private Integer currentApprovalStep = 0;
 
     @Convert(converter = vn.edu.smd.core.converter.CourseTypeConverter.class)
-    @Column(name = "course_type", length = 20)
+    @Column(name = "course_type", length = 20, columnDefinition = "core_service.course_type")
     @Builder.Default
     private CourseType courseType = CourseType.REQUIRED;
 
     @Convert(converter = vn.edu.smd.core.converter.ComponentTypeConverter.class)
-    @Column(name = "component_type", length = 20)
+    @Column(name = "component_type", length = 20, columnDefinition = "core_service.component_type")
     @Builder.Default
     private ComponentType componentType = ComponentType.MAJOR;
 
@@ -200,5 +202,4 @@ public class SyllabusVersion {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
 }

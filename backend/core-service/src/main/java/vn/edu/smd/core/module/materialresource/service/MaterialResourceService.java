@@ -9,6 +9,7 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.materialresource.dto.MaterialResourceRequest;
 import vn.edu.smd.core.module.materialresource.dto.MaterialResourceResponse;
 import vn.edu.smd.core.repository.MaterialResourceRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.util.List;

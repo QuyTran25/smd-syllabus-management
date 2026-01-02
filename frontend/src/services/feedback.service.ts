@@ -70,7 +70,7 @@ export const feedbackService = {
       
       // FIX: Gọi qua Gateway 8888 sử dụng axiosClient
       const response = await axiosClient.get<{ data: { content: StudentFeedbackResponse[] } }>(
-        `/api/student-feedbacks?${params.toString()}`
+        `/student-feedbacks?${params.toString()}`
       );
       
       // ANTI-CONFLICT: Xử lý payload linh hoạt cho cả trường hợp data bọc hoặc không bọc
@@ -118,7 +118,7 @@ export const feedbackService = {
 
   getFeedbackById: async (id: string): Promise<StudentFeedback> => {
     const response = await axiosClient.get<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}`
+      `/student-feedbacks/${id}`
     );
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
@@ -130,7 +130,7 @@ export const feedbackService = {
     _respondedBy: string
   ): Promise<StudentFeedback> => {
     const apiResponse = await axiosClient.post<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/respond`,
+      `/student-feedbacks/${id}/respond`,
       { response: responseContent, enableEdit: false }
     );
     const data = apiResponse.data?.data || apiResponse.data;
@@ -139,7 +139,7 @@ export const feedbackService = {
 
   enableEditForLecturer: async (id: string, _enabledBy: string): Promise<StudentFeedback> => {
     const response = await axiosClient.post<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/enable-edit`
+      `/student-feedbacks/${id}/enable-edit`
     );
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);
@@ -150,7 +150,7 @@ export const feedbackService = {
     status: FeedbackStatus
   ): Promise<StudentFeedback> => {
     const response = await axiosClient.patch<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/status?status=${status}`
+      `/student-feedbacks/${id}/status?status=${status}`
     );
     const data = response.data?.data || response.data;
     return mapToStudentFeedback(data as unknown as StudentFeedbackResponse);

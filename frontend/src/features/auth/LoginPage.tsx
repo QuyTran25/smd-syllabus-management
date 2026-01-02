@@ -17,13 +17,19 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
+  // 🔍 DEBUG: Track renders
+  React.useEffect(() => {
+    console.log("[LoginPage] 🔄 RE-RENDER - isLoading:", isLoading);
+  }, [isLoading]); // Only log when isLoading changes
+
   const onFinish = async (values: LoginFormValues) => {
+    console.log("[LoginPage] 📝 onFinish called with email:", values.email);
     try {
       const user = await login(values.email, values.password);
       
       // Logic điều hướng (Giữ nguyên phần này vì nó không conflict, chỉ là logic xử lý)
       const role = String(user.role ?? (user as any).primaryRole);
-      console.log("Login Success. Role:", role);
+      console.log("[LoginPage] ✅ Login Success. Role:", role);
 
       if (role === UserRole.ADMIN) {
         navigate('/admin/dashboard'); 
@@ -39,7 +45,7 @@ export const LoginPage: React.FC = () => {
       }
 
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("[LoginPage] ❌ Login failed:", error);
     }
   };
 

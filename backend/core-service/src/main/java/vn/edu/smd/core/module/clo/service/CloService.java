@@ -10,6 +10,7 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.clo.dto.CloRequest;
 import vn.edu.smd.core.module.clo.dto.CloResponse;
 import vn.edu.smd.core.repository.CLORepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung, không phải trong module
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.math.BigDecimal;

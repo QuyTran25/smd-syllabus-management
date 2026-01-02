@@ -51,6 +51,8 @@ public class SyllabusResponse {
     private Integer selfStudyHours;
     private Integer totalStudyHours;
     
+    private Boolean isDeleted;
+    
     // CLOs and Assessments
     private List<CLOResponse> clos;
     private List<AssessmentResponse> assessmentMethods;

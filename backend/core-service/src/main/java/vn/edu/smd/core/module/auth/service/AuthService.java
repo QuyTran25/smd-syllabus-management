@@ -46,14 +46,6 @@ public class AuthService {
         String email = request.getEmail().trim();
         String rawPassword = request.getPassword().trim();
 
-        log.debug("=== LOGIN ATTEMPT: {} ===", email);
-        
-        // Kiểm tra hash trực tiếp để debug nếu cần
-        userRepository.findByEmail(email).ifPresent(dbUser -> {
-            boolean matches = passwordEncoder.matches(rawPassword, dbUser.getPasswordHash());
-            log.debug("Direct password match check: {}", matches);
-        });
-
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, rawPassword)
@@ -166,16 +158,28 @@ public class AuthService {
     }
 
     private UserInfoResponse mapToUserInfo(User user) {
-        return new UserInfoResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getFullName(),
-                user.getPhoneNumber(),
-                user.getPrimaryRole() != null ? user.getPrimaryRole().name() : null,
-                user.getRoles().stream().map(role -> role.getName()).collect(Collectors.toSet()),
-                user.getStatus().name()
-        );
+    // 1. Xác định Primary Role từ dữ liệu có sẵn
+    String roleName = null;
+    if (user.getPrimaryRole() != null) {
+        roleName = user.getPrimaryRole().name();
+    } else if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+        // Nếu primary_role trong DB trống, lấy role đầu tiên trong danh sách roles
+        roleName = user.getRoles().iterator().next().getCode();
+    } else {
+        // Giá trị dự phòng cuối cùng để tránh lỗi Null ở Frontend
+        roleName = "LECTURER"; 
     }
+
+    return new UserInfoResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getFullName(),
+            user.getPhoneNumber(),
+            roleName, // ⭐ KHÔNG TRẢ VỀ NULL NỮA
+            user.getRoles().stream().map(role -> role.getName()).collect(Collectors.toSet()),
+            user.getStatus() != null ? user.getStatus().name() : "ACTIVE"
+    );
+}
 
     public void logout() {
         SecurityContextHolder.clearContext();

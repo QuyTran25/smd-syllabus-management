@@ -1,9 +1,14 @@
+SET search_path TO core_service;
+
 -- 1. Đảm bảo schema tồn tại
 CREATE SCHEMA IF NOT EXISTS core_service;
 
+-- ⭐ FIX: Xóa bảng cũ (do V7 tạo ra) để tạo lại bảng mới đúng chuẩn
+DROP TABLE IF EXISTS core_service.notifications CASCADE;
+
 -- 2. Tạo bảng với đầy đủ cột
-CREATE TABLE IF NOT EXISTS core_service.notifications (
-    id uuid PRIMARY KEY,
+CREATE TABLE core_service.notifications ( -- Bỏ IF NOT EXISTS đi cũng được vì đã DROP ở trên
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid,
     title varchar(255),
     message text,
@@ -11,7 +16,7 @@ CREATE TABLE IF NOT EXISTS core_service.notifications (
     payload jsonb,
     is_read boolean DEFAULT false,
     read_at timestamptz,
-    -- HAI CỘT DƯỚI ĐÂY LÀ BẮT BUỘC ĐỂ KHÔNG LỖI INDEX
+    -- HAI CỘT DƯỚI ĐÂY LÀ BẮT BUỘC
     related_entity_id uuid,
     related_entity_type varchar(50),
     created_at timestamptz DEFAULT now()

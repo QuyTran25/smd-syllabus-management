@@ -9,6 +9,7 @@ import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.module.lessonplan.dto.LessonPlanRequest;
 import vn.edu.smd.core.module.lessonplan.dto.LessonPlanResponse;
 import vn.edu.smd.core.repository.LessonPlanRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 
 import java.util.List;

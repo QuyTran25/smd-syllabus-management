@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { STORAGE_KEYS } from '@/constants';
 
-const gatewayUrl = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+const gatewayUrl = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8888';
 const axiosTimeout = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
 
 const axiosClient = axios.create({

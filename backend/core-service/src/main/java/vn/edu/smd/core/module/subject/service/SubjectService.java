@@ -21,6 +21,7 @@ import vn.edu.smd.core.repository.CurriculumRepository;
 import vn.edu.smd.core.repository.DepartmentRepository;
 import vn.edu.smd.core.repository.SubjectRelationshipRepository;
 import vn.edu.smd.core.repository.SubjectRepository;
+// ⭐ IMPORT CHUẨN: Repository nằm ở package chung của core
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.shared.enums.SubjectComponent;
 import vn.edu.smd.shared.enums.SubjectRelationType;
@@ -30,7 +31,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +50,7 @@ public class SubjectService {
 
     @Transactional(readOnly = true)
     public List<SubjectResponse> getAllSubjects() {
+        // Lưu ý: Cần đảm bảo method findAllWithDepartmentAndFaculty() đã được định nghĩa trong SubjectRepository
         List<Subject> subjects = subjectRepository.findAllWithDepartmentAndFaculty();
         
         // Load all prerequisites in one query

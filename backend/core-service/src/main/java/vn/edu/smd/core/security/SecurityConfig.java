@@ -1,22 +1,35 @@
 package vn.edu.smd.core.security;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -37,45 +50,68 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        AuthenticationManagerBuilder authenticationManagerBuilder = 
-            http.getSharedObject(AuthenticationManagerBuilder.class);
-        
-        authenticationManagerBuilder
-            .userDetailsService(customUserDetailsService)
-            .passwordEncoder(passwordEncoder());
-            
-        return authenticationManagerBuilder.build();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
+
+    /*
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+    */
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ⭐ QUAN TRỌNG NHẤT: Tắt CORS ở Core Service (Theo chuẩn Main).
-            // Lý do: Gateway (port 8888) đã thêm header CORS rồi.
-            // Nếu Core thêm nữa sẽ bị lỗi "Duplicate Access-Control-Allow-Origin".
-            .cors(AbstractHttpConfigurer::disable) 
-            
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Cho phép truy cập không cần Token vào các API Auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                
-                // ⭐ CHO PHÉP STUDENT API PUBLIC (Sinh viên không cần đăng nhập để xem đề cương)
-                .requestMatchers("/api/student/**").permitAll()
-                
-                // Cho phép Swagger và Actuator để debug/monitor
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
-                
-                // Tất cả các API nghiệp vụ khác (/api/admin/**, /api/syllabus/**...) bắt buộc phải có Token
-                .requestMatchers("/api/**").authenticated()
-                .anyRequest().authenticated()
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-            
+                // Enable CORS with configuration from Gateway or local dev
+                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.disable())
+
+                // Disable CSRF (stateless JWT)
+                .csrf(csrf -> csrf.disable())
+
+                // Stateless session (JWT only)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        // Public auth endpoints (login, register, forgot/reset password)
+                        .requestMatchers("/api/auth/**", "/api/v1/auth/**").permitAll()
+
+                        // Public student endpoints (view syllabus without login)
+                        .requestMatchers("/api/student/**").permitAll()
+
+                        // Swagger, OpenAPI, Actuator (debug/monitor)
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**", "/actuator/**").permitAll()
+
+                        // Temporary public POST for syllabus creation (debug/testing)
+                        .requestMatchers(HttpMethod.POST, "/api/syllabuses").permitAll()
+
+                        // All other API endpoints require authentication
+                        .requestMatchers("/api/**").authenticated()
+
+                        // Any other request requires authentication
+                        .anyRequest().authenticated()
+                )
+
+                // Use DaoAuthenticationProvider for username/password login
+                .authenticationProvider(authenticationProvider())
+
+                // Add JWT filter before UsernamePasswordAuthenticationFilter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }
