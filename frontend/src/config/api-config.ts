@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { message } from 'antd';
 import { API_BASE_URL, API_TIMEOUT, STORAGE_KEYS } from '@/constants';
 
 // Create axios instance
@@ -31,29 +30,34 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    // Handle 401 Unauthorized
+    console.log('🚨 API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+    });
+
+    // Handle 401 Unauthorized - CHỈ logout khi /api/auth/me thất bại
+    // ⚠️ QUAN TRỌNG: KHÔNG logout khi các API khác trả về 401
     if (error.response?.status === 401) {
-      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-      window.location.href = '/login';
-      message.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+      const url = error.config?.url || '';
+      
+      // CHỈ clear storage và redirect KHI verify token (/api/auth/me) thất bại
+      // Đây là dấu hiệu token thật sự expired hoặc invalid
+      if (url.includes('/api/auth/me')) {
+        console.log('❌ Token verification failed (401), clearing storage and redirecting to login');
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+        localStorage.removeItem('smd_user_data');
+        window.location.href = '/login';
+      } else {
+        // Các API khác trả về 401: chỉ log, KHÔNG logout
+        console.log('⚠️ API returned 401 but NOT /api/auth/me, user stays logged in');
+      }
     }
 
-    // Handle 403 Forbidden
-    if (error.response?.status === 403) {
-      message.error('Bạn không có quyền truy cập tài nguyên này.');
-    }
-
-    // Handle 404 Not Found
-    if (error.response?.status === 404) {
-      message.error('Không tìm thấy tài nguyên.');
-    }
-
-    // Handle 500 Internal Server Error
-    if (error.response?.status === 500) {
-      message.error('Lỗi hệ thống. Vui lòng thử lại sau.');
-    }
+    // ⚠️ KHÔNG hiện message.error ở đây nữa để tránh warning
+    // Component sẽ tự handle error và hiển thị message qua App.useApp()
 
     return Promise.reject(error);
   }

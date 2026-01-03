@@ -276,6 +276,18 @@ public class SyllabusService {
         if (syllabus.getAcademicTerm() != null) {
             response.setAcademicTermId(syllabus.getAcademicTerm().getId());
             response.setAcademicTermCode(syllabus.getAcademicTerm().getCode());
+            
+            // Extract semester from term code (HK1_2024 -> HK1, Học kỳ 1)
+            String termCode = syllabus.getAcademicTerm().getCode();
+            if (termCode != null && termCode.contains("_")) {
+                String semesterCode = termCode.split("_")[0]; // HK1, HK2, HK3
+                response.setSemester(semesterCode);
+            }
+            
+            // Set academic year from term
+            if (syllabus.getAcademicTerm().getAcademicYear() != null) {
+                response.setAcademicYear(syllabus.getAcademicTerm().getAcademicYear());
+            }
         }
 
         response.setVersionNo(syllabus.getVersionNo());

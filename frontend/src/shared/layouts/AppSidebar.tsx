@@ -41,39 +41,48 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
 
   // Get menu items based on user role
   const getMenuItems = () => {
-    const baseItems = [
-      {
-        key: '/',
-        icon: <DashboardOutlined />,
-        label: 'Dashboard',
-      },
-      {
-        key: '/syllabi',
-        icon: <FileTextOutlined />,
-        label: 'Quản lý Đề cương',
-      },
-    ];
+    // Base items - ONLY for Admin/HOD/AA/Principal, NOT for Lecturer/Student
+    const baseItems = [];
+    
+    // Add base items ONLY if user is Admin/HOD/AA/Principal
+    if (user?.role === UserRole.ADMIN || 
+        user?.role === UserRole.HOD || 
+        user?.role === UserRole.AA || 
+        user?.role === UserRole.PRINCIPAL) {
+      baseItems.push(
+        {
+          key: '/admin/dashboard',
+          icon: <DashboardOutlined />,
+          label: 'Dashboard',
+        },
+        {
+          key: '/admin/syllabi',
+          icon: <FileTextOutlined />,
+          label: 'Quản lý Đề cương',
+        }
+      );
+    }
 
     // Admin-only items
     if (user?.role === UserRole.ADMIN) {
       baseItems.push(
         {
-          key: '/users',
+          key: '/admin/users',
           icon: <UserOutlined />,
           label: 'Quản lý Người dùng',
         },
         {
-          key: '/settings',
+          key: '/admin/settings',
           icon: <SettingOutlined />,
           label: 'Cấu hình Hệ thống',
         },
         {
-          key: '/student-feedback',
+          key: '/admin/student-feedback',
           icon: <MessageOutlined />,
           label: 'Phản hồi Sinh viên',
         },
         {
-          key: '/audit-logs',
+          key: '/admin/audit-logs',
           icon: <HistoryOutlined />,
           label: 'Nhật ký Hoạt động',
         }
@@ -83,12 +92,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
     // HoD-only items
     if (user?.role === UserRole.HOD) {
       baseItems.push({
-        key: '/syllabus-review',
+        key: '/admin/syllabus-review',
         icon: <CheckOutlined />,
         label: 'Duyệt Đề cương',
       });
       baseItems.push({
-        key: '/teaching-assignment',
+        key: '/admin/teaching-assignment',
         icon: <TeamOutlined />,
         label: 'Quản lý Công tác',
       });
@@ -97,17 +106,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
     // AA-only items
     if (user?.role === UserRole.AA) {
       baseItems.push({
-        key: '/aa-syllabus-review',
+        key: '/admin/aa-syllabus-review',
         icon: <CheckOutlined />,
         label: 'Duyệt Đề cương',
       });
       baseItems.push({
-        key: '/plo-management',
+        key: '/admin/plo-management',
         icon: <ApartmentOutlined />,
         label: 'Quản lý PLO',
       });
       baseItems.push({
-        key: '/course-management',
+        key: '/admin/course-management',
         icon: <BookOutlined />,
         label: 'Quản lý Môn học',
       });
@@ -116,7 +125,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
     // Principal-only items
     if (user?.role === UserRole.PRINCIPAL) {
       baseItems.push({
-        key: '/batch-approval',
+        key: '/admin/batch-approval',
         icon: <CheckOutlined />,
         label: 'Phê duyệt Hàng loạt',
       });

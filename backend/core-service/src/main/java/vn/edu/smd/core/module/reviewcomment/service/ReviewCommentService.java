@@ -22,6 +22,7 @@ public class ReviewCommentService {
     private final ReviewCommentRepository commentRepository;
     private final SyllabusVersionRepository syllabusRepository;
 
+    @Transactional(readOnly = true)
     public List<ReviewCommentResponse> getCommentsBySyllabus(UUID syllabusVersionId) {
         if (!syllabusRepository.existsById(syllabusVersionId)) {
             throw new ResourceNotFoundException("SyllabusVersion", "id", syllabusVersionId);
@@ -31,6 +32,7 @@ public class ReviewCommentService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public ReviewCommentResponse getCommentById(UUID id) {
         ReviewComment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ReviewComment", "id", id));

@@ -36,6 +36,20 @@ public class CollaborationController {
         return ResponseEntity.ok(ApiResponse.success(collaborators));
     }
 
+    @Operation(summary = "Get collaborations by user", description = "Get list of syllabi where user is a collaborator")
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<List<CollaborationResponse>>> getCollaborationsByUser(@PathVariable UUID userId) {
+        List<CollaborationResponse> collaborations = collaborationService.getCollaborationsByUser(userId);
+        return ResponseEntity.ok(ApiResponse.success(collaborations));
+    }
+
+    @Operation(summary = "Get collaborations for syllabus", description = "Get list of collaboration sessions for a syllabus")
+    @GetMapping("/syllabi/{syllabusId}/collaborations")
+    public ResponseEntity<ApiResponse<List<CollaborationResponse>>> getCollaborationsForSyllabus(@PathVariable UUID syllabusId) {
+        List<CollaborationResponse> collaborations = collaborationService.getCollaboratorsBySyllabus(syllabusId);
+        return ResponseEntity.ok(ApiResponse.success(collaborations));
+    }
+
     @Operation(summary = "Get collaboration by ID", description = "Get collaboration details by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CollaborationResponse>> getCollaborationById(@PathVariable UUID id) {
@@ -71,12 +85,5 @@ public class CollaborationController {
     public ResponseEntity<ApiResponse<CollaborationResponse>> closeCollaboration(@PathVariable UUID id) {
         CollaborationResponse collaboration = collaborationService.closeCollaboration(id);
         return ResponseEntity.ok(ApiResponse.success("Collaboration session closed successfully", collaboration));
-    }
-
-    @Operation(summary = "Get collaborations for syllabus", description = "Get list of collaboration sessions for a syllabus")
-    @GetMapping("/syllabi/{syllabusId}/collaborations")
-    public ResponseEntity<ApiResponse<List<CollaborationResponse>>> getCollaborationsForSyllabus(@PathVariable UUID syllabusId) {
-        List<CollaborationResponse> collaborations = collaborationService.getCollaboratorsBySyllabus(syllabusId);
-        return ResponseEntity.ok(ApiResponse.success(collaborations));
     }
 }

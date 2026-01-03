@@ -26,12 +26,14 @@ public class CollaborationService {
     private final SyllabusVersionRepository syllabusRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public List<CollaborationResponse> getAllCollaborationSessions() {
         return collaboratorRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<CollaborationResponse> getCollaboratorsBySyllabus(UUID syllabusVersionId) {
         if (!syllabusRepository.existsById(syllabusVersionId)) {
             throw new ResourceNotFoundException("SyllabusVersion", "id", syllabusVersionId);
@@ -41,6 +43,17 @@ public class CollaborationService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<CollaborationResponse> getCollaborationsByUser(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User", "id", userId);
+        }
+        return collaboratorRepository.findByUserId(userId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public CollaborationResponse getCollaborationById(UUID id) {
         SyllabusCollaborator collaborator = collaboratorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Collaboration", "id", id));

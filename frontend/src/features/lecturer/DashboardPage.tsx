@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, Table, Tag, Button, Space, Select, Badge, Row, Col, Statistic, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Tag, Button, Space, Select, Badge, Row, Col, Statistic, Typography, App } from 'antd';
 import {
   EditOutlined,
   EyeOutlined,
@@ -15,6 +15,11 @@ import {
 const { Title } = Typography;
 import { useNavigate } from 'react-router-dom';
 import RejectionReasonModal from './dashboard/components/RejectionReasonModal';
+import { useAuth } from '@/features/auth/AuthContext';
+import { syllabusService } from '@/services/syllabus.service';
+import { teachingAssignmentService } from '@/services/teaching-assignment.service';
+import { collaborationService } from '@/services/collaboration.service';
+import { Syllabus, SyllabusStatus } from '@/types';
 
 type TaskType = 'DRAFT' | 'REJECTED' | 'REVIEW' | 'FEEDBACK';
 type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'REJECTED';
@@ -34,7 +39,11 @@ interface LecturerTask {
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { message } = App.useApp(); // ✅ Dùng App context thay vì static
   const [selectedTaskType, setSelectedTaskType] = useState<string>('ALL');
+  const [loading, setLoading] = useState(false);
+  const [allTasks, setAllTasks] = useState<LecturerTask[]>([]);
   const [rejectionModal, setRejectionModal] = useState<{
     open: boolean;
     syllabusId: number;
@@ -51,71 +60,117 @@ const DashboardPage: React.FC = () => {
     type: 'HOD',
   });
 
-  // Mock data: Tất cả nhiệm vụ của giảng viên
-  const allTasks: LecturerTask[] = [
-    {
-      id: '1',
-      type: 'DRAFT',
-      subjectCode: 'CS101',
-      subjectName: 'Lập trình căn bản',
-      deadline: '2024-12-20',
-      status: 'IN_PROGRESS',
-      syllabusId: 1,
-    },
-    {
-      id: '2',
-      type: 'REJECTED',
-      subjectCode: 'CS301',
-      subjectName: 'Cơ sở dữ liệu',
-      deadline: '2024-12-18',
-      status: 'REJECTED',
-      syllabusId: 2,
-      rejectionReason:
-        'CLO số 3 không rõ ràng về phương pháp đánh giá. Vui lòng bổ sung thang điểm chi tiết và phân bổ % điểm cho từng hoạt động đánh giá.',
-      rejectionType: 'HOD',
-    },
-    {
-      id: '3',
-      type: 'REVIEW',
-      subjectCode: 'CS401',
-      subjectName: 'Trí tuệ nhân tạo',
-      deadline: '2024-12-22',
-      status: 'PENDING',
-      syllabusId: 3,
-      assignedBy: 'TS. Nguyễn Văn A',
-    },
-    {
-      id: '4',
-      type: 'FEEDBACK',
-      subjectCode: 'CS201',
-      subjectName: 'Cấu trúc dữ liệu',
-      deadline: '2024-12-25',
-      status: 'PENDING',
-      syllabusId: 4,
-    },
-    {
-      id: '5',
-      type: 'REJECTED',
-      subjectCode: 'CS501',
-      subjectName: 'Học máy',
-      deadline: '2024-12-19',
-      status: 'REJECTED',
-      syllabusId: 5,
-      rejectionReason:
-        'Chưa có mapping PLO cho CLO 4 và CLO 5. Tài liệu tham khảo cần bổ sung ít nhất 2 tài liệu tiếng Anh xuất bản sau năm 2020.',
-      rejectionType: 'AA',
-    },
-    {
-      id: '6',
-      type: 'REVIEW',
-      subjectCode: 'CS302',
-      subjectName: 'Mạng máy tính',
-      deadline: '2024-12-21',
-      status: 'IN_PROGRESS',
-      syllabusId: 6,
-      assignedBy: 'PGS. Trần Thị B',
-    },
-  ];
+  // Fetch real data on component mount
+  useEffect(() => {
+    if (user) {
+      fetchLecturerTasks();
+    }
+  }, [user]);
+
+  const fetchLecturerTasks = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const tasks: LecturerTask[] = [];
+
+      // 1. Fetch teaching assignments (wrap trong try-catch riêng)
+      let assignments: any[] = [];
+      try {
+        assignments = await teachingAssignmentService.getByLecturerId(user.id);
+      } catch (error) {
+        console.warn('⚠️ Could not fetch teaching assignments (user may not have any):', error);
+        // KHÔNG throw error, tiếp tục load các data khác
+      }
+      
+      // 2. Fetch syllabi where user is the creator (DRAFT, PENDING_HOD, REJECTED, REVISION_IN_PROGRESS)
+      const { data: syllabi } = await syllabusService.getSyllabi(
+        {
+          status: [
+            SyllabusStatus.DRAFT,
+            SyllabusStatus.PENDING_HOD,
+            SyllabusStatus.REJECTED,
+            SyllabusStatus.REVISION_IN_PROGRESS,
+          ],
+        },
+        { page: 1, pageSize: 100 }
+      );
+
+      // Filter syllabi where current user is the creator
+      const mySyllabi = syllabi.filter(s => s.createdBy === user.id);
+
+      // Map syllabi to tasks
+      mySyllabi.forEach((syllabus) => {
+        let taskType: TaskType = 'DRAFT';
+        let taskStatus: TaskStatus = 'IN_PROGRESS';
+
+        if (syllabus.status === SyllabusStatus.DRAFT) {
+          taskType = 'DRAFT';
+          taskStatus = 'IN_PROGRESS';
+        } else if (syllabus.status === SyllabusStatus.PENDING_HOD) {
+          taskType = 'DRAFT';
+          taskStatus = 'PENDING'; // Chờ TBM duyệt
+        } else if (syllabus.status === SyllabusStatus.REJECTED) {
+          taskType = 'REJECTED';
+          taskStatus = 'REJECTED';
+        } else if (syllabus.status === SyllabusStatus.REVISION_IN_PROGRESS) {
+          taskType = 'FEEDBACK';
+          taskStatus = 'IN_PROGRESS';
+        }
+
+        // Find corresponding teaching assignment for deadline
+        const assignment = assignments.find(a => a.syllabusId === syllabus.id);
+
+        tasks.push({
+          id: syllabus.id,
+          type: taskType,
+          subjectCode: syllabus.subjectCode,
+          subjectName: syllabus.subjectNameVi,
+          deadline: assignment?.deadline || syllabus.updatedAt,
+          status: taskStatus,
+          syllabusId: parseInt(syllabus.id),
+          rejectionReason: undefined, // Will fetch from approval history if needed
+          rejectionType: undefined,
+        });
+      });
+
+      // 3. Fetch syllabi where user is a collaborator (for REVIEW tasks)
+      try {
+        const collaborations = await collaborationService.getMyCollaborations(user.id);
+        
+        for (const collab of collaborations) {
+          try {
+            const syllabus = await syllabusService.getSyllabusById(collab.syllabusVersionId);
+            
+            // Only show DRAFT syllabi for review
+            if (syllabus.status === SyllabusStatus.DRAFT) {
+              tasks.push({
+                id: syllabus.id,
+                type: 'REVIEW',
+                subjectCode: syllabus.subjectCode,
+                subjectName: syllabus.subjectNameVi,
+                deadline: syllabus.updatedAt,
+                status: 'PENDING',
+                syllabusId: parseInt(syllabus.id),
+                assignedBy: syllabus.ownerName, // Giảng viên chính
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching syllabus for collaboration ${collab.syllabusVersionId}:`, error);
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch collaborations:', error);
+      }
+
+      setAllTasks(tasks);
+    } catch (error: any) {
+      message.error('Không thể tải dữ liệu: ' + (error.message || 'Lỗi không xác định'));
+      console.error('Error fetching lecturer tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredTasks =
     selectedTaskType === 'ALL'
@@ -277,9 +332,10 @@ const DashboardPage: React.FC = () => {
   // Calculate stats
   const stats = {
     total: allTasks.length,
-    draft: allTasks.filter((t) => t.type === 'DRAFT').length,
+    draft: allTasks.filter((t) => t.type === 'DRAFT' && t.status === 'IN_PROGRESS').length,
+    pending: allTasks.filter((t) => t.status === 'PENDING').length, // Chờ duyệt
     review: allTasks.filter((t) => t.type === 'REVIEW').length,
-    rejected: allTasks.filter((t) => t.type === 'REJECTED').length,
+    rejected: allTasks.filter((t) => t.type === 'REJECTED').length + allTasks.filter((t) => t.type === 'FEEDBACK').length, // Cần sửa
   };
 
   return (
@@ -306,6 +362,16 @@ const DashboardPage: React.FC = () => {
                 value={stats.draft}
                 prefix={<ClockCircleOutlined />}
                 valueStyle={{ color: '#faad14' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Chờ phê duyệt"
+                value={stats.pending}
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
@@ -351,6 +417,7 @@ const DashboardPage: React.FC = () => {
             dataSource={filteredTasks}
             columns={columns}
             rowKey="id"
+            loading={loading}
             scroll={{ x: 800 }}
             pagination={{
               pageSize: 10,

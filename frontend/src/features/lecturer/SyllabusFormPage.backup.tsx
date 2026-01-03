@@ -9,6 +9,7 @@ import {
   Table,
   InputNumber,
   message,
+  Modal,
   Row,
   Col,
   Divider,
@@ -162,20 +163,8 @@ const SyllabusFormPage: React.FC = () => {
   // Load syllabus data into form
   useEffect(() => {
     if (syllabus && (isEditMode || isViewMode)) {
-      // Parse content from JSONB - cast to any since content not in type
-      const syllabusAny = syllabus as any;
-      const content = syllabusAny.content || {};
-      
-      console.log('📋 Loading syllabus data:', {
-        syllabusId: syllabus.id,
-        hasContent: !!syllabusAny.content,
-        contentKeys: Object.keys(content),
-        description: syllabus.description,
-        contentDescription: content.description,
-        hasAssessmentMethods: !!content.assessmentMethods,
-        assessmentMethodsType: Array.isArray(content.assessmentMethods) ? 'array' : typeof content.assessmentMethods,
-        assessmentMethodsLength: Array.isArray(content.assessmentMethods) ? content.assessmentMethods.length : 0,
-      });
+      // Parse content from JSONB
+      const content = syllabus.content || {};
 
       form.setFieldsValue({
         subjectCode: syllabus.subjectCode,
@@ -184,26 +173,13 @@ const SyllabusFormPage: React.FC = () => {
         semester: syllabus.semester,
         academicYear: syllabus.academicYear,
         department: syllabus.department,
-        description: syllabus.description || content.description || '',
-        objectives: syllabus.objectives?.join('\n') || content.objectives || '',
-        teachingMethod: content.teachingMethods || '',
-        assessmentMethod: typeof content.gradingPolicy === 'object' && content.gradingPolicy
-          ? Object.entries(content.gradingPolicy)
-              .map(([key, value]) => {
-                const label = key === 'midterm' ? 'Giữa kỳ' 
-                  : key === 'final' ? 'Cuối kỳ'
-                  : key === 'assignments' ? 'Bài tập'
-                  : key === 'project' ? 'Dự án'
-                  : key;
-                return `${label}: ${value}%`;
-              })
-              .join(', ')
-          : content.gradingPolicy || '', // If saved as string, use directly
-        textbooks: Array.isArray(content.textbooks)
-          ? content.textbooks.map((book: any) => `${book.title} - ${book.authors} (${book.year})`).join('\n')
-          : content.textbooks || '',
-        references: content.references || '',
-        studentDuties: content.studentDuties || '',
+        description: syllabus.description || content.description,
+        objectives: syllabus.objectives?.join('\n') || content.objectives,
+        teachingMethod: content.teachingMethod,
+        assessmentMethod: content.assessmentMethod,
+        textbooks: content.textbooks,
+        references: content.references,
+        studentDuties: content.studentDuties,
       });
 
       // Load CLOs from content
@@ -224,18 +200,7 @@ const SyllabusFormPage: React.FC = () => {
 
       // Load assessment methods
       if (content.assessmentMethods && Array.isArray(content.assessmentMethods)) {
-        console.log('✅ Loading assessmentMethods:', content.assessmentMethods);
-        setAssessmentMethods(
-          content.assessmentMethods.map((method: any, index: number) => ({
-            id: method.id || `am-${index}`,
-            method: method.name || method.method || '',
-            form: method.type || method.form || '',
-            weight: Number(method.weight) || 0,
-            description: method.description || '',
-          }))
-        );
-      } else {
-        console.log('⚠️ No assessmentMethods found in content');
+        setAssessmentMethods(content.assessmentMethods);
       }
 
       // Load prerequisites
@@ -306,20 +271,13 @@ const SyllabusFormPage: React.FC = () => {
         return;
       }
 
-      // Build content object - match JSONB structure from V31 migration
+      // Build content object
       const content = {
         description: values.description,
         objectives: values.objectives,
-        teachingMethods: values.teachingMethod, // Match JSONB field name (plural)
-        gradingPolicy: values.assessmentMethod, // Store as string for now, can parse later
-        textbooks: values.textbooks?.split('\n').filter((line: string) => line.trim()).map((line: string) => {
-          // Parse "Title - Author (Year)" format
-          const match = line.match(/^(.+?)\s*-\s*(.+?)\s*\((\d{4})\)$/);
-          if (match) {
-            return { title: match[1].trim(), authors: match[2].trim(), year: match[3] };
-          }
-          return { title: line.trim(), authors: '', year: '' };
-        }) || [],
+        teachingMethod: values.teachingMethod,
+        assessmentMethod: values.assessmentMethod,
+        textbooks: values.textbooks,
         references: values.references,
         studentDuties: values.studentDuties,
         clos,
@@ -327,17 +285,9 @@ const SyllabusFormPage: React.FC = () => {
         prerequisites,
       };
 
-      console.log('💾 Saving syllabus with content:', {
-        hasDescription: !!values.description,
-        hasObjectives: !!values.objectives,
-        hasTeachingMethods: !!values.teachingMethod,
-        cloCount: clos.length,
-        contentKeys: Object.keys(content),
-      });
-
       const payload = {
-        subjectId: (syllabus as any)?.subjectId || (syllabus as any)?.id || 'temp-subject-id',
-        versionNo: `v${syllabus?.version || 1}`,
+        subjectId: syllabus?.subjectId || 'temp-id', // TODO: get from subject selector
+        versionNo: syllabus?.versionNo || 'v1.0',
         content,
         description: values.description,
         objectives: values.objectives,
@@ -504,8 +454,8 @@ const SyllabusFormPage: React.FC = () => {
 
   if (isSyllabusLoading) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin spinning={true} size="large" tip="Đang tải đề cương..." />
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Spin size="large" tip="Đang tải đề cương..." />
       </div>
     );
   }
@@ -533,17 +483,7 @@ const SyllabusFormPage: React.FC = () => {
               : 'Chi tiết Đề cương'
           }
         >
-          <style>{`
-            .syllabus-form .ant-input[disabled],
-            .syllabus-form .ant-input-number-input[disabled],
-            .syllabus-form .ant-select-disabled .ant-select-selection-item,
-            .syllabus-form textarea[disabled] {
-              color: rgba(0, 0, 0, 0.88) !important;
-              background-color: #fafafa !important;
-              cursor: default !important;
-            }
-          `}</style>
-          <Form form={form} layout="vertical" className="syllabus-form" disabled={!canEdit}>
+          <Form form={form} layout="vertical" disabled={!canEdit}>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item label="Mã học phần" name="subjectCode">

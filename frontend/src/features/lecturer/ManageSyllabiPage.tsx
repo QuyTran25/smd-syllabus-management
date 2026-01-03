@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -29,6 +29,9 @@ import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import VersionComparisonModal from './VersionComparisonModal';
 import RejectionReasonModal from './dashboard/components/RejectionReasonModal';
+import { useAuth } from '@/features/auth/AuthContext';
+import { syllabusService } from '@/services/syllabus.service';
+import { SyllabusStatus } from '@/types';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -50,79 +53,51 @@ interface Syllabus {
   rejectionType?: 'HOD' | 'AA' | 'PRINCIPAL';
 }
 
-// Mock data
-const mockSyllabi: Syllabus[] = [
-  {
-    id: '1',
-    subjectCode: 'CS301',
-    subjectName: 'Cơ sở dữ liệu',
-    semester: 'HK2 2024-2025',
-    status: 'DRAFT',
-    currentVersion: 'v1.0',
-    totalVersions: 3,
-    lastModified: '2024-12-08 14:30',
-  },
-  {
-    id: '2',
-    subjectCode: 'CS401',
-    subjectName: 'Trí tuệ nhân tạo',
-    semester: 'HK2 2024-2025',
-    status: 'WAITING_HOD',
-    currentVersion: 'v2.1',
-    totalVersions: 5,
-    lastModified: '2024-12-07 10:15',
-    submittedAt: '2024-12-07 10:30',
-  },
-  {
-    id: '3',
-    subjectCode: 'CS201',
-    subjectName: 'Cấu trúc dữ liệu',
-    semester: 'HK1 2024-2025',
-    status: 'PUBLISHED',
-    currentVersion: 'v3.0',
-    totalVersions: 8,
-    lastModified: '2024-09-15 09:00',
-    approvedBy: 'TS. Nguyễn Văn A',
-  },
-  {
-    id: '4',
-    subjectCode: 'CS501',
-    subjectName: 'Học máy',
-    semester: 'HK2 2024-2025',
-    status: 'HOD_REJECTED',
-    currentVersion: 'v1.2',
-    totalVersions: 2,
-    lastModified: '2024-12-05 16:45',
-    rejectionReason: 'CLO số 3 không rõ ràng về phương pháp đánh giá. Vui lòng bổ sung thang điểm chi tiết và phân bổ % điểm cho từng hoạt động đánh giá.',
-    rejectionType: 'HOD',
-  },
-];
+interface Syllabus {
+  id: string;
+  subjectCode: string;
+  subjectName: string;
+  semester: string;
+  status: string;
+  currentVersion: string;
+  totalVersions: number;
+  lastModified: string;
+  submittedAt?: string;
+  approvedBy?: string;
+  isFollowing?: boolean;
+  rejectionReason?: string;
+  rejectionType?: 'HOD' | 'AA' | 'PRINCIPAL';
+  ownerId?: string;
+}
 
 const statusColors: Record<string, string> = {
   DRAFT: 'default',
-  WAITING_HOD: 'processing',
-  HOD_APPROVED: 'success',
-  HOD_REJECTED: 'error',
-  WAITING_AA: 'processing',
-  AA_APPROVED: 'success',
-  WAITING_PRINCIPAL: 'processing',
+  PENDING_HOD: 'processing',
+  PENDING_AA: 'processing',
+  PENDING_PRINCIPAL: 'processing',
+  REJECTED: 'error',
+  REVISION_IN_PROGRESS: 'warning',
+  APPROVED: 'success',
   PUBLISHED: 'success',
+  ARCHIVED: 'default',
 };
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Bản nháp',
-  WAITING_HOD: 'Chờ TBM duyệt',
-  HOD_APPROVED: 'TBM đã duyệt',
-  HOD_REJECTED: 'TBM từ chối',
-  WAITING_AA: 'Chờ AA duyệt',
-  AA_APPROVED: 'AA đã duyệt',
-  WAITING_PRINCIPAL: 'Chờ Hiệu trưởng',
+  PENDING_HOD: 'Chờ TBM duyệt',
+  PENDING_AA: 'Chờ AA duyệt',
+  PENDING_PRINCIPAL: 'Chờ Hiệu trưởng',
+  REJECTED: 'Bị từ chối',
+  REVISION_IN_PROGRESS: 'Đang chỉnh sửa',
+  APPROVED: 'Đã duyệt',
   PUBLISHED: 'Đã xuất bản',
+  ARCHIVED: 'Đã lưu trữ',
 };
 
 const ManageSyllabiPage: React.FC = () => {
   const navigate = useNavigate();
-  const [syllabi, setSyllabi] = useState<Syllabus[]>(mockSyllabi);
+  const { user } = useAuth();
+  const [syllabi, setSyllabi] = useState<Syllabus[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -146,6 +121,66 @@ const ManageSyllabiPage: React.FC = () => {
     type: 'HOD',
   });
 
+  // Fetch syllabi on mount and filter changes
+  useEffect(() => {
+    if (user) {
+      fetchSyllabi();
+    }
+  }, [user, statusFilter, semesterFilter]);
+
+  const fetchSyllabi = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      // Fetch syllabi where user is the creator
+      // Lecturer chỉ thấy các trạng thái: DRAFT, PENDING_HOD, REJECTED, REVISION_IN_PROGRESS
+      const filters: any = {
+        status: statusFilter ? [statusFilter as SyllabusStatus] : [
+          SyllabusStatus.DRAFT,
+          SyllabusStatus.PENDING_HOD,
+          SyllabusStatus.REJECTED,
+          SyllabusStatus.REVISION_IN_PROGRESS,
+        ],
+      };
+
+      if (searchText) {
+        filters.search = searchText;
+      }
+
+      const { data } = await syllabusService.getSyllabi(filters, { page: 1, pageSize: 100 });
+
+      // Filter by current user (creator)
+      const mySyllabi = data.filter(s => s.createdBy === user.id);
+
+      // Map to local interface
+      const mappedSyllabi: Syllabus[] = mySyllabi.map(s => ({
+        id: s.id,
+        subjectCode: s.subjectCode,
+        subjectName: s.subjectNameVi,
+        semester: s.semester,
+        status: s.status,
+        currentVersion: `v${s.version}.0`,
+        totalVersions: s.version,
+        lastModified: new Date(s.updatedAt).toLocaleString('vi-VN'),
+        submittedAt: s.submittedAt ? new Date(s.submittedAt).toLocaleString('vi-VN') : undefined,
+        approvedBy: s.hodApprovedBy || s.aaApprovedBy || s.principalApprovedBy,
+        isFollowing: false, // TODO: Implement follow feature
+        rejectionReason: undefined, // TODO: Fetch from approval_history
+        rejectionType: s.status === SyllabusStatus.REJECTED ? 'HOD' : undefined,
+        ownerId: s.ownerId,
+      }));
+
+      setSyllabi(mappedSyllabi);
+    } catch (error: any) {
+      message.error('Không thể tải danh sách đề cương: ' + (error.message || 'Lỗi không xác định'));
+      console.error('Error fetching syllabi:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleViewRejectionReason = (syllabus: Syllabus) => {
     if (syllabus.rejectionReason && syllabus.rejectionType) {
       setRejectionModal({
@@ -161,7 +196,7 @@ const ManageSyllabiPage: React.FC = () => {
 
   const handleSearch = (value: string) => {
     setSearchText(value);
-    // Mock search
+    fetchSyllabi();
   };
 
   const handleSubmit = (id: string) => {
@@ -169,19 +204,16 @@ const ManageSyllabiPage: React.FC = () => {
       title: 'Gửi đề cương phê duyệt',
       content: 'Bạn có chắc muốn gửi đề cương này cho Trưởng Bộ môn phê duyệt?',
       onOk: async () => {
-        setLoading(true);
-        // Mock submit
-        setTimeout(() => {
-          setSyllabi(
-            syllabi.map((s) =>
-              s.id === id
-                ? { ...s, status: 'WAITING_HOD', submittedAt: new Date().toLocaleString() }
-                : s
-            )
-          );
+        try {
+          setLoading(true);
+          await syllabusService.submitForApproval(id);
+          await fetchSyllabi();
           message.success('Đã gửi đề cương thành công!');
+        } catch (error: any) {
+          message.error('Không thể gửi đề cương: ' + (error.message || 'Lỗi không xác định'));
+        } finally {
           setLoading(false);
-        }, 500);
+        }
       },
     });
   };
@@ -192,12 +224,16 @@ const ManageSyllabiPage: React.FC = () => {
       content: 'Bạn có chắc muốn xóa đề cương này?',
       okType: 'danger',
       onOk: async () => {
-        setLoading(true);
-        setTimeout(() => {
-          setSyllabi(syllabi.filter((s) => s.id !== id));
+        try {
+          setLoading(true);
+          await syllabusService.deleteSyllabus(id);
+          await fetchSyllabi();
           message.success('Đã xóa đề cương!');
+        } catch (error: any) {
+          message.error('Không thể xóa đề cương: ' + (error.message || 'Lỗi không xác định'));
+        } finally {
           setLoading(false);
-        }, 500);
+        }
       },
     });
   };
@@ -251,8 +287,7 @@ const ManageSyllabiPage: React.FC = () => {
       render: (status, record) => (
         <Space>
           <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>
-          {(status === 'HOD_REJECTED' || status === 'AA_REJECTED' || status === 'PRINCIPAL_REJECTED') && 
-           record.rejectionReason && (
+          {status === 'REJECTED' && record.rejectionReason && (
             <InfoCircleOutlined
               style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 16 }}
               onClick={() => handleViewRejectionReason(record)}

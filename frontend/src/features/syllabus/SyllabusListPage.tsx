@@ -397,7 +397,7 @@ export const SyllabusListPage: React.FC = () => {
       align: 'center',
       render: (text, record) => (
         <Space direction="vertical" size={0}>
-          <a onClick={() => navigate(`/syllabi/${record.id}`)} style={{ color: '#018486' }}>
+          <a onClick={() => navigate(`/admin/syllabi/${record.id}`)} style={{ color: '#018486' }}>
             {text}
           </a>
           <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -491,7 +491,7 @@ export const SyllabusListPage: React.FC = () => {
             <Button
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => navigate(`/syllabi/${record.id}`)}
+              onClick={() => navigate(`/admin/syllabi/${record.id}`)}
             />
           </Tooltip>
           

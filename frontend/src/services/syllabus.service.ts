@@ -77,6 +77,23 @@ export const syllabusService = {
     await apiClient.delete(`/api/syllabi/${id}`);
   },
 
+  // Submit syllabus for approval
+  submitForApproval: async (id: string, comment?: string): Promise<Syllabus> => {
+    const response = await apiClient.patch(`/api/syllabi/${id}/submit`, {
+      comment: comment || '',
+    });
+    return response.data.data;
+  },
+
+  // Add review comment
+  addComment: async (syllabusId: string, content: string): Promise<SyllabusComment> => {
+    const response = await apiClient.post('/api/review-comments', {
+      syllabusVersionId: syllabusId,
+      content: content,
+    });
+    return response.data.data;
+  },
+
   // Approval actions
   approveSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/approve`, {
@@ -96,12 +113,6 @@ export const syllabusService = {
   // Get comments for syllabus
   getComments: async (syllabusId: string): Promise<SyllabusComment[]> => {
     const response = await apiClient.get(`/api/review-comments/syllabus/${syllabusId}`);
-    return response.data.data;
-  },
-
-  // Add comment
-  addComment: async (comment: Omit<SyllabusComment, 'id' | 'createdAt' | 'updatedAt'>): Promise<SyllabusComment> => {
-    const response = await apiClient.post('/api/review-comments', comment);
     return response.data.data;
   },
 

@@ -130,8 +130,10 @@ export interface Syllabus {
   previousVersionId?: string;
   
   // Ownership
-  ownerId: string; // Lecturer ID
+  ownerId: string; // Lecturer ID (deprecated, use createdBy)
   ownerName: string;
+  createdBy?: string; // UUID from backend
+  updatedBy?: string; // UUID from backend
   
   // Approval tracking
   createdAt: string;

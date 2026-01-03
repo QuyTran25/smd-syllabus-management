@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, List, Tag, Space, Button, Input, Avatar, Typography, Divider, Badge } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, List, Tag, Space, Button, Input, Avatar, Typography, Divider, Badge, message } from 'antd';
 import {
   CommentOutlined,
   SendOutlined,
@@ -8,6 +8,10 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/features/auth/AuthContext';
+import { syllabusService } from '@/services/syllabus.service';
+import { collaborationService } from '@/services/collaboration.service';
+import { SyllabusStatus } from '@/types';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -22,7 +26,6 @@ interface Comment {
 
 interface ReviewAssignment {
   id: string;
-  syllabusId: number;
   subjectCode: string;
   subjectName: string;
   mainLecturer: string;
@@ -34,66 +37,94 @@ interface ReviewAssignment {
 
 const CollaborativeReviewPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [reviewAssignments, setReviewAssignments] = useState<ReviewAssignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<ReviewAssignment | null>(null);
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: '1',
-      author: 'PGS.TS Lê Văn C (Giảng viên chính)',
-      content: 'Các bạn xem giúp phần CLO và đánh giá có hợp lý chưa nhé.',
-      timestamp: '2024-12-10 09:00',
-    },
-    {
-      id: '2',
-      author: 'Tôi',
-      content: 'Em thấy CLO 2 cần bổ sung thêm phương pháp đánh giá cụ thể hơn ạ.',
-      timestamp: '2024-12-10 14:30',
-      isMe: true,
-    },
-    {
-      id: '3',
-      author: 'ThS. Nguyễn Thị D',
-      content: 'Đồng ý với bạn, và tài liệu tham khảo số 3 đã cũ rồi.',
-      timestamp: '2024-12-10 15:45',
-    },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  // Mock data - danh sách nhiệm vụ review được phân công
-  const reviewAssignments: ReviewAssignment[] = [
-    {
-      id: '1',
-      syllabusId: 3,
-      subjectCode: 'CS401',
-      subjectName: 'Trí tuệ nhân tạo',
-      mainLecturer: 'PGS.TS Lê Văn C',
-      assignedBy: 'TS. Nguyễn Văn A (TBM)',
-      deadline: '2024-12-22',
-      status: 'IN_PROGRESS',
-      unreadComments: 2,
-    },
-    {
-      id: '2',
-      syllabusId: 6,
-      subjectCode: 'CS302',
-      subjectName: 'Mạng máy tính',
-      mainLecturer: 'PGS. Trần Thị B',
-      assignedBy: 'TS. Nguyễn Văn A (TBM)',
-      deadline: '2024-12-21',
-      status: 'IN_PROGRESS',
-      unreadComments: 0,
-    },
-    {
-      id: '3',
-      syllabusId: 7,
-      subjectCode: 'CS501',
-      subjectName: 'Học máy nâng cao',
-      mainLecturer: 'TS. Hoàng Văn E',
-      assignedBy: 'TS. Nguyễn Văn A (TBM)',
-      deadline: '2024-12-25',
-      status: 'PENDING',
-      unreadComments: 0,
-    },
-  ];
+  // Fetch review assignments on mount
+  useEffect(() => {
+    if (user) {
+      fetchReviewAssignments();
+    }
+  }, [user]);
+
+  // Fetch comments when assignment changes
+  useEffect(() => {
+    if (selectedAssignment) {
+      fetchComments(selectedAssignment.id);
+    }
+  }, [selectedAssignment]);
+
+  const fetchReviewAssignments = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      // Use new efficient API to get collaborations by user
+      const collaborations = await collaborationService.getMyCollaborations(user.id);
+
+      // For each collaboration, fetch syllabus details
+      const assignments: ReviewAssignment[] = [];
+      
+      for (const collab of collaborations) {
+        try {
+          const syllabus = await syllabusService.getSyllabusById(collab.syllabusVersionId);
+          
+          // Only show DRAFT syllabi (collaborators can only review DRAFT)
+          if (syllabus.status === 'DRAFT') {
+            assignments.push({
+              id: collab.syllabusVersionId, // Use UUID from collaboration
+              subjectCode: syllabus.subjectCode,
+              subjectName: syllabus.subjectNameVi,
+              mainLecturer: syllabus.ownerName,
+              assignedBy: syllabus.ownerName || 'N/A', // Giảng viên chính
+              deadline: new Date(syllabus.updatedAt).toLocaleString('vi-VN'),
+              status: 'IN_PROGRESS',
+              unreadComments: 0, // TODO: Implement unread count
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching syllabus ${collab.syllabusVersionId}:`, error);
+        }
+      }
+
+      setReviewAssignments(assignments);
+      
+      // Auto-select first assignment if available
+      if (assignments.length > 0 && !selectedAssignment) {
+        setSelectedAssignment(assignments[0]);
+      }
+    } catch (error: any) {
+      message.error('Không thể tải danh sách review: ' + (error.message || 'Lỗi không xác định'));
+      console.error('Error fetching review assignments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchComments = async (syllabusVersionId: string) => {
+    try {
+      const commentsData = await syllabusService.getComments(syllabusVersionId);
+      
+      // Map to local Comment interface
+      const mappedComments: Comment[] = commentsData.map(c => ({
+        id: c.id || String(Math.random()),
+        author: c.reviewerName || 'Unknown',
+        content: c.content,
+        timestamp: new Date(c.createdAt).toLocaleString('vi-VN'),
+        isMe: c.reviewerId === user?.id,
+      }));
+      
+      setComments(mappedComments);
+    } catch (error: any) {
+      console.error('Error fetching comments:', error);
+      // Don't show error to user, just log it
+    }
+  };
 
   const statusLabels: Record<string, string> = {
     PENDING: 'Chưa bắt đầu',
@@ -109,24 +140,30 @@ const CollaborativeReviewPage: React.FC = () => {
 
   const handleSelectAssignment = (assignment: ReviewAssignment) => {
     setSelectedAssignment(assignment);
-    // In real app: fetch comments for this assignment
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (newComment.trim() && selectedAssignment) {
-      const comment: Comment = {
-        id: String(comments.length + 1),
-        author: 'Tôi',
-        content: newComment,
-        timestamp: new Date().toLocaleString('vi-VN'),
-        isMe: true,
-      };
-      setComments([...comments, comment]);
-      setNewComment('');
+      try {
+        await syllabusService.addComment(selectedAssignment.id, newComment);
+        
+        const comment: Comment = {
+          id: String(comments.length + 1),
+          author: 'Tôi',
+          content: newComment,
+          timestamp: new Date().toLocaleString('vi-VN'),
+          isMe: true,
+        };
+        setComments([...comments, comment]);
+        setNewComment('');
+        message.success('Đã gửi góp ý thành công');
+      } catch (error: any) {
+        message.error('Không thể gửi góp ý: ' + (error.message || 'Lỗi không xác định'));
+      }
     }
   };
 
-  const handleViewSyllabus = (syllabusId: number) => {
+  const handleViewSyllabus = (syllabusId: string) => {
     navigate(`/lecturer/syllabi/${syllabusId}`);
   };
 
@@ -212,7 +249,7 @@ const CollaborativeReviewPage: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<EyeOutlined />}
-                  onClick={() => handleViewSyllabus(selectedAssignment.syllabusId)}
+                  onClick={() => handleViewSyllabus(selectedAssignment.id)}
                 >
                   Xem đề cương
                 </Button>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage, ProtectedRoute } from './features/auth';
+import { LoginPage, ProtectedRoute, useAuth } from './features/auth';
 import { MainLayout } from './shared/layouts/MainLayout';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { SyllabusListPage } from './features/syllabus/SyllabusListPage';
@@ -18,11 +18,42 @@ import AaSyllabusReviewPage from './features/aa/SyllabusReviewPage';
 import LecturerDashboard from './features/lecturer/DashboardPage';
 import ManageSyllabiPage from './features/lecturer/ManageSyllabiPage';
 import SyllabusFormPage from './features/lecturer/SyllabusFormPage';
-import LecturerSyllabusDetail from './features/lecturer/SyllabusDetailPage';
 import CollaborativeReviewPage from './features/lecturer/CollaborativeReviewPage';
 import { LecturerLayout } from './features/lecturer/layouts/LecturerLayout';
 
 import { UserRole } from '@/types';
+
+// Smart redirect component based on user role
+const RoleBasedRedirect: React.FC = () => {
+  const { user, isLoading } = useAuth();
+
+  console.log('🔀 RoleBasedRedirect:', { hasUser: !!user, userRole: user?.role, isLoading });
+
+  if (isLoading) {
+    return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải...</div>;
+  }
+
+  if (!user) {
+    console.log('⚠️ No user, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect based on role
+  console.log('✅ User found, redirecting based on role:', user.role);
+  switch (user.role) {
+    case UserRole.LECTURER:
+      return <Navigate to="/lecturer" replace />;
+    case UserRole.STUDENT:
+      return <Navigate to="/student" replace />;
+    case UserRole.ADMIN:
+    case UserRole.HOD:
+    case UserRole.AA:
+    case UserRole.PRINCIPAL:
+      return <Navigate to="/admin/dashboard" replace />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
+};
 
 const App: React.FC = () => {
   return (
@@ -30,9 +61,19 @@ const App: React.FC = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Protected routes - Only 4 roles: Admin, Principal, HoD, AA */}
+      {/* Root redirect - Smart redirect based on role */}
       <Route
         path="/"
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected routes - Only 4 roles: Admin, Principal, HoD, AA */}
+      <Route
+        path="/admin"
         element={
           <ProtectedRoute
             allowedRoles={[UserRole.ADMIN, UserRole.HOD, UserRole.AA, UserRole.PRINCIPAL]}
@@ -41,7 +82,7 @@ const App: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="syllabi" element={<SyllabusListPage />} />
         <Route path="syllabi/:id" element={<SyllabusDetailPage />} />
@@ -134,7 +175,7 @@ const App: React.FC = () => {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
 
       {/* Lecturer routes - GIAO DIỆN RIÊNG với LecturerLayout */}
@@ -150,7 +191,7 @@ const App: React.FC = () => {
         <Route path="syllabi" element={<ManageSyllabiPage />} />
         <Route path="syllabi/create" element={<SyllabusFormPage />} />
         <Route path="syllabi/edit/:id" element={<SyllabusFormPage />} />
-        <Route path="syllabi/:id" element={<LecturerSyllabusDetail />} />
+        <Route path="syllabi/:id" element={<SyllabusFormPage />} />
         <Route path="reviews" element={<CollaborativeReviewPage />} />
       </Route>
 
