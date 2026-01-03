@@ -8,7 +8,7 @@ const { Title, Text, Paragraph } = Typography;
 interface RejectionReasonModalProps {
   open: boolean;
   onClose: () => void;
-  syllabusId: number;
+  syllabusId: string;
   syllabusCode: string;
   syllabusName: string;
   rejectionReason: string;
@@ -34,7 +34,7 @@ const RejectionReasonModal: React.FC<RejectionReasonModalProps> = ({
 
   const handleEdit = () => {
     onClose();
-    navigate(`/syllabi/edit/${syllabusId}`);
+    navigate(`/lecturer/syllabi/edit/${syllabusId}`);
   };
 
   return (

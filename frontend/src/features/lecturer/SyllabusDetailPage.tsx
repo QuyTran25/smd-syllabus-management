@@ -74,7 +74,9 @@ const SyllabusDetailPage: React.FC = () => {
   if (isSyllabusLoading) {
     return (
       <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Spin size="large" tip="Đang tải đề cương..." />
+        <Spin size="large">
+          <div style={{ padding: '50px' }}>Đang tải đề cương...</div>
+        </Spin>
       </div>
     );
   }

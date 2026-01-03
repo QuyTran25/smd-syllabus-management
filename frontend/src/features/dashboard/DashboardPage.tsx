@@ -201,7 +201,7 @@ export const DashboardPage: React.FC = () => {
                 <span>Đề cương Chờ Xét duyệt</span>
               </Space>
             }
-            extra={<a href="/syllabi">Xem tất cả</a>}
+            extra={<a href="/admin/syllabi">Xem tất cả</a>}
           >
             <Table
               columns={columns}

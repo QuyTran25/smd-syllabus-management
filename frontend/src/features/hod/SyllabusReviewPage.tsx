@@ -128,7 +128,7 @@ const SyllabusReviewPage: React.FC = () => {
             type="primary"
             ghost
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/syllabi/${record.id}`)}
+            onClick={() => navigate(`/admin/syllabi/${record.id}`)}
           />
         </Tooltip>
       ),

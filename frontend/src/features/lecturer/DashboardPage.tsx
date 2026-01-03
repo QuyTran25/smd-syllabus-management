@@ -31,7 +31,7 @@ interface LecturerTask {
   subjectName: string;
   deadline: string;
   status: TaskStatus;
-  syllabusId: number;
+  syllabusId: string;
   rejectionReason?: string;
   rejectionType?: 'HOD' | 'AA' | 'PRINCIPAL';
   assignedBy?: string;
@@ -46,14 +46,14 @@ const DashboardPage: React.FC = () => {
   const [allTasks, setAllTasks] = useState<LecturerTask[]>([]);
   const [rejectionModal, setRejectionModal] = useState<{
     open: boolean;
-    syllabusId: number;
+    syllabusId: string;
     syllabusCode: string;
     syllabusName: string;
     reason: string;
     type: 'HOD' | 'AA' | 'PRINCIPAL';
   }>({
     open: false,
-    syllabusId: 0,
+    syllabusId: '',
     syllabusCode: '',
     syllabusName: '',
     reason: '',
@@ -128,7 +128,7 @@ const DashboardPage: React.FC = () => {
           subjectName: syllabus.subjectNameVi,
           deadline: assignment?.deadline || syllabus.updatedAt,
           status: taskStatus,
-          syllabusId: parseInt(syllabus.id),
+          syllabusId: syllabus.id,
           rejectionReason: undefined, // Will fetch from approval history if needed
           rejectionType: undefined,
         });
@@ -151,7 +151,7 @@ const DashboardPage: React.FC = () => {
                 subjectName: syllabus.subjectNameVi,
                 deadline: syllabus.updatedAt,
                 status: 'PENDING',
-                syllabusId: parseInt(syllabus.id),
+                syllabusId: syllabus.id,
                 assignedBy: syllabus.ownerName, // Giảng viên chính
               });
             }
@@ -382,16 +382,6 @@ const DashboardPage: React.FC = () => {
                 value={stats.review}
                 prefix={<TeamOutlined />}
                 valueStyle={{ color: '#13c2c2' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="Cần sửa"
-                value={stats.rejected}
-                prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
               />
             </Card>
           </Col>

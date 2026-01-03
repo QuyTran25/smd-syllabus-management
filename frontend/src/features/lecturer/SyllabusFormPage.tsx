@@ -428,6 +428,27 @@ const SyllabusFormPage: React.FC = () => {
       ),
     },
     {
+      title: 'PLO tương ứng',
+      dataIndex: 'mappedPLOs',
+      width: 180,
+      render: (_, record) => (
+        <Select
+          mode="multiple"
+          value={record.mappedPLOs}
+          onChange={(value) => updateCLO(record.id, 'mappedPLOs', value)}
+          placeholder="Chọn PLO"
+          style={{ width: '100%' }}
+        >
+          <Option key="PLO1" value="PLO1">PLO1</Option>
+          <Option key="PLO2" value="PLO2">PLO2</Option>
+          <Option key="PLO3" value="PLO3">PLO3</Option>
+          <Option key="PLO4" value="PLO4">PLO4</Option>
+          <Option key="PLO5" value="PLO5">PLO5</Option>
+          <Option key="PLO6" value="PLO6">PLO6</Option>
+        </Select>
+      ),
+    },
+    {
       title: '',
       key: 'action',
       width: 60,
@@ -505,7 +526,9 @@ const SyllabusFormPage: React.FC = () => {
   if (isSyllabusLoading) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin spinning={true} size="large" tip="Đang tải đề cương..." />
+        <Spin spinning={true} size="large">
+          <div style={{ padding: '50px' }}>Đang tải đề cương...</div>
+        </Spin>
       </div>
     );
   }

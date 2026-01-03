@@ -211,7 +211,7 @@ export const SyllabusDetailPage: React.FC = () => {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/syllabi')} style={{ marginBottom: 16 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/syllabi')} style={{ marginBottom: 16 }}>
           Quay lại
         </Button>
 
