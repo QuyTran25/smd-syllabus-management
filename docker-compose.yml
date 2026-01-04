@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ============================================
   # DATABASE: PostgreSQL with pgvector
@@ -16,7 +14,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh
+      - D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management/infrastructure/postgresql/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh
       - ./database/core-service:/docker-entrypoint-initdb.d/migrations/core-service
       - ./database/ai-service:/docker-entrypoint-initdb.d/migrations/ai-service
     networks:
@@ -60,7 +58,7 @@ services:
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-      - ./infrastructure/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management/infrastructure/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     networks:
       - smd-network
     healthcheck:
@@ -126,8 +124,9 @@ services:
   # ============================================
   gateway:
     build:
-      context: ./backend/gateway
-      dockerfile: ../../infrastructure/docker/gateway/Dockerfile
+      # OLD: context: ./backend/gateway
+      context: D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management # NEW: Absolute context
+      dockerfile: infrastructure/docker/gateway/Dockerfile
     container_name: smd-gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -147,8 +146,9 @@ services:
   # ============================================
   core-service:
     build:
-      context: ./backend/core-service
-      dockerfile: ../../infrastructure/docker/core-service/Dockerfile
+      # OLD: context: ./backend/core-service
+      context: D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management # NEW: Absolute context
+      dockerfile: infrastructure/docker/core-service/Dockerfile
     container_name: smd-core-service
     environment:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
@@ -185,43 +185,43 @@ services:
   # ============================================
   # BACKEND: AI Service (Python FastAPI)
   # ============================================
-  ai-service:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/ai-service/Dockerfile
-    container_name: smd-ai-service
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      # ⭐ FIX CỨNG: Cập nhật connection string cho AI service luôn
-      - DATABASE_URL=postgresql://smd_user:smd_password@postgres:5432/smd_database
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
-    ports:
-      - "${AI_SERVICE_PORT:-8082}:8082"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - smd-network
-    restart: unless-stopped
+  # ai-service:
+  #   build:
+  #     context: D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management # Giữ nguyên (đã đúng, context gốc)
+  #     dockerfile: infrastructure/docker/ai-service/Dockerfile
+  #   container_name: smd-ai-service
+  #   environment:
+  #     - ENVIRONMENT=${ENVIRONMENT:-development}
+  #     # ⭐ FIX CỨNG: Cập nhật connection string cho AI service luôn
+  #     - DATABASE_URL=postgresql://smd_user:smd_password@postgres:5432/smd_database
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - RABBITMQ_PORT=5672
+  #     - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+  #     - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #     - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+  #   ports:
+  #     - "${AI_SERVICE_PORT:-8082}:8082"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - smd-network
+  #   restart: unless-stopped
 
   # ============================================
   # FRONTEND: React Application
   # ============================================
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../infrastructure/docker/frontend/Dockerfile
+      context: D:/Learn/UTH/XDPMHDT/Project/smd-syllabus-management
+      dockerfile: infrastructure/docker/frontend/Dockerfile
     container_name: smd-frontend
     environment:
       - VITE_API_GATEWAY_URL=http://localhost:${GATEWAY_PORT:-8080}
