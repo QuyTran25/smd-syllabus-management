@@ -28,7 +28,9 @@
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {}
+      "arguments": {
+        "x-max-priority": 5
+      }
     },
     {
       "name": "ai_result_queue",
@@ -43,6 +45,15 @@
       "durable": true,
       "auto_delete": false,
       "arguments": {}
+    },
+    {
+      "name": "ai_summarize_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-max-priority": 3
+      }
     }
   ],
   "exchanges": [
@@ -88,6 +99,14 @@
       "destination": "notification_queue",
       "destination_type": "queue",
       "routing_key": "notification.*",
+      "arguments": {}
+    },
+    {
+      "source": "smd.direct",
+      "vhost": "/",
+      "destination": "ai_summarize_queue",
+      "destination_type": "queue",
+      "routing_key": "ai.summarize",
       "arguments": {}
     }
   ]

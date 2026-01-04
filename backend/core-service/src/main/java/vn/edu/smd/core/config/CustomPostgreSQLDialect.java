@@ -1,6 +1,5 @@
 package vn.edu.smd.core.config;
 
-import org.hibernate.boot.model.FunctionContributions;
 import org.hibernate.dialect.DatabaseVersion;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.type.SqlTypes;

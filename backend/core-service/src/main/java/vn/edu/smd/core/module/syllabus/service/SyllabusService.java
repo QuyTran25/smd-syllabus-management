@@ -446,7 +446,9 @@ public class SyllabusService {
         if (syllabus.getContent() != null && syllabus.getContent().containsKey("objectives")) {
             Object objectives = syllabus.getContent().get("objectives");
             if (objectives instanceof List) {
-                response.setObjectives((List<String>) objectives);
+                @SuppressWarnings("unchecked")
+                List<String> objectivesList = (List<String>) objectives;
+                response.setObjectives(objectivesList);
             }
         }
         
