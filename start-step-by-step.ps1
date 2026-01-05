@@ -144,11 +144,10 @@ Start-Process "http://localhost:3001"
 Write-Host "  → Admin Portal: http://localhost:3000" -ForegroundColor Cyan
 Write-Host "  → Student Portal: http://localhost:3001" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Press Enter to stop all services..." -ForegroundColor Yellow
-Read-Host
-
-# Cleanup
-Write-Host "Stopping all services..." -ForegroundColor Yellow
-Stop-Process -Name java -Force -ErrorAction SilentlyContinue
-Stop-Process -Name node -Force -ErrorAction SilentlyContinue
-Write-Host "All services stopped." -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  All services are running!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "To stop all services, run:" -ForegroundColor Yellow
+Write-Host "  .\stop-backend.bat" -ForegroundColor White
+Write-Host ""
