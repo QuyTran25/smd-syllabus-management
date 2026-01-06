@@ -259,7 +259,7 @@ BEGIN
             'ERROR',
             'CLO 1.2 có lỗi chính tả',
             'CLO 1.2 ghi "áp dungj" thay vì "áp dụng". Đề nghị sửa lại cho chính xác.',
-            'CLO',
+            'clo',
             'PENDING',
             NOW() - INTERVAL '2 days'
         );
@@ -274,7 +274,7 @@ BEGIN
             'ERROR',
             'Tổng % đánh giá không đúng 100%',
             'Tổng tỷ lệ các phương pháp đánh giá chỉ có 95%, thiếu 5%. Đề nghị kiểm tra lại bảng đánh giá.',
-            'ASSESSMENT',
+            'assessment_matrix',
             'IN_REVIEW',
             'Đã xác nhận có lỗi. Đang gửi yêu cầu giảng viên chỉnh sửa.',
             v_admin_id,
@@ -293,7 +293,7 @@ BEGIN
             'SUGGESTION',
             'Đề xuất thêm tài liệu tham khảo',
             'Đề xuất thêm sách "Introduction to Algorithms" (CLRS) vào danh mục tài liệu tham khảo vì đây là sách kinh điển.',
-            'MATERIALS',
+            'reference',
             'RESOLVED',
             'Đã chuyển đề xuất cho giảng viên xem xét. Giảng viên đã thêm sách vào đề cương.',
             v_admin_id,
@@ -310,7 +310,7 @@ BEGIN
             'ERROR',
             'Thiếu môn học tiên quyết CS101',
             'Đề cương không liệt kê CS101 là môn tiên quyết, nhưng trong lớp học thầy có yêu cầu kiến thức từ môn này.',
-            'PREREQUISITES',
+            'subject_info',
             'PENDING',
             NOW() - INTERVAL '1 day'
         );
@@ -325,7 +325,7 @@ BEGIN
             'QUESTION',
             'Hỏi về thời lượng thực hành',
             'Xin hỏi 45 tiết thực hành có bao gồm thời gian làm đồ án không ạ?',
-            'LESSON_PLAN',
+            'other',
             'RESOLVED',
             'Theo quy định, 45 tiết thực hành không bao gồm thời gian làm đồ án. Đồ án là hoạt động tự học của sinh viên.',
             v_admin_id,
@@ -343,7 +343,7 @@ BEGIN
             'OTHER',
             'Yêu cầu thay đổi giờ học',
             'Em muốn đề xuất đổi giờ học từ sáng sang chiều.',
-            'OTHER',
+            'other',
             'REJECTED',
             'Xin lỗi, đề xuất này không thuộc phạm vi nội dung đề cương. Vui lòng liên hệ Phòng Đào tạo để được hỗ trợ.',
             v_admin_id,

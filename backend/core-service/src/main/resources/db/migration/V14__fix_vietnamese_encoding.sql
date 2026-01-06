@@ -1,4 +1,5 @@
 -- V14: Fix Vietnamese encoding for all tables
+-- Run with: docker exec -i smd-postgres psql -U smd_user -d smd_database < V14__fix_vietnamese_encoding.sql
 
 SET client_encoding = 'UTF8';
 
@@ -123,6 +124,9 @@ WHERE default_credits = 2;
 -- 2. Fix CLOs table - Vietnamese descriptions
 -- ============================================
 
+-- First, let's update CLO descriptions with proper Vietnamese
+-- Get syllabus IDs and their subject names to create proper CLO descriptions
+
 -- Delete old CLOs and recreate with proper Vietnamese
 DELETE FROM core_service.clo_plo_mappings;
 DELETE FROM core_service.assessment_clo_mappings;
@@ -133,6 +137,7 @@ DO $$
 DECLARE
     syllabus RECORD;
     subject_name TEXT;
+    clo_id UUID;
 BEGIN
     FOR syllabus IN 
         SELECT sv.id as syllabus_id, s.current_name_vi as subject_name
@@ -142,7 +147,7 @@ BEGIN
         subject_name := syllabus.subject_name;
         
         -- CLO1: Remember/Understand
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
             gen_random_uuid(),
             syllabus.syllabus_id,
@@ -153,7 +158,7 @@ BEGIN
         );
         
         -- CLO2: Understand
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
             gen_random_uuid(),
             syllabus.syllabus_id,
@@ -164,7 +169,7 @@ BEGIN
         );
         
         -- CLO3: Apply
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
             gen_random_uuid(),
             syllabus.syllabus_id,
@@ -175,7 +180,7 @@ BEGIN
         );
         
         -- CLO4: Analyze
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
             gen_random_uuid(),
             syllabus.syllabus_id,
@@ -186,7 +191,7 @@ BEGIN
         );
         
         -- CLO5: Create
-        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight)
+        INSERT INTO core_service.clos (id, syllabus_version_id, code, description, bloom_level, weight_percentage)
         VALUES (
             gen_random_uuid(),
             syllabus.syllabus_id,

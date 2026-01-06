@@ -89,18 +89,18 @@ WITH
         )
     ),
     role_ids AS (
-        SELECT name, id FROM roles 
-        WHERE name IN ('ADMIN', 'PRINCIPAL', 'AA', 'HOD', 'LECTURER', 'STUDENT') -- ⭐ Thêm role STUDENT
+        SELECT code, id FROM roles 
+        WHERE code IN ('ADMIN', 'PRINCIPAL', 'AA', 'HOD', 'LECTURER', 'STUDENT') -- ⭐ Thêm role STUDENT
     )
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id FROM user_ids u, role_ids r
 WHERE 
-    (u.email = 'admin@smd.edu.vn' AND r.name = 'ADMIN') OR
-    (u.email = 'principal@smd.edu.vn' AND r.name = 'PRINCIPAL') OR
-    (u.email LIKE 'aa%@smd.edu.vn' AND r.name = 'AA') OR
-    (u.email LIKE 'hod%@smd.edu.vn' AND r.name = 'HOD') OR
-    (u.email LIKE 'gv%@smd.edu.vn' AND r.name = 'LECTURER') OR
-    (u.email = 'student@smd.edu.vn' AND r.name = 'STUDENT') -- ⭐ Mapping quyền Sinh viên
+    (u.email = 'admin@smd.edu.vn' AND r.code = 'ADMIN') OR
+    (u.email = 'principal@smd.edu.vn' AND r.code = 'PRINCIPAL') OR
+    (u.email LIKE 'aa%@smd.edu.vn' AND r.code = 'AA') OR
+    (u.email LIKE 'hod.%@smd.edu.vn' AND r.code = 'HOD') OR
+    (u.email LIKE 'gv.%@smd.edu.vn' AND r.code = 'LECTURER') OR
+    (u.email = 'student@smd.edu.vn' AND r.code = 'STUDENT') -- ⭐ Mapping quyền Sinh viên
 ON CONFLICT DO NOTHING;
 
 -- ==========================================

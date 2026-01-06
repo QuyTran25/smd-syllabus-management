@@ -18,9 +18,9 @@ if (!$postgresStatus -or !$redisStatus -or !$rabbitmqStatus) {
     Start-Sleep -Seconds 10
 }
 
-Write-Host "  [OK] PostgreSQL: $postgresStatus" -ForegroundColor Green
-Write-Host "  [OK] Redis: $redisStatus" -ForegroundColor Green
-Write-Host "  [OK] RabbitMQ: $rabbitmqStatus" -ForegroundColor Green
+Write-Host "  ✓ PostgreSQL: $postgresStatus" -ForegroundColor Green
+Write-Host "  ✓ Redis: $redisStatus" -ForegroundColor Green
+Write-Host "  ✓ RabbitMQ: $rabbitmqStatus" -ForegroundColor Green
 Write-Host ""
 
 # Step 2: Check Frontend dependencies
@@ -31,7 +31,7 @@ if (!(Test-Path "frontend\node_modules")) {
     npm install
     Pop-Location
 } else {
-    Write-Host "  [OK] Dependencies already installed" -ForegroundColor Green
+    Write-Host "  ✓ Dependencies already installed" -ForegroundColor Green
 }
 
 # Clean Vite cache to prevent "504 Outdated Optimize Dep" error
@@ -39,14 +39,14 @@ Write-Host "  Cleaning Vite cache..." -ForegroundColor Yellow
 if (Test-Path "frontend\node_modules\.vite") {
     Remove-Item -Recurse -Force "frontend\node_modules\.vite" -ErrorAction SilentlyContinue
 }
-Write-Host "  [OK] Vite cache cleared" -ForegroundColor Green
+Write-Host "  ✓ Vite cache cleared" -ForegroundColor Green
 Write-Host ""
 
 # Step 3: Start Core Service
 Write-Host "[3/5] Starting Core Service on port 8081..." -ForegroundColor Yellow
 $coreRunning = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue
 if ($coreRunning) {
-    Write-Host "  [OK] Core Service already running on port 8081" -ForegroundColor Green
+    Write-Host "  ✓ Core Service already running on port 8081" -ForegroundColor Green
 } else {
     Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\core-service && java -jar target\core-service-1.0.0.jar" -WindowStyle Normal
     Write-Host "  Waiting for Core Service to start (up to 60 seconds)..." -ForegroundColor Yellow
@@ -62,9 +62,9 @@ if ($coreRunning) {
         }
     }
     if ($coreRunning) {
-        Write-Host "  [OK] Core Service is running on port 8081" -ForegroundColor Green
+        Write-Host "  ✓ Core Service is running on port 8081" -ForegroundColor Green
     } else {
-        Write-Host "  [X] Core Service failed to start after 60 seconds" -ForegroundColor Red
+        Write-Host "  ✗ Core Service failed to start after 60 seconds" -ForegroundColor Red
     }
 }
 Write-Host ""
@@ -73,7 +73,7 @@ Write-Host ""
 Write-Host "[4/5] Starting Gateway on port 8888..." -ForegroundColor Yellow
 $gatewayRunning = Get-NetTCPConnection -LocalPort 8888 -State Listen -ErrorAction SilentlyContinue
 if ($gatewayRunning) {
-    Write-Host "  [OK] Gateway already running on port 8888" -ForegroundColor Green
+    Write-Host "  ✓ Gateway already running on port 8888" -ForegroundColor Green
 } else {
     Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\backend\gateway && java -jar target\gateway-1.0.0.jar" -WindowStyle Normal
     Write-Host "  Waiting for Gateway to start (up to 30 seconds)..." -ForegroundColor Yellow
@@ -89,9 +89,9 @@ if ($gatewayRunning) {
         }
     }
     if ($gatewayRunning) {
-        Write-Host "  [OK] Gateway is running on port 8888" -ForegroundColor Green
+        Write-Host "  ✓ Gateway is running on port 8888" -ForegroundColor Green
     } else {
-        Write-Host "  [X] Gateway failed to start after 30 seconds" -ForegroundColor Red
+        Write-Host "  ✗ Gateway failed to start after 30 seconds" -ForegroundColor Red
     }
 }
 Write-Host ""
@@ -100,23 +100,23 @@ Write-Host ""
 Write-Host "[5/5] Starting Frontend (Admin port 3000, Student port 3001)..." -ForegroundColor Yellow
 $frontendAdminRunning = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
 if ($frontendAdminRunning) {
-    Write-Host "  [OK] Frontend already running on port 3000" -ForegroundColor Green
+    Write-Host "  ✓ Frontend already running on port 3000" -ForegroundColor Green
 } else {
     Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d $PSScriptRoot\frontend && npm run dev" -WindowStyle Normal
     Write-Host "  Waiting for Frontend to start..." -ForegroundColor Yellow
     Start-Sleep -Seconds 10
     $frontendAdminRunning = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
     if ($frontendAdminRunning) {
-        Write-Host "  [OK] Admin Frontend is running on port 3000" -ForegroundColor Green
+        Write-Host "  ✓ Admin Frontend is running on port 3000" -ForegroundColor Green
     } else {
-        Write-Host "  [X] Admin Frontend failed to start" -ForegroundColor Red
+        Write-Host "  ✗ Admin Frontend failed to start" -ForegroundColor Red
     }
 }
 $frontendStudentRunning = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue
 if ($frontendStudentRunning) {
-    Write-Host "  [OK] Student Frontend is running on port 3001" -ForegroundColor Green
+    Write-Host "  ✓ Student Frontend is running on port 3001" -ForegroundColor Green
 } else {
-    Write-Host "  [X] Student Frontend failed to start" -ForegroundColor Red
+    Write-Host "  ✗ Student Frontend failed to start" -ForegroundColor Red
 }
 Write-Host ""
 
@@ -141,13 +141,14 @@ Start-Sleep -Seconds 3
 # Open both Admin and Student portals
 Start-Process "http://localhost:3000"
 Start-Process "http://localhost:3001"
-Write-Host "  -> Admin Portal: http://localhost:3000" -ForegroundColor Cyan
-Write-Host "  -> Student Portal: http://localhost:3001" -ForegroundColor Cyan
+Write-Host "  → Admin Portal: http://localhost:3000" -ForegroundColor Cyan
+Write-Host "  → Student Portal: http://localhost:3001" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "  All services are running!" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "To stop all services, run:" -ForegroundColor Yellow
-Write-Host "  .\stop-backend.bat" -ForegroundColor White
-Write-Host ""
+Write-Host "Press Enter to stop all services..." -ForegroundColor Yellow
+Read-Host
+
+# Cleanup
+Write-Host "Stopping all services..." -ForegroundColor Yellow
+Stop-Process -Name java -Force -ErrorAction SilentlyContinue
+Stop-Process -Name node -Force -ErrorAction SilentlyContinue
+Write-Host "All services stopped." -ForegroundColor Green

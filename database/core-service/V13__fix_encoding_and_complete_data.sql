@@ -32,16 +32,6 @@ END $$;
 
 -- Update subjects with proper Vietnamese data and time allocation
 UPDATE core_service.subjects s SET
-    subject_type = CASE 
-        WHEN s.code IN ('101001', '101002', '101003', '102001', '102002', '103001') THEN 'REQUIRED'
-        ELSE CASE WHEN random() < 0.7 THEN 'REQUIRED' ELSE 'ELECTIVE' END
-    END,
-    component = CASE 
-        WHEN s.code LIKE '10%' THEN 'BOTH'
-        WHEN s.code LIKE '11%' THEN 'THEORY'
-        WHEN s.code LIKE '12%' THEN 'BOTH'
-        ELSE 'BOTH'
-    END,
     default_theory_hours = s.default_credits * 15,
     default_practice_hours = CASE 
         WHEN s.code LIKE '11%' THEN 0 
@@ -162,28 +152,28 @@ END $$;
 
 -- First ensure PLOs exist
 INSERT INTO core_service.plos (id, curriculum_id, code, description, category, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 'PLO1', 'Có khả năng áp dụng kiến thức toán học, khoa học và kỹ thuật', 'KNOWLEDGE', NOW(), NOW()
-FROM core_service.curricula c
+SELECT gen_random_uuid(), c.id, 'PLO1', 'Có khả năng áp dụng kiến thức toán học, khoa học và kỹ thuật', 'Knowledge', NOW(), NOW()
+FROM core_service.curriculums c
 WHERE NOT EXISTS (SELECT 1 FROM core_service.plos WHERE code = 'PLO1' AND curriculum_id = c.id);
 
 INSERT INTO core_service.plos (id, curriculum_id, code, description, category, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 'PLO2', 'Có khả năng phân tích và giải quyết vấn đề trong lĩnh vực CNTT', 'SKILLS', NOW(), NOW()
-FROM core_service.curricula c
+SELECT gen_random_uuid(), c.id, 'PLO2', 'Có khả năng phân tích và giải quyết vấn đề trong lĩnh vực CNTT', 'Skills', NOW(), NOW()
+FROM core_service.curriculums c
 WHERE NOT EXISTS (SELECT 1 FROM core_service.plos WHERE code = 'PLO2' AND curriculum_id = c.id);
 
 INSERT INTO core_service.plos (id, curriculum_id, code, description, category, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 'PLO3', 'Có khả năng thiết kế hệ thống hoặc quy trình đáp ứng yêu cầu', 'SKILLS', NOW(), NOW()
-FROM core_service.curricula c
+SELECT gen_random_uuid(), c.id, 'PLO3', 'Có khả năng thiết kế hệ thống hoặc quy trình đáp ứng yêu cầu', 'Skills', NOW(), NOW()
+FROM core_service.curriculums c
 WHERE NOT EXISTS (SELECT 1 FROM core_service.plos WHERE code = 'PLO3' AND curriculum_id = c.id);
 
 INSERT INTO core_service.plos (id, curriculum_id, code, description, category, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 'PLO4', 'Có khả năng làm việc nhóm hiệu quả', 'ATTITUDES', NOW(), NOW()
-FROM core_service.curricula c
+SELECT gen_random_uuid(), c.id, 'PLO4', 'Có khả năng làm việc nhóm hiệu quả', 'Attitude', NOW(), NOW()
+FROM core_service.curriculums c
 WHERE NOT EXISTS (SELECT 1 FROM core_service.plos WHERE code = 'PLO4' AND curriculum_id = c.id);
 
 INSERT INTO core_service.plos (id, curriculum_id, code, description, category, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 'PLO5', 'Có khả năng giao tiếp hiệu quả bằng văn bản và thuyết trình', 'ATTITUDES', NOW(), NOW()
-FROM core_service.curricula c
+SELECT gen_random_uuid(), c.id, 'PLO5', 'Có khả năng giao tiếp hiệu quả bằng văn bản và thuyết trình', 'Attitude', NOW(), NOW()
+FROM core_service.curriculums c
 WHERE NOT EXISTS (SELECT 1 FROM core_service.plos WHERE code = 'PLO5' AND curriculum_id = c.id);
 
 -- Create CLO-PLO mappings for each syllabus

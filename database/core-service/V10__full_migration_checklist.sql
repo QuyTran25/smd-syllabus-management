@@ -137,10 +137,7 @@ BEGIN
     
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' AND column_name = 'student_tasks') THEN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                       WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' AND column_name = 'student_duties') THEN
-             ALTER TABLE syllabus_versions ADD COLUMN student_tasks TEXT;
-        END IF;
+        ALTER TABLE syllabus_versions ADD COLUMN student_tasks TEXT;
     END IF;
 END $$;
 
@@ -152,6 +149,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'academic_terms' AND column_name = 'academic_year') THEN
         ALTER TABLE academic_terms ADD COLUMN academic_year VARCHAR(20);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'academic_terms' AND column_name = 'term_no') THEN
+        ALTER TABLE academic_terms ADD COLUMN term_no INT CHECK (term_no BETWEEN 1 AND 3);
     END IF;
 END $$;
 
@@ -244,6 +246,12 @@ BEGIN
                    WHERE table_schema = 'core_service' AND table_name = 'clos' AND column_name = 'weight') THEN
         ALTER TABLE clos ADD COLUMN weight DECIMAL(5,2) DEFAULT 0.0;
     END IF;
+    
+    -- Bảng clos: weight_percentage (cho V14)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'clos' AND column_name = 'weight_percentage') THEN
+        ALTER TABLE clos ADD COLUMN weight_percentage DECIMAL(5,2) DEFAULT 0.0;
+    END IF;
 
     -- [HOD] Bảng teaching_assignment_collaborators: comments (Ghi chú riêng cho GV hỗ trợ)
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
@@ -270,7 +278,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_logs(status);
 -- ==========================================
 -- 12. CẬP NHẬT VIEW v_syllabus_full
 -- ==========================================
-CREATE OR REPLACE VIEW v_syllabus_full AS
+-- Drop view first to avoid column name conflicts
+DROP VIEW IF EXISTS v_syllabus_full CASCADE;
+
+CREATE VIEW v_syllabus_full AS
 SELECT 
     sv.*,
     s.code AS subject_code, 

@@ -1,7 +1,6 @@
 /*
  * V2__academic_identity.sql
- * Mục tiêu: Định nghĩa thực thể học thuật (Môn học, Chương trình)
- * Updated: Bổ sung Curriculum Link, Cascade Delete, Logic Check
+ * ĐÃ SỬA: Thêm cột description và dùng gen_random_uuid() chuẩn
  */
 
 SET search_path TO core_service;
@@ -36,12 +35,15 @@ CREATE TABLE subjects (
     code VARCHAR(20) NOT NULL UNIQUE,
     department_id UUID NOT NULL REFERENCES departments(id),
     
-    -- [NEW] Liên kết Subject với Curriculum (PLO → Curriculum → Subject → Syllabus)
-    -- Nếu 1 môn dùng chung nhiều chương trình, có thể tách bảng curriculum_subjects sau
+    -- [NEW] Liên kết Subject với Curriculum
     curriculum_id UUID REFERENCES curriculums(id) ON DELETE SET NULL,
     
     current_name_vi VARCHAR(255) NOT NULL,
     current_name_en VARCHAR(255),
+    
+    -- ⭐ QUAN TRỌNG: Đã thêm cột này để V9 không bị lỗi
+    description TEXT, 
+    
     default_credits INT NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     
