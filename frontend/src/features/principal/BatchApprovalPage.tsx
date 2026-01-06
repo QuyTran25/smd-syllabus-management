@@ -52,7 +52,7 @@ export const BatchApprovalPage: React.FC = () => {
       dataIndex: 'subjectNameVi',
       key: 'subjectNameVi',
       render: (text, record) => (
-        <a onClick={() => navigate(`/syllabi/${record.id}`)}>{text}</a>
+        <a onClick={() => navigate(`/admin/syllabi/${record.id}`)}>{text}</a>
       ),
     },
     {
@@ -111,7 +111,7 @@ export const BatchApprovalPage: React.FC = () => {
         <Button
           type="link"
           icon={<FileTextOutlined />}
-          onClick={() => navigate(`/syllabi/${record.id}`)}
+          onClick={() => navigate(`/admin/syllabi/${record.id}`)}
           style={{ fontSize: '12px' }}
         >
           Xem chi tiết

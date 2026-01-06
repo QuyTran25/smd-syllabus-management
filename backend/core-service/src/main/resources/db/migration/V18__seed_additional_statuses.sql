@@ -8,6 +8,7 @@ DO $$
 DECLARE
     v_subject_id UUID;
     v_lecturer_id UUID;
+    v_syllabus_id UUID;
 BEGIN
     -- Lấy lecturer
     SELECT id INTO v_lecturer_id FROM users 
@@ -28,15 +29,11 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM syllabus_versions WHERE status = 'REJECTED' LIMIT 1) THEN
             INSERT INTO syllabus_versions (
                 id, subject_id, version_no, status, 
-                snap_subject_name_vi, snap_subject_code, snap_credit_count, 
-                theory_hours, practice_hours, self_study_hours,
-                description, objectives,
+                snap_subject_code, snap_subject_name_vi, snap_credit_count,
                 created_by, created_at, updated_at
             ) VALUES (
-                gen_random_uuid(), v_subject_id, 1, 'REJECTED',
-                'Lập trình Web nâng cao (Bị từ chối)', 'WEB301', 3, 
-                30, 15, 45,
-                'Đề cương này đã bị từ chối do chưa đạt yêu cầu về CLO', 'Nâng cao kỹ năng lập trình web',
+                gen_random_uuid(), v_subject_id, 'v1.0', 'REJECTED',
+                'WEB301', 'Lập trình Web nâng cao (Bị từ chối)', 3,
                 v_lecturer_id, NOW(), NOW()
             );
             RAISE NOTICE 'Created REJECTED syllabus';
@@ -46,15 +43,11 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM syllabus_versions WHERE status = 'REVISION_IN_PROGRESS' LIMIT 1) THEN
             INSERT INTO syllabus_versions (
                 id, subject_id, version_no, status,
-                snap_subject_name_vi, snap_subject_code, snap_credit_count,
-                theory_hours, practice_hours, self_study_hours,
-                description, objectives,
+                snap_subject_code, snap_subject_name_vi, snap_credit_count,
                 created_by, created_at, updated_at
             ) VALUES (
-                gen_random_uuid(), v_subject_id, 1, 'REVISION_IN_PROGRESS',
-                'An toàn thông tin (Đang chỉnh sửa)', 'SEC201', 3,
-                30, 15, 45,
-                'Đề cương đang trong quá trình chỉnh sửa theo góp ý của Trưởng BM', 'Hiểu và áp dụng các nguyên tắc bảo mật',
+                gen_random_uuid(), v_subject_id, 'v1.0', 'REVISION_IN_PROGRESS',
+                'SEC201', 'An toàn thông tin (Đang chỉnh sửa)', 3,
                 v_lecturer_id, NOW(), NOW()
             );
             RAISE NOTICE 'Created REVISION_IN_PROGRESS syllabus';
@@ -64,15 +57,11 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM syllabus_versions WHERE status = 'PENDING_ADMIN_REPUBLISH' LIMIT 1) THEN
             INSERT INTO syllabus_versions (
                 id, subject_id, version_no, status,
-                snap_subject_name_vi, snap_subject_code, snap_credit_count,
-                theory_hours, practice_hours, self_study_hours,
-                description, objectives,
+                snap_subject_code, snap_subject_name_vi, snap_credit_count,
                 created_by, created_at, updated_at
             ) VALUES (
-                gen_random_uuid(), v_subject_id, 1, 'PENDING_ADMIN_REPUBLISH',
-                'Trí tuệ nhân tạo (Chờ xuất bản lại)', 'AI301', 4,
-                45, 15, 60,
-                'Đề cương đã được cập nhật và chờ Admin xuất bản lại', 'Nắm vững các thuật toán AI cơ bản',
+                gen_random_uuid(), v_subject_id, 'v1.0', 'PENDING_ADMIN_REPUBLISH',
+                'AI301', 'Trí tuệ nhân tạo (Chờ xuất bản lại)', 4,
                 v_lecturer_id, NOW(), NOW()
             );
             RAISE NOTICE 'Created PENDING_ADMIN_REPUBLISH syllabus';
@@ -82,15 +71,11 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM syllabus_versions WHERE status = 'INACTIVE' LIMIT 1) THEN
             INSERT INTO syllabus_versions (
                 id, subject_id, version_no, status,
-                snap_subject_name_vi, snap_subject_code, snap_credit_count,
-                theory_hours, practice_hours, self_study_hours,
-                description, objectives,
+                snap_subject_code, snap_subject_name_vi, snap_credit_count,
                 created_by, created_at, updated_at
             ) VALUES (
-                gen_random_uuid(), v_subject_id, 1, 'INACTIVE',
-                'Lập trình Pascal (Ngưng sử dụng)', 'PAS101', 2,
-                15, 30, 30,
-                'Đề cương này đã ngưng sử dụng do thay đổi chương trình đào tạo', 'Học ngôn ngữ Pascal cơ bản',
+                gen_random_uuid(), v_subject_id, 'v1.0', 'INACTIVE',
+                'PAS101', 'Lập trình Pascal (Ngưng sử dụng)', 2,
                 v_lecturer_id, NOW(), NOW()
             );
             RAISE NOTICE 'Created INACTIVE syllabus';
@@ -100,15 +85,11 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM syllabus_versions WHERE status = 'ARCHIVED' LIMIT 1) THEN
             INSERT INTO syllabus_versions (
                 id, subject_id, version_no, status,
-                snap_subject_name_vi, snap_subject_code, snap_credit_count,
-                theory_hours, practice_hours, self_study_hours,
-                description, objectives,
+                snap_subject_code, snap_subject_name_vi, snap_credit_count,
                 created_by, created_at, updated_at
             ) VALUES (
-                gen_random_uuid(), v_subject_id, 1, 'ARCHIVED',
-                'Lập trình C++ năm 2020 (Đã lưu trữ)', 'CPP101-2020', 3,
-                30, 15, 45,
-                'Đề cương cũ đã được lưu trữ - phiên bản mới đã thay thế', 'Nắm vững C++ cơ bản',
+                gen_random_uuid(), v_subject_id, 'v1.0', 'ARCHIVED',
+                'CPP101', 'Lập trình C++ năm 2020 (Đã lưu trữ)', 3,
                 v_lecturer_id, NOW(), NOW()
             );
             RAISE NOTICE 'Created ARCHIVED syllabus';
@@ -125,3 +106,4 @@ SELECT status, COUNT(*) as count
 FROM syllabus_versions 
 GROUP BY status 
 ORDER BY status;
+

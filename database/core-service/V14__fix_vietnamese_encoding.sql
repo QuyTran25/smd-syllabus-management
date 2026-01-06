@@ -213,7 +213,7 @@ DECLARE
     mapping_level TEXT;
 BEGIN
     FOR clo IN SELECT id, code FROM core_service.clos LOOP
-        FOR plo IN SELECT id, code FROM core_service.program_learning_outcomes ORDER BY RANDOM() LIMIT 3 LOOP
+        FOR plo IN SELECT id, code FROM core_service.plos ORDER BY RANDOM() LIMIT 3 LOOP
             -- Determine mapping level based on CLO code
             IF clo.code IN ('CLO1', 'CLO2') THEN
                 mapping_level := 'I'; -- Introduce
@@ -248,7 +248,7 @@ BEGIN
             WHERE syllabus_version_id = assessment.syllabus_version_id
             ORDER BY RANDOM() LIMIT 3
         LOOP
-            INSERT INTO core_service.assessment_clo_mappings (id, assessment_id, clo_id, created_at)
+            INSERT INTO core_service.assessment_clo_mappings (id, assessment_scheme_id, clo_id, created_at)
             VALUES (gen_random_uuid(), assessment.assessment_id, clo.id, NOW())
             ON CONFLICT DO NOTHING;
         END LOOP;

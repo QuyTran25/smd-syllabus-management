@@ -267,7 +267,7 @@ BEGIN
         -- Feedback 2: Lỗi tổng % - IN_REVIEW (đã được admin xem xét)
         INSERT INTO syllabus_error_reports (
             syllabus_version_id, user_id, type, title, description, section, status,
-            admin_response, responded_by, responded_at, created_at
+            admin_response, responded_by, responded_at, edit_enabled, created_at
         ) VALUES (
             v_syllabus_published_id,
             COALESCE(v_student2_id, v_student1_id),
@@ -279,6 +279,7 @@ BEGIN
             'Đã xác nhận có lỗi. Đang gửi yêu cầu giảng viên chỉnh sửa.',
             v_admin_id,
             NOW() - INTERVAL '12 hours',
+            true,
             NOW() - INTERVAL '3 days'
         );
         

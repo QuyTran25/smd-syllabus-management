@@ -20,7 +20,8 @@ public class AssignmentStatusConverter implements AttributeConverter<AssignmentS
         if (attribute == null) {
             return null;
         }
-        String dbValue = attribute.getDbValue();
+        // Convert enum to lowercase with hyphens for database
+        String dbValue = attribute.name().toLowerCase().replace("_", "-");
         log.debug("Converting enum {} to DB value: {}", attribute, dbValue);
         return dbValue;
     }
@@ -31,7 +32,9 @@ public class AssignmentStatusConverter implements AttributeConverter<AssignmentS
             return null;
         }
         try {
-            AssignmentStatus status = AssignmentStatus.fromString(dbData);
+            // Normalize database value to enum format: lowercase with hyphens -> UPPERCASE with underscores
+            String normalizedValue = dbData.toUpperCase().replace("-", "_");
+            AssignmentStatus status = AssignmentStatus.valueOf(normalizedValue);
             log.debug("Converting DB value '{}' to enum: {}", dbData, status);
             return status;
         } catch (Exception e) {

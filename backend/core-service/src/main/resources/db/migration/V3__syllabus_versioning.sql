@@ -9,13 +9,15 @@ SET search_path TO core_service;
 -- [FINAL] Status cho Workflow + Lưu trữ
 CREATE TYPE syllabus_status AS ENUM (
     'DRAFT',
-    'PENDING_HOD',      -- Chờ Trưởng bộ môn
-    'PENDING_AA',       -- Chờ Phòng đào tạo
-    'PENDING_PRINCIPAL',-- Chờ Hiệu trưởng
-    'PUBLISHED',        -- Đã ban hành
-    'REJECTED',         -- Từ chối (quay về Draft)
-    'INACTIVE',         -- Ngưng sử dụng
-    'ARCHIVED'          -- [NEW] Lưu trữ (version cũ sau khi có bản mới)
+    'PENDING_HOD',           -- Chờ Trưởng bộ môn
+    'PENDING_AA',            -- Chờ Phòng đào tạo
+    'PENDING_PRINCIPAL',     -- Chờ Hiệu trưởng
+    'APPROVED',              -- Đã phê duyệt (chờ publish)
+    'PUBLISHED',             -- Đã ban hành
+    'REJECTED',              -- Từ chối (quay về Draft)
+    'REVISION_IN_PROGRESS',  -- Đang sửa đổi theo yêu cầu
+    'INACTIVE',              -- Ngưng sử dụng
+    'ARCHIVED'               -- [NEW] Lưu trữ (version cũ sau khi có bản mới)
 );
 
 -- ==========================================

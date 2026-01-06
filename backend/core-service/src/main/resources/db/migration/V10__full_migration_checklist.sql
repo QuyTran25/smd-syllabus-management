@@ -5,7 +5,6 @@
  * 2. [AA]: Chuẩn hóa subjects (description, recommended_term, type, component, default hours).
  * 3. [HOD/Lecturer]: Ghi chú phân công (comments).
  * 4. [Student]: Chuẩn hóa phân loại lỗi (error_report_section).
- * UPDATED: Thêm DROP VIEW để tránh lỗi 42P16 và kiểm tra cột description.
  */
 
 SET search_path TO core_service;
@@ -43,7 +42,7 @@ BEGIN
         CREATE TYPE audit_status AS ENUM ('SUCCESS', 'FAILED');
     END IF;
 
-    -- [STUDENT] Phân loại lỗi báo cáo
+    -- [STUDENT] Phân loại lỗi báo cáo (MỚI THÊM)
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'error_report_section') THEN
         CREATE TYPE error_report_section AS ENUM (
             'subject_info',       -- Thông tin môn học
@@ -75,25 +74,40 @@ BEGIN
         ALTER TABLE subjects ADD COLUMN component subject_component DEFAULT 'BOTH';
     END IF;
     
-    -- default_theory_hours
+    -- default_theory_hours (Logic đổi tên nếu cũ tồn tại)
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'default_theory_hours') THEN
-        ALTER TABLE subjects ADD COLUMN default_theory_hours INT DEFAULT 0;
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'theory_hours') THEN
+             ALTER TABLE subjects RENAME COLUMN theory_hours TO default_theory_hours;
+        ELSE
+             ALTER TABLE subjects ADD COLUMN default_theory_hours INT DEFAULT 0;
+        END IF;
     END IF;
     
     -- default_practice_hours
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'default_practice_hours') THEN
-        ALTER TABLE subjects ADD COLUMN default_practice_hours INT DEFAULT 0;
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'practice_hours') THEN
+             ALTER TABLE subjects RENAME COLUMN practice_hours TO default_practice_hours;
+        ELSE
+             ALTER TABLE subjects ADD COLUMN default_practice_hours INT DEFAULT 0;
+        END IF;
     END IF;
     
     -- default_self_study_hours
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'default_self_study_hours') THEN
-        ALTER TABLE subjects ADD COLUMN default_self_study_hours INT DEFAULT 0;
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'self_study_hours') THEN
+             ALTER TABLE subjects RENAME COLUMN self_study_hours TO default_self_study_hours;
+        ELSE
+             ALTER TABLE subjects ADD COLUMN default_self_study_hours INT DEFAULT 0;
+        END IF;
     END IF;
     
-    -- description (Kiểm tra kỹ để tránh lỗi V9)
+    -- description
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'subjects' AND column_name = 'description') THEN
         ALTER TABLE subjects ADD COLUMN description TEXT;
@@ -136,6 +150,11 @@ BEGIN
                    WHERE table_schema = 'core_service' AND table_name = 'academic_terms' AND column_name = 'academic_year') THEN
         ALTER TABLE academic_terms ADD COLUMN academic_year VARCHAR(20);
     END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'academic_terms' AND column_name = 'term_no') THEN
+        ALTER TABLE academic_terms ADD COLUMN term_no INT CHECK (term_no BETWEEN 1 AND 3);
+    END IF;
 END $$;
 
 -- ==========================================
@@ -152,7 +171,7 @@ BEGIN
                    WHERE table_schema = 'core_service' AND table_name = 'users' AND column_name = 'last_login') THEN
         ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
     END IF;
-
+    
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'core_service' AND table_name = 'users' AND column_name = 'created_by') THEN
         ALTER TABLE users ADD COLUMN created_by UUID REFERENCES users(id);
@@ -187,6 +206,67 @@ BEGIN
 END $$;
 
 -- ==========================================
+-- 9. [ADMIN] BỔ SUNG CỘT CHO BẢNG syllabus_error_reports
+-- ==========================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'edit_enabled') THEN
+        ALTER TABLE syllabus_error_reports ADD COLUMN edit_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'resolved_by') THEN
+        ALTER TABLE syllabus_error_reports ADD COLUMN resolved_by UUID REFERENCES users(id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'resolved_at') THEN
+        ALTER TABLE syllabus_error_reports ADD COLUMN resolved_at TIMESTAMP;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'title') THEN
+        ALTER TABLE syllabus_error_reports ADD COLUMN title VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'admin_response') THEN
+        ALTER TABLE syllabus_error_reports ADD COLUMN admin_response TEXT;
+    END IF;
+END $$;
+
+-- ==========================================
+-- 10. [HOD/LECTURER] BỔ SUNG KHÁC
+-- ==========================================
+DO $$
+BEGIN
+    -- Bảng clos: weight
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'clos' AND column_name = 'weight') THEN
+        ALTER TABLE clos ADD COLUMN weight DECIMAL(5,2) DEFAULT 0.0;
+    END IF;
+    
+    -- Bảng clos: weight_percentage (cho V14)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'clos' AND column_name = 'weight_percentage') THEN
+        ALTER TABLE clos ADD COLUMN weight_percentage DECIMAL(5,2) DEFAULT 0.0;
+    END IF;
+
+    -- [HOD] Bảng teaching_assignment_collaborators: comments (Ghi chú riêng cho GV hỗ trợ)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'teaching_assignment_collaborators' AND column_name = 'comments') THEN
+        ALTER TABLE teaching_assignment_collaborators ADD COLUMN comments TEXT;
+    END IF;
+    
+    -- [HOD] Bảng teaching_assignments: comments (Ghi chú chung)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'core_service' AND table_name = 'teaching_assignments' AND column_name = 'comments') THEN
+        ALTER TABLE teaching_assignments ADD COLUMN comments TEXT;
+    END IF;
+END $$;
+
+-- ==========================================
 -- 11. INDEXES BỔ SUNG
 -- ==========================================
 CREATE INDEX IF NOT EXISTS idx_subjects_type ON subjects(subject_type);
@@ -198,8 +278,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_logs(status);
 -- ==========================================
 -- 12. CẬP NHẬT VIEW v_syllabus_full
 -- ==========================================
--- ⭐ BẮT BUỘC DROP VIEW TRƯỚC KHI TẠO LẠI ĐỂ TRÁNH LỖI CẤU TRÚC (42P16)
-DROP VIEW IF EXISTS v_syllabus_full;
+-- Drop view first to avoid column name conflicts
+DROP VIEW IF EXISTS v_syllabus_full CASCADE;
 
 CREATE VIEW v_syllabus_full AS
 SELECT 
@@ -230,12 +310,15 @@ WHERE sv.is_deleted = FALSE;
 -- ==========================================
 DO $$
 BEGIN
+    -- Kiểm tra xem cột section đã tồn tại chưa
     IF EXISTS (SELECT 1 FROM information_schema.columns 
                WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'section') THEN
         
+        -- Nếu tồn tại nhưng chưa phải là kiểu ENUM (đang là VARCHAR/TEXT) thì convert
         IF (SELECT data_type FROM information_schema.columns 
             WHERE table_schema = 'core_service' AND table_name = 'syllabus_error_reports' AND column_name = 'section') != 'USER-DEFINED' THEN
             
+            -- Ép kiểu dữ liệu cũ. Nếu giá trị cũ không khớp ENUM -> gán về 'other'
             ALTER TABLE syllabus_error_reports 
             ALTER COLUMN section TYPE error_report_section 
             USING (CASE 
@@ -250,6 +333,7 @@ BEGIN
             END);
         END IF;
     ELSE
+        -- Nếu cột chưa tồn tại thì thêm mới
         ALTER TABLE syllabus_error_reports ADD COLUMN section error_report_section DEFAULT 'other';
     END IF;
 END $$;
@@ -259,5 +343,5 @@ END $$;
 -- ==========================================
 DO $$
 BEGIN 
-    RAISE NOTICE 'V10 Migration Completed Successfully.';
+    RAISE NOTICE 'V10 Migration Completed: Integrated Admin, Principal, AA, HOD, Lecturer & Student Requirements.';
 END $$;
