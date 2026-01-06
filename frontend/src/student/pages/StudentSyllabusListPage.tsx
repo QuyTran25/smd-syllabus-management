@@ -56,6 +56,28 @@ export const StudentSyllabusListPage: React.FC = () => {
   const programs = useMemo(() => Array.from(new Set(rows.map((x) => x.program))).sort(), [rows]);
   const terms = useMemo(() => Array.from(new Set(rows.map((x) => x.term))).sort(), [rows]);
 
+  const filteredRows = useMemo(() => {
+    return rows.filter((item) => {
+      if (filters.scope === 'TRACKED' && !item.tracked) return false;
+
+      if (filters.q) {
+        const q = filters.q.toLowerCase();
+        if (
+          !item.code.toLowerCase().includes(q) &&
+          !item.nameVi.toLowerCase().includes(q) &&
+          !item.lecturerName.toLowerCase().includes(q)
+        )
+          return false;
+      }
+
+      if (filters.faculty && item.faculty !== filters.faculty) return false;
+      if (filters.program && item.program !== filters.program) return false;
+      if (filters.term && item.term !== filters.term) return false;
+
+      return true;
+    });
+  }, [rows, filters]);
+
   return (
     <>
       {/* Banner Header */}
@@ -149,7 +171,7 @@ export const StudentSyllabusListPage: React.FC = () => {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
               }}
             >
-              {rows.map((item) => (
+              {filteredRows.map((item) => (
                 <SyllabusCard
                   key={item.id}
                   item={item}
