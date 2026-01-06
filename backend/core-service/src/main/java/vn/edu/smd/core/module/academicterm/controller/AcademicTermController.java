@@ -17,9 +17,9 @@ import vn.edu.smd.core.module.academicterm.service.AcademicTermService;
 import java.util.List;
 import java.util.UUID;
 
-@Tag(name = "Academic Year Management", description = "Academic year management APIs")
+@Tag(name = "Academic Term Management", description = "Academic term (học kỳ) management APIs")
 @RestController
-@RequestMapping("/api/academic-years")
+@RequestMapping("/api/academic-terms")
 @RequiredArgsConstructor
 public class AcademicTermController {
 
@@ -88,6 +88,13 @@ public class AcademicTermController {
             @Valid @RequestBody AcademicTermRequest request) {
         AcademicTermResponse term = academicTermService.updateAcademicTerm(id, request);
         return ResponseEntity.ok(ApiResponse.success("Academic term updated successfully", term));
+    }
+
+    @Operation(summary = "Set active academic term", description = "Set an academic term as active (deactivates others)")
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<ApiResponse<AcademicTermResponse>> setActiveAcademicTerm(@PathVariable UUID id) {
+        AcademicTermResponse term = academicTermService.setActiveAcademicTerm(id);
+        return ResponseEntity.ok(ApiResponse.success("Academic term activated successfully", term));
     }
 
     @Operation(summary = "Delete academic term", description = "Delete academic term by ID")

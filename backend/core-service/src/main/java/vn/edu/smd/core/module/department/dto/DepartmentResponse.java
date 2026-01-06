@@ -12,6 +12,7 @@ public class DepartmentResponse {
     private String facultyName;
     private String code;
     private String name;
+    private String headOfDepartmentName; // Tên trưởng bộ môn
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

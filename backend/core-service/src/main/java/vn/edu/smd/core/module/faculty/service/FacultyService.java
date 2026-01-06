@@ -136,6 +136,11 @@ public class FacultyService {
         response.setFacultyName(department.getFaculty().getName());
         response.setCode(department.getCode());
         response.setName(department.getName());
+        
+        // Tìm HOD (Head of Department) - user có role HOD thuộc department này
+        // Tạm thời để null, sẽ implement sau khi có UserRepository
+        response.setHeadOfDepartmentName(null);
+        
         response.setCreatedAt(department.getCreatedAt());
         response.setUpdatedAt(department.getUpdatedAt());
         return response;
