@@ -3,7 +3,8 @@ package vn.edu.smd.core.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.AssessmentCloMapping;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,4 +44,7 @@ public interface AssessmentCloMappingRepository extends JpaRepository<Assessment
      * Count mappings for assessment scheme
      */
     long countByAssessmentSchemeId(UUID assessmentSchemeId);
+
+    @Query("SELECT m FROM AssessmentCloMapping m WHERE m.assessmentScheme.id IN :ids")
+    List<AssessmentCloMapping> findByAssessmentSchemeIdIn(@Param("ids") List<UUID> ids);
 }

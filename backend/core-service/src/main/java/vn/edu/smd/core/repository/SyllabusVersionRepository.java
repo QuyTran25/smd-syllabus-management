@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.shared.enums.SyllabusStatus;
-
+import java.util.Optional;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,4 +34,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status = :status AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusAndNotDeleted(@Param("status") SyllabusStatus status);
+
+    Optional<SyllabusVersion> findFirstBySubjectIdOrderByCreatedAtDesc(UUID subjectId);
+
 }

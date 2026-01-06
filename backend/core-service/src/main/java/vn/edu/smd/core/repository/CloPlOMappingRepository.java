@@ -22,4 +22,6 @@ public interface CloPlOMappingRepository extends JpaRepository<CloPlOMapping, UU
     void deleteByCloId(UUID cloId);
     
     void deleteByPloId(UUID ploId);
+
+    List<CloPlOMapping> findByCloIdIn(List<UUID> cloIds);
 }
