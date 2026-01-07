@@ -1,6 +1,9 @@
 package vn.edu.smd.core.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.Department;
 
@@ -16,6 +19,7 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
     
     Optional<Department> findByCode(String code);
     
+    @EntityGraph(attributePaths = {"faculty"})
     List<Department> findByFacultyId(UUID facultyId);
     
     boolean existsByCode(String code);

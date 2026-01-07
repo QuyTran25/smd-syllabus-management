@@ -105,6 +105,16 @@ public class AcademicTermService {
     }
 
     @Transactional
+    public AcademicTermResponse setActiveAcademicTerm(UUID id) {
+        AcademicTerm term = academicTermRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("AcademicTerm", "id", id));
+        
+        term.setIsActive(true);
+        AcademicTerm updatedTerm = academicTermRepository.save(term);
+        return mapToResponse(updatedTerm);
+    }
+
+    @Transactional
     public void deleteAcademicTerm(UUID id) {
         if (!academicTermRepository.existsById(id)) {
             throw new ResourceNotFoundException("AcademicTerm", "id", id);

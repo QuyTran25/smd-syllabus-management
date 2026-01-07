@@ -66,6 +66,10 @@ public class SecurityConfig {
                 // ⭐ CHO PHÉP STUDENT API PUBLIC (sinh viên không cần đăng nhập để xem đề cương)
                 .requestMatchers("/api/student/**").permitAll()
                 
+                // ⭐ CHO PHÉP ACADEMIC TERMS API (tạm thời để admin config)
+                .requestMatchers("/api/academic-terms/**").permitAll()
+                .requestMatchers("/api/semesters/**").permitAll()
+                
                 // Cho phép Swagger và Actuator để debug
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
                 
