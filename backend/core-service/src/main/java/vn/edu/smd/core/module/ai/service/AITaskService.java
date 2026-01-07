@@ -45,10 +45,10 @@ public class AITaskService {
     public String requestCloPloMapping(UUID syllabusId, UUID curriculumId, String userId) {
         String messageId = UUID.randomUUID().toString();
         
-        // Prepare payload
+        // Prepare payload - handle null curriculumId
         Map<String, Object> payload = new HashMap<>();
         payload.put("syllabus_id", syllabusId.toString());
-        payload.put("curriculum_id", curriculumId.toString());
+        payload.put("curriculum_id", curriculumId != null ? curriculumId.toString() : null);
         payload.put("strict_mode", true);
         payload.put("check_weights", true);
         
@@ -90,8 +90,7 @@ public class AITaskService {
                 }
         );
         
-        log.info("Sent MAP_CLO_PLO request: messageId={}, syllabusId={}, userId={}", 
-                 messageId, syllabusId, userId);
+        log.info("[Sent] Message to AI Queue: Syllabus ID #{}", syllabusId);
         
         return messageId;
     }
