@@ -1,9 +1,8 @@
 import React from 'react';
-import { Card, Tabs, Form, Input, Button, Table, Space, message, InputNumber, Switch, Tag, DatePicker } from 'antd';
+import { Card, Tabs, Form, Input, Button, Table, Space, message, InputNumber, Switch, Tag, DatePicker, Popconfirm } from 'antd';
 import { PlusOutlined, DeleteOutlined, SaveOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { semesterService } from '@/services';
-import { Semester } from '@/types';
+import { academicTermService, type AcademicTerm } from '@/services/academic-term.service';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 
@@ -12,50 +11,50 @@ const { RangePicker } = DatePicker;
 
 export const SystemSettingsPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [semesterForm] = Form.useForm();
+  const [termForm] = Form.useForm();
 
-  // Fetch semesters using React Query
-  const { data: semesters, isLoading: loadingSemesters } = useQuery({
-    queryKey: ['semesters'],
-    queryFn: () => semesterService.getSemesters(),
+  // Fetch academic terms using React Query
+  const { data: terms, isLoading: loadingTerms } = useQuery({
+    queryKey: ['academic-terms'],
+    queryFn: () => academicTermService.getAllTerms(),
   });
 
-  // Create semester mutation
-  const createSemesterMutation = useMutation({
-    mutationFn: (data: Omit<Semester, 'id' | 'createdAt' | 'updatedAt'>) =>
-      semesterService.createSemester(data),
+  // Create academic term mutation
+  const createTermMutation = useMutation({
+    mutationFn: (data: Omit<AcademicTerm, 'id' | 'createdAt' | 'updatedAt'>) =>
+      academicTermService.createTerm(data),
     onSuccess: () => {
       message.success('Tạo học kỳ thành công');
-      queryClient.invalidateQueries({ queryKey: ['semesters'] });
-      semesterForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ['academic-terms'] });
+      termForm.resetFields();
     },
     onError: () => {
       message.error('Tạo học kỳ thất bại');
     },
   });
 
-  // Delete semester mutation
-  const deleteSemesterMutation = useMutation({
-    mutationFn: (id: string) => semesterService.deleteSemester(id),
+  // Delete academic term mutation
+  const deleteTermMutation = useMutation({
+    mutationFn: (id: string) => academicTermService.deleteTerm(id),
     onSuccess: () => {
       message.success('Xóa học kỳ thành công');
-      queryClient.invalidateQueries({ queryKey: ['semesters'] });
+      queryClient.invalidateQueries({ queryKey: ['academic-terms'] });
     },
     onError: (error: Error) => {
       message.error(error.message || 'Xóa học kỳ thất bại');
     },
   });
 
-  // Set active semester mutation
+  // Set active academic term mutation
   const setActiveMutation = useMutation({
-    mutationFn: (id: string) => semesterService.setActiveSemester(id),
+    mutationFn: (id: string) => academicTermService.setActiveTerm(id),
     onSuccess: () => {
       message.success('Đã kích hoạt học kỳ');
-      queryClient.invalidateQueries({ queryKey: ['semesters'] });
+      queryClient.invalidateQueries({ queryKey: ['academic-terms'] });
     },
   });
 
-  const handleCreateSemester = (values: any) => {
+  const handleCreateTerm = (values: any) => {
     const [startDate, endDate] = values.dateRange;
     
     // Extract academic year from dates
@@ -63,18 +62,17 @@ export const SystemSettingsPage: React.FC = () => {
     const endYear = endDate.year();
     const academicYear = startYear !== endYear ? `${startYear}-${endYear}` : `${startYear}`;
 
-    createSemesterMutation.mutate({
+    createTermMutation.mutate({
       code: values.code,
       name: values.name,
       startDate: startDate.format('YYYY-MM-DD'),
       endDate: endDate.format('YYYY-MM-DD'),
       academicYear,
       isActive: false,
-      createdBy: 'admin-1', // TODO: Get from auth context
     });
   };
 
-  const semesterColumns: ColumnsType<Semester> = [
+  const termColumns: ColumnsType<AcademicTerm> = [
     { 
       title: 'Mã', 
       dataIndex: 'code', 
@@ -133,14 +131,23 @@ export const SystemSettingsPage: React.FC = () => {
               Kích hoạt
             </Button>
           )}
-          <Button
-            type="text"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={() => deleteSemesterMutation.mutate(record.id)}
+          <Popconfirm
+            title="Xóa học kỳ"
+            description={`Bạn có chắc muốn xóa học kỳ "${record.name}"?`}
+            onConfirm={() => deleteTermMutation.mutate(record.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
             disabled={record.isActive}
-          />
+          >
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={record.isActive}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -158,9 +165,9 @@ export const SystemSettingsPage: React.FC = () => {
             children: (
               <Card>
                 <Form
-                  form={semesterForm}
+                  form={termForm}
                   layout="vertical"
-                  onFinish={handleCreateSemester}
+                  onFinish={handleCreateTerm}
                   style={{ marginBottom: 16 }}
                 >
                   <Space size="large" align="start" style={{ width: '100%' }}>
@@ -193,7 +200,7 @@ export const SystemSettingsPage: React.FC = () => {
                         type="primary" 
                         htmlType="submit" 
                         icon={<PlusOutlined />}
-                        loading={createSemesterMutation.isPending}
+                        loading={createTermMutation.isPending}
                       >
                         Thêm
                       </Button>
@@ -202,11 +209,11 @@ export const SystemSettingsPage: React.FC = () => {
                 </Form>
 
                 <Table 
-                  columns={semesterColumns} 
-                  dataSource={semesters || []} 
+                  columns={termColumns} 
+                  dataSource={terms || []} 
                   rowKey="id" 
                   pagination={false}
-                  loading={loadingSemesters}
+                  loading={loadingTerms}
                   scroll={{ x: 700 }}
                 />
               </Card>
