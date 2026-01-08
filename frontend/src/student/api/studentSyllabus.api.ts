@@ -1,21 +1,12 @@
 import { http } from './http';
-import {
-  SyllabusListItem,
-  SyllabusDetail,
-  // ReportIssuePayload,  <-- XÓA DÒNG NÀY (Không import từ types nữa)
-  StudentSyllabiFilters,
-} from '../types';
+import { SyllabusListItem, SyllabusDetail, StudentSyllabiFilters } from '../types';
 
-// ⭐ THÊM MỚI: Định nghĩa ngay tại đây để làm chuẩn cho toàn bộ app
 export interface ReportIssuePayload {
   syllabusId: string;
   section: string;
   description: string;
 }
 
-/**
- * Lấy danh sách Syllabus từ Backend
- */
 export async function listStudentSyllabi(
   filters?: StudentSyllabiFilters
 ): Promise<SyllabusListItem[]> {
@@ -53,6 +44,10 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
     lecturerName: d.lecturerName || 'Giảng viên hướng dẫn',
     status: d.status || 'PUBLISHED',
     summaryInline: d.description || 'Chưa có tóm tắt nội dung môn học.',
+
+    // ⭐ Map isTracked từ backend sang tracked
+    tracked: d.tracked ?? d.isTracked ?? false,
+
     assessmentMatrix: d.assessmentMatrix || [],
     clos: d.clos || [],
     timeAllocation: {
@@ -71,13 +66,14 @@ export async function toggleTrackSyllabus(id: string) {
   return res.data;
 }
 
-/** Báo cáo lỗi: Sử dụng Interface vừa định nghĩa bên trên */
 export async function reportIssue(payload: ReportIssuePayload) {
-  const res = await http.post('/student/issues/report', payload);
+  console.log('LOG: Đang gửi báo cáo lỗi với data:', payload);
+  const res = await http.post('/student/syllabi/issues/report', payload);
   return res.data;
 }
 
-export async function downloadPdfMock(id: string) {
-  const res = await http.get(`/student/syllabi/${id}/export-pdf`, { responseType: 'blob' });
-  return res.data;
+export async function downloadSyllabusPdf(id: string) {
+  return http.get(`/student/syllabi/${id}/pdf`, {
+    responseType: 'blob',
+  });
 }

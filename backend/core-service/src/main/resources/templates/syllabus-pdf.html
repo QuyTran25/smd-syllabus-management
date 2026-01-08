@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm 2cm;
+
+            @bottom-right {
+                content: "Trang " counter(page) " / " counter(pages);
+                font-family: 'TimesVN', serif;
+                font-size: 10px;
+                color: #888;
+            }
+        }
+
+        body {
+            font-family: 'TimesVN', serif;
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.88);
+            line-height: 1.5715;
+        }
+
+        .header-section {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            color: rgba(0, 0, 0, 0.88);
+        }
+
+        .page-subtitle {
+            color: rgba(0, 0, 0, 0.45);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .status-tag {
+            display: inline-block;
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+            font-size: 12px;
+            padding: 0 7px;
+            border-radius: 4px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .ant-alert {
+            background-color: #e6f7ff;
+            border: 1px solid #91caff;
+            padding: 8px 15px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            color: rgba(0, 0, 0, 0.88);
+            font-size: 13px;
+        }
+
+        .ant-alert-title {
+            font-weight: 600;
+            color: #1677ff;
+            margin-right: 8px;
+        }
+
+        .divider {
+            display: block;
+            border-top: 1px solid rgba(5, 5, 5, 0.06);
+            margin: 24px 0 16px 0;
+            position: relative;
+        }
+
+        .divider-text {
+            position: absolute;
+            top: -12px;
+            left: 0;
+            background: #fff;
+            padding-right: 12px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.88);
+            font-size: 14px;
+        }
+
+        table.descriptions {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #f0f0f0;
+            margin-bottom: 24px;
+        }
+
+        .descriptions td {
+            padding: 8px 16px;
+            border: 1px solid #f0f0f0;
+            vertical-align: top;
+        }
+
+        .desc-label {
+            background-color: #fafafa;
+            color: rgba(0, 0, 0, 0.88);
+            font-weight: 600;
+            width: 18%;
+        }
+
+        .desc-content {
+            color: rgba(0, 0, 0, 0.88);
+            width: 32%;
+        }
+
+        .tag-red {
+            display: inline-block;
+            color: #f5222d;
+            background: #fff1f0;
+            border: 1px solid #ffa39e;
+            font-size: 12px;
+            padding: 0 7px;
+            border-radius: 4px;
+        }
+
+        .time-allocation {
+            width: 100%;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            border-collapse: separate;
+            border-spacing: 0;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .time-allocation td {
+            padding: 16px;
+            text-align: center;
+            background: #fafafa;
+            width: 33.33%;
+            border-right: 1px solid #f0f0f0;
+        }
+
+        .time-allocation td:last-child {
+            border-right: none;
+        }
+
+        .time-label {
+            color: rgba(0, 0, 0, 0.45);
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .time-value {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        table.ant-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+
+        .ant-table th {
+            background: #fafafa;
+            color: rgba(0, 0, 0, 0.88);
+            font-weight: 600;
+            padding: 12px 12px;
+            border: 1px solid #f0f0f0;
+            text-align: left;
+        }
+
+        .ant-table td {
+            padding: 12px 12px;
+            border: 1px solid #f0f0f0;
+            color: rgba(0, 0, 0, 0.88);
+            vertical-align: top;
+        }
+
+        .text-strong {
+            font-weight: 600;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .ant-tag {
+            display: inline-block;
+            font-size: 12px;
+            padding: 0 7px;
+            border-radius: 4px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            border: 1px solid;
+        }
+
+        .tag-blue {
+            background: #e6f4ff;
+            border-color: #91caff;
+            color: #1677ff;
+        }
+
+        .tag-cyan {
+            background: #e6fffb;
+            border-color: #87e8de;
+            color: #13c2c2;
+        }
+
+        .check-mark {
+            color: #52c41a;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        ul.materials {
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        ul.materials li {
+            margin-bottom: 4px;
+        }
+
+        table {
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-section">
+        <div>
+            <span class="page-title" th:text="${syllabus.code + ' - ' + syllabus.nameVi}"></span>
+            <span class="status-tag">ĐÃ XUẤT BẢN</span>
+        </div>
+        <div class="page-subtitle">
+            <span th:text="${syllabus.term}"></span> ·
+            <span th:text="${syllabus.faculty}"></span> ·
+            <span th:text="${syllabus.program}"></span>
+        </div>
+    </div>
+
+    <div class="ant-alert" th:if="${syllabus.summaryInline != null}">
+        <span class="ant-alert-title">AI Summary:</span>
+        <span th:text="${syllabus.summaryInline}"></span>
+    </div>
+
+    <table class="descriptions">
+        <tr>
+            <td class="desc-label">Mã học phần</td>
+            <td class="desc-content" th:text="${syllabus.code}"></td>
+            <td class="desc-label">Số tín chỉ</td>
+            <td class="desc-content" th:text="${syllabus.credits}"></td>
+            <td class="desc-label">Ngày xuất bản</td>
+            <td class="desc-content" th:text="${syllabus.publishedAt}"></td>
+        </tr>
+        <tr>
+            <td class="desc-label">Tên tiếng Việt</td>
+            <td class="desc-content" colspan="2" th:text="${syllabus.nameVi}"></td>
+            <td class="desc-label">Tên tiếng Anh</td>
+            <td class="desc-content" colspan="2" th:text="${syllabus.nameEn}"></td>
+        </tr>
+        <tr>
+            <td class="desc-label">Loại học phần</td>
+            <td class="desc-content">
+                <span class="tag-red">Bắt buộc</span>
+            </td>
+            <td class="desc-label">Khoa/Bộ môn</td>
+            <td class="desc-content" colspan="3" th:text="${syllabus.faculty}"></td>
+        </tr>
+        <tr>
+            <td class="desc-label">Giảng viên</td>
+            <td class="desc-content" colspan="3"
+                th:text="${syllabus.lecturerName} + (${syllabus.lecturerEmail} != null ? ' (' + ${syllabus.lecturerEmail} + ')' : '')">
+            </td>
+            <td class="desc-label">Thang điểm</td>
+            <td class="desc-content">10</td>
+        </tr>
+    </table>
+
+    <div class="divider"><span class="divider-text">Phân bổ Thời gian</span></div>
+    <table class="time-allocation">
+        <tr>
+            <td>
+                <span class="time-label">Lý thuyết</span>
+                <div class="time-value" th:text="${syllabus.timeAllocation.theory} + ' tiết'"></div>
+            </td>
+            <td>
+                <span class="time-label">Thực hành</span>
+                <div class="time-value" th:text="${syllabus.timeAllocation.practice} + ' tiết'"></div>
+            </td>
+            <td>
+                <span class="time-label">Tự học</span>
+                <div class="time-value" th:text="${syllabus.timeAllocation.selfStudy} + ' tiết'"></div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"><span class="divider-text">Ma trận Đánh giá</span></div>
+    <table class="ant-table">
+        <thead>
+            <tr>
+                <th style="width: 25%">Phương pháp</th>
+                <th style="width: 15%">Hình thức</th>
+                <th style="width: 35%">CLO</th>
+                <th style="width: 15%">Tiêu chí</th>
+                <th style="width: 10%">Trọng số</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item : ${syllabus.assessmentMatrix}">
+                <td th:text="${item.method}"></td>
+                <td th:text="${item.form}"></td>
+                <td>
+                    <span th:each="c : ${item.clo}" class="ant-tag tag-blue" th:text="${c}"></span>
+                </td>
+                <td th:text="${item.criteria}"></td>
+                <td class="text-strong" th:text="${item.weight} + '%'"></td>
+            </tr>
+            <tr style="background: #fafafa">
+                <td colspan="4" class="text-strong" style="text-align: right">Tổng</td>
+                <td class="text-strong">100%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="divider"><span class="divider-text">Chuẩn đầu ra học phần (CLO)</span></div>
+    <table class="ant-table">
+        <thead>
+            <tr>
+                <th style="width: 10%">Mã CLO</th>
+                <th style="width: 45%">Mô tả</th>
+                <th style="width: 15%">Bloom</th>
+                <th style="width: 10%">Trọng số</th>
+                <th style="width: 20%">Ánh xạ PLO</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="clo : ${syllabus.clos}">
+                <td class="text-strong" th:text="${clo.code}"></td>
+                <td th:text="${clo.description}"></td>
+                <td th:text="${clo.bloomLevel}"></td>
+                <td th:text="${clo.weight} + '%'"></td>
+                <td>
+                    <span th:each="p : ${clo.plo}" class="ant-tag tag-cyan" th:text="${p}"></span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="divider"><span class="divider-text">Ma trận CLO - PLO</span></div>
+    <table class="ant-table" style="text-align: center">
+        <thead>
+            <tr>
+                <th style="width: 100px; text-align: left; background: #fafafa;">CLO</th>
+                <th th:each="ploHeader : ${syllabus.ploList}" class="text-center" th:text="${ploHeader}"></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="clo : ${syllabus.clos}">
+                <td style="text-align: left; font-weight: 600;" th:text="${clo.code}"></td>
+
+                <td th:each="ploCol : ${syllabus.ploList}">
+                    <span
+                        th:if="${syllabus.cloPloMap.get(clo.code) != null and syllabus.cloPloMap.get(clo.code).contains(ploCol)}"
+                        class="check-mark">✓</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="divider"><span class="divider-text">Giáo trình &amp; Tài liệu</span></div>
+    <div style="padding: 0 12px;">
+        <div class="text-strong">Giáo trình chính:</div>
+        <ul class="materials">
+            <li th:each="book : ${syllabus.textbooks}" th:text="${book}"></li>
+        </ul>
+        <br />
+        <div class="text-strong">Tài liệu tham khảo:</div>
+        <ul class="materials">
+            <li th:each="ref : ${syllabus.references}" th:text="${ref}"></li>
+        </ul>
+    </div>
+
+    <div
+        style="margin-top: 40px; text-align: center; color: #888; font-size: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px;">
+        Bản quyền thuộc về © Trung tâm Thông tin - Thư viện
+    </div>
+
+</body>
+
+</html>

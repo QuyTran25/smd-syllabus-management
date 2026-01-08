@@ -14,7 +14,13 @@ import {
   App,
 } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import { RobotOutlined, TableOutlined, DownloadOutlined } from '@ant-design/icons';
+import {
+  RobotOutlined,
+  TableOutlined,
+  DownloadOutlined,
+  StarFilled, // 👈 Thêm
+  StarOutlined,
+} from '@ant-design/icons';
 
 // Import Modals
 import { AISummaryModal } from '../components/AISummaryModal';
@@ -242,8 +248,12 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           >
             Tải PDF
           </Button>
-          <Button onClick={() => toggleTrack.mutate(data.id)}>
-            {data.tracked ? 'Bỏ theo dõi' : 'Theo dõi'}
+          <Button
+            onClick={() => toggleTrack.mutate(data.id)}
+            loading={toggleTrack.isPending} // Hiện loading nếu cần
+            icon={data.tracked ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />} // Đổi icon
+          >
+            {data.tracked ? 'Đang theo dõi' : 'Theo dõi'}
           </Button>
           <Button danger onClick={() => setOpenReport(true)}>
             Báo lỗi

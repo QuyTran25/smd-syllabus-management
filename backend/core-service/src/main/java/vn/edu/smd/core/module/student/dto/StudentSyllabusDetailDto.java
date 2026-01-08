@@ -26,6 +26,8 @@ public class StudentSyllabusDetailDto {
     private String publishedAt;
     private String summaryInline; // Nội dung Tóm tắt AI
 
+
+    private boolean isTracked;
     private TimeAllocationDto timeAllocation;
     private List<String> objectives;
     private List<String> studentTasks;
