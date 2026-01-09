@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UserRequest {
     @NotBlank(message = "Email is required")
@@ -17,4 +19,6 @@ public class UserRequest {
 
     private String phoneNumber;
     private String status;
+    private UUID facultyId;
+    private UUID departmentId;
 }

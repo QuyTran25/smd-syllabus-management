@@ -8,12 +8,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
+import vn.edu.smd.core.entity.Department;
+import vn.edu.smd.core.entity.Faculty;
 import vn.edu.smd.core.entity.Role;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.user.dto.AssignRolesRequest;
 import vn.edu.smd.core.module.user.dto.UpdateStatusRequest;
 import vn.edu.smd.core.module.user.dto.UserRequest;
 import vn.edu.smd.core.module.user.dto.UserResponse;
+import vn.edu.smd.core.repository.DepartmentRepository;
+import vn.edu.smd.core.repository.FacultyRepository;
+import vn.edu.smd.core.repository.DepartmentRepository;
+import vn.edu.smd.core.repository.FacultyRepository;
 import vn.edu.smd.core.repository.RoleRepository;
 import vn.edu.smd.core.repository.UserRepository;
 import vn.edu.smd.shared.enums.AuthProvider;
@@ -29,6 +35,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final FacultyRepository facultyRepository;
+    private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
@@ -56,6 +64,16 @@ public class UserService {
         user.setPhoneNumber(request.getPhoneNumber());
         user.setStatus(request.getStatus() != null ? UserStatus.valueOf(request.getStatus()) : UserStatus.ACTIVE);
         user.setAuthProvider(AuthProvider.LOCAL);
+        
+        // Set faculty and department if provided
+        if (request.getFacultyId() != null) {
+            facultyRepository.findById(request.getFacultyId())
+                .ifPresent(user::setFaculty);
+        }
+        if (request.getDepartmentId() != null) {
+            departmentRepository.findById(request.getDepartmentId())
+                .ifPresent(user::setDepartment);
+        }
 
         User savedUser = userRepository.save(user);
         return mapToResponse(savedUser);
@@ -78,6 +96,16 @@ public class UserService {
         user.setPhoneNumber(request.getPhoneNumber());
         if (request.getStatus() != null) {
             user.setStatus(UserStatus.valueOf(request.getStatus()));
+        }
+        
+        // Update faculty and department if provided
+        if (request.getFacultyId() != null) {
+            facultyRepository.findById(request.getFacultyId())
+                .ifPresent(user::setFaculty);
+        }
+        if (request.getDepartmentId() != null) {
+            departmentRepository.findById(request.getDepartmentId())
+                .ifPresent(user::setDepartment);
         }
 
         User updatedUser = userRepository.save(user);

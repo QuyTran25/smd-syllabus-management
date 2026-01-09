@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Dropdown, List, Button, Space, Typography, Tag, Empty, message, Modal, Descriptions, Divider } from 'antd';
 import { BellOutlined, CheckOutlined, DeleteOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { notificationService } from '@/services/notification.service';
 
 const { Text, Title, Paragraph } = Typography;
@@ -33,6 +34,7 @@ const NotificationBell: React.FC = () => {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch notifications
   const { data: notifications = [], isLoading } = useQuery({
@@ -100,7 +102,7 @@ const NotificationBell: React.FC = () => {
     // Navigate based on type and actionUrl in payload
     if (notification.type === 'ASSIGNMENT' && notification.relatedEntityType === 'SUBJECT') {
       // Navigate to teaching assignment page
-      window.location.href = '/admin/teaching-assignment';
+      navigate('/admin/teaching-assignment');
     }
   };
 

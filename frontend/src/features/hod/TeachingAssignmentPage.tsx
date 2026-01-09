@@ -4,95 +4,12 @@ import { PlusOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, M
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import { teachingAssignmentService, TeachingAssignment } from '@/services/teaching-assignment.service';
+import { academicTermService } from '@/services/academic-term.service';
 
 const { Option } = Select;
 const { TextArea } = Input;
-
-// Mock data lecturers
-const mockLecturers = [
-  { id: 'l1', name: 'TS. Nguyễn Văn A', email: 'nva@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l3', name: 'TS. Lê Văn C', email: 'lvc@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l4', name: 'PGS. Phạm Thị D', email: 'ptd@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l5', name: 'ThS. Hoàng Văn E', email: 'hve@university.edu.vn', department: 'Khoa CNTT' },
-];
-
-// Mock courses from AA's course management
-const mockCourses = [
-  { id: 'c1', code: 'CS101', name: 'Nhập môn Lập trình', semester: 'HK1 2024-2025' },
-  { id: 'c2', code: 'CS201', name: 'Cấu trúc Dữ liệu và Giải thuật', semester: 'HK1 2024-2025' },
-  { id: 'c3', code: 'CS301', name: 'Cơ sở Dữ liệu', semester: 'HK2 2024-2025' },
-  { id: 'c4', code: 'CS401', name: 'Hệ điều hành', semester: 'HK2 2024-2025' },
-];
-
-// Mock assignments
-const mockAssignments: TeachingAssignment[] = [
-  {
-    id: 'ta1',
-    courseCode: 'CS201',
-    courseName: 'Cấu trúc Dữ liệu và Giải thuật',
-    semester: 'HK1 2024-2025',
-    mainLecturer: { id: 'l1', name: 'TS. Nguyễn Văn A', email: 'nva@university.edu.vn' },
-    coLecturers: [
-      { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn' },
-    ],
-    deadline: '2025-01-15',
-    status: 'in-progress',
-    createdAt: '2024-12-01',
-    commentCount: 5,
-  },
-  {
-    id: 'ta2',
-    courseCode: 'CS301',
-    courseName: 'Cơ sở Dữ liệu',
-    semester: 'HK2 2024-2025',
-    mainLecturer: { id: 'l3', name: 'TS. Lê Văn C', email: 'lvc@university.edu.vn' },
-    coLecturers: [
-      { id: 'l4', name: 'PGS. Phạm Thị D', email: 'ptd@university.edu.vn' },
-      { id: 'l5', name: 'ThS. Hoàng Văn E', email: 'hve@university.edu.vn' },
-    ],
-    deadline: '2025-02-28',
-    status: 'pending',
-    syllabusId: 's10',
-    createdAt: '2024-12-05',
-    commentCount: 0,
-  },
-  {
-    id: 'ta3',
-    courseCode: 'CS101',
-    courseName: 'Nhập môn Lập trình',
-    semester: 'HK1 2024-2025',
-    mainLecturer: { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn' },
-    coLecturers: [],
-    deadline: '2024-12-20',
-    status: 'submitted',
-    syllabusId: 's11',
-    createdAt: '2024-11-15',
-    commentCount: 12,
-  },
-];
-
-// Mock comments
-const mockComments = [
-  {
-    id: 'c1',
-    assignmentId: 'ta1',
-    userId: 'l2',
-    userName: 'ThS. Trần Thị B',
-    content: 'Phần CLO3 cần bổ sung thêm về phân tích độ phức tạp thuật toán',
-    createdAt: '2024-12-10 14:30',
-  },
-  {
-    id: 'c2',
-    assignmentId: 'ta1',
-    userId: 'l1',
-    userName: 'TS. Nguyễn Văn A',
-    content: 'Đã cập nhật CLO3, cảm ơn góp ý',
-    createdAt: '2024-12-10 16:20',
-  },
-];
 
 export const TeachingAssignmentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -103,9 +20,27 @@ export const TeachingAssignmentPage: React.FC = () => {
   const [form] = Form.useForm();
 
   // Fetch assignments from real API
-  const { data: assignments, isLoading, error } = useQuery({
+  const { data: assignments = [], isLoading, error } = useQuery({
     queryKey: ['teaching-assignments'],
     queryFn: () => teachingAssignmentService.getAll(),
+  });
+
+  // Fetch subjects for HOD
+  const { data: subjects = [] } = useQuery({
+    queryKey: ['hod-subjects'],
+    queryFn: () => teachingAssignmentService.getHodSubjects(),
+  });
+
+  // Fetch lecturers for HOD
+  const { data: lecturers = [] } = useQuery({
+    queryKey: ['hod-lecturers'],
+    queryFn: () => teachingAssignmentService.getHodLecturers(),
+  });
+
+  // Fetch academic terms
+  const { data: academicTerms = [] } = useQuery({
+    queryKey: ['academic-terms'],
+    queryFn: () => academicTermService.getAllTerms(),
   });
 
   // Show error message if API call fails
@@ -117,15 +52,31 @@ export const TeachingAssignmentPage: React.FC = () => {
 
   // Create assignment mutation
   const createAssignmentMutation = useMutation({
-    mutationFn: async (values: any) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return values;
+    mutationFn: async (values: {
+      subjectId: string;
+      academicTermId: string;
+      mainLecturerId: string;
+      coLecturers?: string[];
+      deadline: Dayjs;
+      comments?: string;
+    }) => {
+      return teachingAssignmentService.create({
+        subjectId: values.subjectId,
+        academicTermId: values.academicTermId,
+        mainLecturerId: values.mainLecturerId,
+        collaboratorIds: values.coLecturers || [],
+        deadline: values.deadline.format('YYYY-MM-DD'),
+        comments: values.comments,
+      });
     },
     onSuccess: () => {
       message.success('Gán nhiệm vụ thành công');
       setIsModalVisible(false);
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ['teaching-assignments'] });
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Gán nhiệm vụ thất bại');
     },
   });
 
@@ -291,13 +242,40 @@ export const TeachingAssignmentPage: React.FC = () => {
         >
           <Form.Item
             label="Chọn môn học"
-            name="courseId"
+            name="subjectId"
             rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
           >
-            <Select placeholder="Chọn môn học cần làm đề cương">
-              {mockCourses.map((course) => (
-                <Option key={course.id} value={course.id}>
-                  {course.code} - {course.name} ({course.semester})
+            <Select 
+              placeholder="Chọn môn học cần làm đề cương"
+              showSearch
+              onChange={() => {
+                // Auto-select first/latest academic term when subject is selected
+                if (academicTerms.length > 0) {
+                  form.setFieldValue('academicTermId', academicTerms[0].id);
+                }
+              }}
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {subjects.map((subject) => (
+                <Option key={subject.id} value={subject.id}>
+                  {subject.code} - {subject.nameVi} ({subject.credits} TC)
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Học kỳ"
+            name="academicTermId"
+            rules={[{ required: true, message: 'Vui lòng chọn học kỳ' }]}
+            tooltip="Học kỳ được tự động chọn, bạn có thể thay đổi nếu cần"
+          >
+            <Select placeholder="Chọn học kỳ">
+              {academicTerms.map((term) => (
+                <Option key={term.id} value={term.id}>
+                  {term.name}
                 </Option>
               ))}
             </Select>
@@ -312,11 +290,13 @@ export const TeachingAssignmentPage: React.FC = () => {
             <Select
               placeholder="Chọn giáo viên chính"
               showSearch
-              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
             >
-              {mockLecturers.map((lecturer) => (
+              {lecturers.map((lecturer) => (
                 <Option key={lecturer.id} value={lecturer.id}>
-                  {lecturer.name} ({lecturer.email})
+                  {lecturer.fullName} ({lecturer.email})
                 </Option>
               ))}
             </Select>
@@ -324,20 +304,24 @@ export const TeachingAssignmentPage: React.FC = () => {
 
           <Form.Item
             label="Giáo viên cộng tác"
-            name="coLecturerIds"
+            name="coLecturers"
             tooltip="Giáo viên cộng tác chỉ được comment góp ý, không được sửa trực tiếp đề cương"
           >
             <Select
               mode="multiple"
               placeholder="Chọn giáo viên cộng tác (không bắt buộc)"
               showSearch
-              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
             >
-              {mockLecturers.map((lecturer) => (
-                <Option key={lecturer.id} value={lecturer.id}>
-                  {lecturer.name} ({lecturer.email})
-                </Option>
-              ))}
+              {lecturers
+                .filter(l => l.id !== form.getFieldValue('mainLecturerId'))
+                .map((lecturer) => (
+                  <Option key={lecturer.id} value={lecturer.id}>
+                    {lecturer.fullName} ({lecturer.email})
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -354,7 +338,7 @@ export const TeachingAssignmentPage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="Ghi chú" name="note">
+          <Form.Item label="Ghi chú" name="comments">
             <TextArea rows={3} placeholder="Ghi chú cho giáo viên (không bắt buộc)..." />
           </Form.Item>
         </Form>
