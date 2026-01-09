@@ -1,6 +1,7 @@
 package vn.edu.smd.core.module.syllabus.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
 import vn.edu.smd.core.entity.*;
+import vn.edu.smd.core.module.ai.service.AITaskService;
 import vn.edu.smd.core.module.syllabus.dto.*;
 import vn.edu.smd.core.repository.*;
 import vn.edu.smd.core.security.UserPrincipal;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SyllabusService {
 
     private final SyllabusVersionRepository syllabusVersionRepository;
@@ -30,6 +33,7 @@ public class SyllabusService {
     private final AssessmentSchemeRepository assessmentSchemeRepository;
     private final CloPlOMappingRepository cloPlOMappingRepository;
     private final AssessmentCloMappingRepository assessmentCloMappingRepository;
+    private final AITaskService aiTaskService;
 
     @Transactional(readOnly = true)
     public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
@@ -178,9 +182,33 @@ public class SyllabusService {
         if (syllabus.getStatus() != SyllabusStatus.DRAFT) {
             throw new BadRequestException("Only DRAFT syllabus can be submitted");
         }
+        
+        // Update status to SUBMITTED (PENDING_HOD)
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
         syllabus.setUpdatedBy(getCurrentUser());
-        return mapToResponse(syllabusVersionRepository.save(syllabus));
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // 🚀 Send message to RabbitMQ AI Queue for processing
+        try {
+            User currentUser = getCurrentUser();
+            String messageId = aiTaskService.requestCloPloMapping(
+                savedSyllabus.getId(),
+                syllabus.getSubject() != null && syllabus.getSubject().getCurriculum() != null 
+                    ? syllabus.getSubject().getCurriculum().getId() 
+                    : null,
+                currentUser.getId().toString()
+            );
+            
+            log.info("[Sent] Message to AI Queue: Syllabus ID #{} | Message ID: {}", 
+                     savedSyllabus.getId(), messageId);
+            
+        } catch (Exception e) {
+            // Log error nhưng không fail transaction
+            log.error("❌ Failed to send message to AI Queue for Syllabus ID #{}: {}", 
+                      savedSyllabus.getId(), e.getMessage());
+        }
+        
+        return mapToResponse(savedSyllabus);
     }
 
     @Transactional
