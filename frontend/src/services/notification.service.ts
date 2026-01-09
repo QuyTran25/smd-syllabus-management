@@ -1,82 +1,55 @@
+import { apiClient } from '@/config/api-config';
 import type { Notification } from '@/shared/components/NotificationBell';
 
-// Mock notification service
+interface NotificationResponseDTO {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
 export const notificationService = {
-  getNotifications: async (): Promise<Notification[]> => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 300));
+  async getNotifications(): Promise<Notification[]> {
+    const response = await apiClient.get<{ success: boolean; data: NotificationResponseDTO[] }>(
+      '/api/notifications'
+    );
     
-    return [
-      {
-        id: '1',
-        type: 'REJECTION',
-        title: 'Đề cương bị từ chối',
-        content: 'Đề cương "CS501 - Học máy" đã bị Trưởng Bộ môn từ chối. Vui lòng xem góp ý và chỉnh sửa.',
-        createdAt: '2024-12-09 09:30',
-        isRead: false,
-        relatedEntityId: 's1',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '2',
-        type: 'COMMENT',
-        title: 'Bình luận mới',
-        content: 'TS. Trần Thị B đã thêm bình luận vào đề cương "CS401 - Trí tuệ nhân tạo".',
-        createdAt: '2024-12-09 08:15',
-        isRead: false,
-        relatedEntityId: 's2',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '3',
-        type: 'DEADLINE',
-        title: 'Sắp hết hạn đánh giá',
-        content: 'Đánh giá đề cương "CS601 - Xử lý ngôn ngữ tự nhiên" sẽ hết hạn vào 2024-12-20.',
-        createdAt: '2024-12-08 16:00',
-        isRead: false,
-        relatedEntityId: 'r1',
-        relatedEntityType: 'REVIEW',
-      },
-      {
-        id: '4',
-        type: 'APPROVAL',
-        title: 'Đề cương được phê duyệt',
-        content: 'Đề cương "CS201 - Cấu trúc dữ liệu" đã được Trưởng Bộ môn phê duyệt!',
-        createdAt: '2024-12-08 14:20',
-        isRead: true,
-        relatedEntityId: 's3',
-        relatedEntityType: 'SYLLABUS',
-      },
-      {
-        id: '5',
-        type: 'ASSIGNMENT',
-        title: 'Phân công đánh giá mới',
-        content: 'Bạn được phân công đánh giá đề cương "CS501 - Học máy".',
-        createdAt: '2024-12-07 11:00',
-        isRead: true,
-        relatedEntityId: 'r2',
-        relatedEntityType: 'REVIEW',
-      },
-    ];
+    // Map backend response to frontend format
+    return response.data.data.map((n) => ({
+      id: n.id,
+      type: n.type as Notification['type'],
+      title: n.title,
+      content: n.message, // Backend uses 'message', frontend uses 'content'
+      createdAt: n.createdAt,
+      isRead: n.isRead,
+      readAt: n.readAt,
+      relatedEntityId: n.relatedEntityId,
+      relatedEntityType: n.relatedEntityType as Notification['relatedEntityType'],
+    }));
   },
 
-  markAsRead: async (notificationId: string): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    console.log(`Notification ${notificationId} marked as read`);
+  async getUnreadCount(): Promise<number> {
+    const response = await apiClient.get<{ success: boolean; data: number }>(
+      '/api/notifications/unread-count'
+    );
+    return response.data.data;
   },
 
-  markAllAsRead: async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    console.log('All notifications marked as read');
+  async markAsRead(notificationId: string): Promise<void> {
+    await apiClient.patch(`/api/notifications/${notificationId}/read`);
   },
 
-  deleteNotification: async (notificationId: string): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    console.log(`Notification ${notificationId} deleted`);
+  async markAllAsRead(): Promise<void> {
+    await apiClient.patch('/api/notifications/read-all');
   },
 
-  clearAll: async (): Promise<void> => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    console.log('All notifications cleared');
+  async deleteNotification(notificationId: string): Promise<void> {
+    await apiClient.delete(`/api/notifications/${notificationId}`);
   },
 };

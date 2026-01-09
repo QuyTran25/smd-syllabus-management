@@ -17,6 +17,9 @@ import {
   Popconfirm,
   Tabs,
   Switch,
+  List,
+  Empty,
+  Collapse,
 } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, LinkOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -59,8 +62,14 @@ export const CourseManagementPage: React.FC = () => {
   const [calculatedCredits, setCalculatedCredits] = useState<number | null>(null);
   const [creditsWarning, setCreditsWarning] = useState<string>('');
   const [form] = Form.useForm();
-  const [relationForm] = Form.useForm();
   const queryClient = useQueryClient();
+
+  // Fetch relationships for selected course
+  const { data: relationships, isLoading: isLoadingRelationships } = useQuery({
+    queryKey: ['relationships', selectedCourse?.id],
+    queryFn: () => subjectService.getAllRelationships(selectedCourse!.id),
+    enabled: !!selectedCourse?.id && isRelationModalVisible,
+  });
 
   // Fetch courses from API (sorted by createdAt descending - newest first)
   const { data: subjectsRaw, isLoading, error } = useQuery({
@@ -220,19 +229,22 @@ export const CourseManagementPage: React.FC = () => {
 
   // Check cycle mutation
   const checkCycleMutation = useMutation({
-    mutationFn: async (data: { subjectId: string; prerequisiteId: string }) => {
-      // Tạm thời check đơn giản: không cho prerequisite chính nó
+    mutationFn: async (data: { subjectId: string; prerequisiteId: string; type: string }) => {
+      // Kiểm tra không cho prerequisite chính nó
       if (data.subjectId === data.prerequisiteId) {
-        throw new Error('Không thể chọn chính môn học này làm học phần tiên quyết!');
+        throw new Error('Không thể chọn chính môn học này làm học phần liên quan!');
       }
       
-      // TODO: Gọi backend API để check cycle bằng DFS
-      // const response = await api.get(`/api/subjects/check-cycle`, {
-      //   params: { subjectId: data.subjectId, prerequisiteId: data.prerequisiteId }
-      // });
-      // if (response.data.hasCycle) {
-      //   throw new Error('Phát hiện vòng lặp phụ thuộc! Không thể thêm quan hệ này.');
-      // }
+      // Gọi backend API để check cycle bằng DFS
+      const hasCycle = await subjectService.checkCyclicDependency(
+        data.subjectId, 
+        data.prerequisiteId,
+        data.type as 'PREREQUISITE' | 'CO_REQUISITE' | 'REPLACEMENT'
+      );
+      
+      if (hasCycle) {
+        throw new Error('Phát hiện vòng lặp phụ thuộc! Không thể thêm quan hệ này vì sẽ tạo ra chu trình.');
+      }
       
       return { hasCycle: false };
     },
@@ -245,6 +257,7 @@ export const CourseManagementPage: React.FC = () => {
       await checkCycleMutation.mutateAsync({
         subjectId,
         prerequisiteId: prerequisiteData.relatedSubjectId,
+        type: prerequisiteData.type,
       });
       
       const response = await api.post(`/api/subjects/${subjectId}/prerequisites`, prerequisiteData);
@@ -252,12 +265,26 @@ export const CourseManagementPage: React.FC = () => {
     },
     onSuccess: () => {
       message.success('Thêm quan hệ môn học thành công');
-      setIsRelationModalVisible(false);
-      relationForm.resetFields();
       queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['relationships', selectedCourse?.id] });
     },
     onError: (error: any) => {
       message.error(error?.message || error?.response?.data?.message || 'Thêm quan hệ thất bại');
+    },
+  });
+
+  // Delete relationship mutation
+  const deleteRelationshipMutation = useMutation({
+    mutationFn: async ({ subjectId, relationshipId }: { subjectId: string; relationshipId: string }) => {
+      await subjectService.deleteRelationship(subjectId, relationshipId);
+    },
+    onSuccess: () => {
+      message.success('Xóa quan hệ thành công');
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['relationships', selectedCourse?.id] });
+    },
+    onError: (error: any) => {
+      message.error(error?.message || 'Xóa quan hệ thất bại');
     },
   });
 
@@ -905,10 +932,9 @@ export const CourseManagementPage: React.FC = () => {
         onCancel={() => {
           setIsRelationModalVisible(false);
           setSelectedCourse(null);
-          relationForm.resetFields();
         }}
         footer={null}
-        width={700}
+        width={800}
       >
         {selectedCourse && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -918,88 +944,378 @@ export const CourseManagementPage: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Card title="Môn học Tiên quyết" size="small">
-              {selectedCourse.prerequisites && selectedCourse.prerequisites.length > 0 ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {selectedCourse.prerequisites.split(',').map((p, idx) => (
-                    <Tag key={idx} color="orange">
-                      {p.trim()}
-                    </Tag>
-                  ))}
+            {/* Collapse để xem danh sách hiện có */}
+            <Collapse
+              items={[
+                {
+                  key: 'current',
+                  label: (
+                    <Space>
+                      <Text strong>Xem danh sách quan hệ hiện có</Text>
+                      <Tag color="orange">{relationships?.PREREQUISITE?.length || 0} Tiên quyết</Tag>
+                      <Tag color="blue">{relationships?.CO_REQUISITE?.length || 0} Song hành</Tag>
+                      <Tag color="green">{relationships?.REPLACEMENT?.length || 0} Thay thế</Tag>
+                    </Space>
+                  ),
+                  children: isLoadingRelationships ? (
+                    <Card loading size="small" />
+                  ) : (
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                      {/* Prerequisites */}
+                      <Card 
+                        title={
+                          <Space>
+                            <Tag color="orange">Tiên quyết</Tag>
+                            <span>Môn học phải hoàn thành trước</span>
+                          </Space>
+                        } 
+                        size="small"
+                      >
+                        {relationships?.PREREQUISITE && relationships.PREREQUISITE.length > 0 ? (
+                          <List
+                            size="small"
+                            dataSource={relationships.PREREQUISITE}
+                            renderItem={(item) => (
+                              <List.Item
+                                actions={[
+                                  <Popconfirm
+                                    key="delete"
+                                    title="Xóa quan hệ này?"
+                                    onConfirm={() => deleteRelationshipMutation.mutate({
+                                      subjectId: selectedCourse.id,
+                                      relationshipId: item.id,
+                                    })}
+                                    okText="Xóa"
+                                    cancelText="Hủy"
+                                    okButtonProps={{ danger: true }}
+                                  >
+                                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                                      Xóa
+                                    </Button>
+                                  </Popconfirm>
+                                ]}
+                              >
+                                <List.Item.Meta
+                                  title={<strong>{item.relatedSubjectCode}</strong>}
+                                  description={item.relatedSubjectName}
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        ) : (
+                          <Empty 
+                            description="Chưa có môn tiên quyết" 
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          />
+                        )}
+                      </Card>
+
+                      {/* Co-requisites */}
+                      <Card 
+                        title={
+                          <Space>
+                            <Tag color="blue">Song hành</Tag>
+                            <span>Môn học phải học cùng kỳ</span>
+                          </Space>
+                        } 
+                        size="small"
+                      >
+                        {relationships?.CO_REQUISITE && relationships.CO_REQUISITE.length > 0 ? (
+                          <List
+                            size="small"
+                            dataSource={relationships.CO_REQUISITE}
+                            renderItem={(item) => (
+                              <List.Item
+                                actions={[
+                                  <Popconfirm
+                                    key="delete"
+                                    title="Xóa quan hệ này?"
+                                    onConfirm={() => deleteRelationshipMutation.mutate({
+                                      subjectId: selectedCourse.id,
+                                      relationshipId: item.id,
+                                    })}
+                                    okText="Xóa"
+                                    cancelText="Hủy"
+                                    okButtonProps={{ danger: true }}
+                                  >
+                                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                                      Xóa
+                                    </Button>
+                                  </Popconfirm>
+                                ]}
+                              >
+                                <List.Item.Meta
+                                  title={<strong>{item.relatedSubjectCode}</strong>}
+                                  description={item.relatedSubjectName}
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        ) : (
+                          <Empty 
+                            description="Chưa có môn song hành" 
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          />
+                        )}
+                      </Card>
+
+                      {/* Replacements */}
+                      <Card 
+                        title={
+                          <Space>
+                            <Tag color="green">Thay thế</Tag>
+                            <span>Môn học có thể thay thế</span>
+                          </Space>
+                        } 
+                        size="small"
+                      >
+                        {relationships?.REPLACEMENT && relationships.REPLACEMENT.length > 0 ? (
+                          <List
+                            size="small"
+                            dataSource={relationships.REPLACEMENT}
+                            renderItem={(item) => (
+                              <List.Item
+                                actions={[
+                                  <Popconfirm
+                                    key="delete"
+                                    title="Xóa quan hệ này?"
+                                    onConfirm={() => deleteRelationshipMutation.mutate({
+                                      subjectId: selectedCourse.id,
+                                      relationshipId: item.id,
+                                    })}
+                                    okText="Xóa"
+                                    cancelText="Hủy"
+                                    okButtonProps={{ danger: true }}
+                                  >
+                                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                                      Xóa
+                                    </Button>
+                                  </Popconfirm>
+                                ]}
+                              >
+                                <List.Item.Meta
+                                  title={<strong>{item.relatedSubjectCode}</strong>}
+                                  description={item.relatedSubjectName}
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        ) : (
+                          <Empty 
+                            description="Chưa có môn thay thế" 
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          />
+                        )}
+                      </Card>
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+
+            {/* Form thêm Tiên quyết */}
+            <Card 
+              title={
+                <Space>
+                  <Tag color="orange">Thêm Tiên quyết</Tag>
+                  <Text type="secondary" style={{ fontSize: 13 }}>Môn học phải hoàn thành trước</Text>
                 </Space>
-              ) : (
-                <span style={{ color: '#999' }}>Chưa có môn tiên quyết</span>
-              )}
-            </Card>
-
-            <Card title="Môn học Song hành" size="small">
-              <span style={{ color: '#999' }}>Chưa có môn song hành</span>
-            </Card>
-
-            <Form
-              form={relationForm}
-              layout="vertical"
-              onFinish={(values) => {
-                if (!selectedCourse) return;
-
-                // Map form values to backend enum: PREREQUISITE, CO_REQUISITE
-                const prerequisiteData = {
-                  relatedSubjectId: values.relatedCourseId,
-                  type: values.relationType, // Trực tiếp dùng PREREQUISITE hoặc CO_REQUISITE
-                };
-
-                addPrerequisiteMutation.mutate({
-                  subjectId: selectedCourse.id,
-                  prerequisiteData,
-                });
-              }}
+              }
+              size="small" 
+              style={{ backgroundColor: '#fff7e6', borderColor: '#ffa940' }}
             >
-              <Form.Item
-                label="Loại quan hệ"
-                name="relationType"
-                rules={[{ required: true, message: 'Chọn loại quan hệ' }]}
-              >
-                <Select placeholder="Chọn loại">
-                  <Option value="PREREQUISITE">Tiên quyết</Option>
-                  <Option value="CO_REQUISITE">Song hành</Option>
-                </Select>
-              </Form.Item>
+              <Form
+                layout="vertical"
+                onFinish={async (values) => {
+                  if (!selectedCourse || !values.prerequisiteIds || values.prerequisiteIds.length === 0) return;
 
-              <Form.Item
-                label="Chọn môn học"
-                name="relatedCourseId"
-                rules={[{ required: true, message: 'Chọn môn học' }]}
-              >
-                <Select
-                  placeholder="Tìm môn học..."
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.children as string).toLowerCase().includes(input.toLowerCase())
+                  // Thêm tuần tự từng môn một để tránh race condition
+                  try {
+                    for (const relatedCourseId of values.prerequisiteIds) {
+                      await addPrerequisiteMutation.mutateAsync({
+                        subjectId: selectedCourse.id,
+                        prerequisiteData: {
+                          relatedSubjectId: relatedCourseId,
+                          type: 'PREREQUISITE',
+                        },
+                      });
+                    }
+                    message.success(`Đã thêm ${values.prerequisiteIds.length} môn tiên quyết`);
+                  } catch (error) {
+                    // Error handled in mutation
                   }
+                }}
+              >
+                <Form.Item
+                  label="Chọn môn học"
+                  name="prerequisiteIds"
+                  rules={[{ required: true, message: 'Chọn ít nhất 1 môn học' }]}
                 >
-                  {courses
-                    .filter((c) => c.id !== selectedCourse.id)
-                    .map((course) => (
-                      <Option key={course.id} value={course.id}>
-                        {course.code} - {course.name}
-                      </Option>
-                    ))}
-                </Select>
-              </Form.Item>
+                  <Select
+                    mode="multiple"
+                    placeholder="Chọn nhiều môn học..."
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={courses
+                      .filter((c) => c.id !== selectedCourse.id)
+                      .filter((c) => !relationships?.PREREQUISITE?.find(r => r.relatedSubjectId === c.id))
+                      .map((course) => ({
+                        value: course.id,
+                        label: `${course.code} - ${course.name}`,
+                      }))}
+                  />
+                </Form.Item>
 
-              <Form.Item style={{ marginBottom: 0 }}>
-                <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => relationForm.resetFields()}>Xóa</Button>
+                <Form.Item style={{ marginBottom: 0 }}>
                   <Button
                     type="primary"
                     htmlType="submit"
-                    loading={addPrerequisiteMutation.isPending}
+                    loading={addPrerequisiteMutation.isPending || checkCycleMutation.isPending}
+                    icon={<PlusOutlined />}
+                    style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
                   >
-                    Thêm quan hệ
+                    Thêm Tiên quyết
                   </Button>
+                </Form.Item>
+              </Form>
+            </Card>
+
+            {/* Form thêm Song hành */}
+            <Card 
+              title={
+                <Space>
+                  <Tag color="blue">Thêm Song hành</Tag>
+                  <Text type="secondary" style={{ fontSize: 13 }}>Môn học phải học cùng kỳ</Text>
                 </Space>
-              </Form.Item>
-            </Form>
+              }
+              size="small" 
+              style={{ backgroundColor: '#e6f7ff', borderColor: '#40a9ff' }}
+            >
+              <Form
+                layout="vertical"
+                onFinish={async (values) => {
+                  if (!selectedCourse || !values.corequisiteIds || values.corequisiteIds.length === 0) return;
+
+                  try {
+                    for (const relatedCourseId of values.corequisiteIds) {
+                      await addPrerequisiteMutation.mutateAsync({
+                        subjectId: selectedCourse.id,
+                        prerequisiteData: {
+                          relatedSubjectId: relatedCourseId,
+                          type: 'CO_REQUISITE',
+                        },
+                      });
+                    }
+                    message.success(`Đã thêm ${values.corequisiteIds.length} môn song hành`);
+                  } catch (error) {
+                    // Error handled in mutation
+                  }
+                }}
+              >
+                <Form.Item
+                  label="Chọn môn học"
+                  name="corequisiteIds"
+                  rules={[{ required: true, message: 'Chọn ít nhất 1 môn học' }]}
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="Chọn nhiều môn học..."
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={courses
+                      .filter((c) => c.id !== selectedCourse.id)
+                      .filter((c) => !relationships?.CO_REQUISITE?.find(r => r.relatedSubjectId === c.id))
+                      .map((course) => ({
+                        value: course.id,
+                        label: `${course.code} - ${course.name}`,
+                      }))}
+                  />
+                </Form.Item>
+
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={addPrerequisiteMutation.isPending || checkCycleMutation.isPending}
+                    icon={<PlusOutlined />}
+                  >
+                    Thêm Song hành
+                  </Button>
+                </Form.Item>
+              </Form>
+            </Card>
+
+            {/* Form thêm Thay thế */}
+            <Card 
+              title={
+                <Space>
+                  <Tag color="green">Thêm Thay thế</Tag>
+                  <Text type="secondary" style={{ fontSize: 13 }}>Môn học có thể thay thế</Text>
+                </Space>
+              }
+              size="small" 
+              style={{ backgroundColor: '#f6ffed', borderColor: '#73d13d' }}
+            >
+              <Form
+                layout="vertical"
+                onFinish={async (values) => {
+                  if (!selectedCourse || !values.replacementIds || values.replacementIds.length === 0) return;
+
+                  try {
+                    for (const relatedCourseId of values.replacementIds) {
+                      await addPrerequisiteMutation.mutateAsync({
+                        subjectId: selectedCourse.id,
+                        prerequisiteData: {
+                          relatedSubjectId: relatedCourseId,
+                          type: 'REPLACEMENT',
+                        },
+                      });
+                    }
+                    message.success(`Đã thêm ${values.replacementIds.length} môn thay thế`);
+                  } catch (error) {
+                    // Error handled in mutation
+                  }
+                }}
+              >
+                <Form.Item
+                  label="Chọn môn học"
+                  name="replacementIds"
+                  rules={[{ required: true, message: 'Chọn ít nhất 1 môn học' }]}
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="Chọn nhiều môn học..."
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={courses
+                      .filter((c) => c.id !== selectedCourse.id)
+                      .filter((c) => !relationships?.REPLACEMENT?.find(r => r.relatedSubjectId === c.id))
+                      .map((course) => ({
+                        value: course.id,
+                        label: `${course.code} - ${course.name}`,
+                      }))}
+                  />
+                </Form.Item>
+
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={addPrerequisiteMutation.isPending || checkCycleMutation.isPending}
+                    icon={<PlusOutlined />}
+                    style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                  >
+                    Thêm Thay thế
+                  </Button>
+                </Form.Item>
+              </Form>
+            </Card>
           </Space>
         )}
       </Modal>

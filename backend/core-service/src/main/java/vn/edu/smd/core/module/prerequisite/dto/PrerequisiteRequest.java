@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Data
 public class PrerequisiteRequest {
-    @NotNull(message = "Subject ID is required")
+    // subjectId is optional because it can come from path parameter
     private UUID subjectId;
 
     @NotNull(message = "Related Subject ID is required")

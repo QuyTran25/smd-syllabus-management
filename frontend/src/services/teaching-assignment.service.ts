@@ -118,4 +118,54 @@ export const teachingAssignmentService = {
     );
     return response.data.data.map(mapToTeachingAssignment);
   },
+
+  // Create new teaching assignment
+  create: async (data: {
+    subjectId: string;
+    academicTermId: string;
+    mainLecturerId: string;
+    collaboratorIds?: string[];
+    deadline: string;
+    comments?: string;
+  }): Promise<TeachingAssignment> => {
+    const response = await apiClient.post<{ data: TeachingAssignmentDTO }>(
+      '/api/teaching-assignments',
+      data
+    );
+    return mapToTeachingAssignment(response.data.data);
+  },
+
+  // Get subjects for HOD
+  getHodSubjects: async (): Promise<Array<{
+    id: string;
+    code: string;
+    nameVi: string;
+    nameEn: string;
+    credits: number;
+  }>> => {
+    const response = await apiClient.get<{ data: Array<{
+      id: string;
+      code: string;
+      nameVi: string;
+      nameEn: string;
+      credits: number;
+    }> }>('/api/teaching-assignments/hod/subjects');
+    return response.data.data;
+  },
+
+  // Get lecturers for HOD
+  getHodLecturers: async (): Promise<Array<{
+    id: string;
+    fullName: string;
+    email: string;
+    phone?: string;
+  }>> => {
+    const response = await apiClient.get<{ data: Array<{
+      id: string;
+      fullName: string;
+      email: string;
+      phone?: string;
+    }> }>('/api/teaching-assignments/hod/lecturers');
+    return response.data.data;
+  },
 };

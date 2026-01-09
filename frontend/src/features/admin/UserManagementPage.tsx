@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/services';
+import facultyService from '@/services/faculty.service';
 import { User, UserRole } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -44,12 +45,26 @@ export const UserManagementPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>();
   const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>();
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string | undefined>();
   const [form] = Form.useForm();
 
   // Fetch users
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', roleFilter, statusFilter, searchText],
     queryFn: () => userService.getUsers({ role: roleFilter, isActive: statusFilter, search: searchText }),
+  });
+
+  // Fetch all faculties for dropdown
+  const { data: faculties } = useQuery({
+    queryKey: ['faculties'],
+    queryFn: () => facultyService.getAllFaculties(),
+  });
+
+  // Fetch departments for selected faculty
+  const { data: departments } = useQuery({
+    queryKey: ['departments', selectedFacultyId],
+    queryFn: () => facultyService.getDepartmentsByFaculty(selectedFacultyId!),
+    enabled: !!selectedFacultyId,
   });
 
   // Fetch HODs for manager dropdown (filtered by department)
@@ -330,6 +345,7 @@ export const UserManagementPage: React.FC = () => {
           setIsCreateModalVisible(false);
           setSelectedRole(undefined);
           setSelectedDepartment(undefined);
+          setSelectedFacultyId(undefined);
           form.resetFields();
         }}
         onOk={() => form.submit()}
@@ -353,11 +369,60 @@ export const UserManagementPage: React.FC = () => {
           <Form.Item name="phone" label="Số điện thoại">
             <Input />
           </Form.Item>
-          <Form.Item name="faculty" label="Khoa">
-            <Input />
+          <Form.Item 
+            name="facultyId" 
+            label="Khoa"
+            rules={[
+              { 
+                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD, 
+                message: 'Vui lòng chọn khoa' 
+              }
+            ]}
+          >
+            <Select 
+              placeholder="Chọn khoa"
+              showSearch
+              allowClear
+              onChange={(value) => {
+                setSelectedFacultyId(value);
+                form.setFieldValue('departmentId', undefined);
+              }}
+              options={faculties?.map(f => ({
+                value: f.id,
+                label: f.name,
+              }))}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
-          <Form.Item name="department" label="Bộ môn">
-            <Input onChange={(e) => setSelectedDepartment(e.target.value)} />
+          <Form.Item 
+            name="departmentId" 
+            label="Bộ môn"
+            rules={[
+              { 
+                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD, 
+                message: 'Vui lòng chọn bộ môn' 
+              }
+            ]}
+          >
+            <Select 
+              placeholder="Chọn bộ môn"
+              showSearch
+              allowClear
+              disabled={!selectedFacultyId}
+              onChange={(value) => {
+                const dept = departments?.find(d => d.id === value);
+                setSelectedDepartment(dept?.name);
+              }}
+              options={departments?.map(d => ({
+                value: d.id,
+                label: d.name,
+              }))}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           {selectedRole === UserRole.LECTURER && (
             <Form.Item 
@@ -396,6 +461,7 @@ export const UserManagementPage: React.FC = () => {
           setSelectedUser(null);
           setSelectedRole(undefined);
           setSelectedDepartment(undefined);
+          setSelectedFacultyId(undefined);
           form.resetFields();
         }}
         onOk={() => form.submit()}
@@ -419,11 +485,60 @@ export const UserManagementPage: React.FC = () => {
           <Form.Item name="phone" label="Số điện thoại">
             <Input />
           </Form.Item>
-          <Form.Item name="faculty" label="Khoa">
-            <Input />
+          <Form.Item 
+            name="facultyId" 
+            label="Khoa"
+            rules={[
+              { 
+                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD || selectedUser?.role === UserRole.LECTURER || selectedUser?.role === UserRole.HOD, 
+                message: 'Vui lòng chọn khoa' 
+              }
+            ]}
+          >
+            <Select 
+              placeholder="Chọn khoa"
+              showSearch
+              allowClear
+              onChange={(value) => {
+                setSelectedFacultyId(value);
+                form.setFieldValue('departmentId', undefined);
+              }}
+              options={faculties?.map(f => ({
+                value: f.id,
+                label: f.name,
+              }))}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
-          <Form.Item name="department" label="Bộ môn">
-            <Input onChange={(e) => setSelectedDepartment(e.target.value)} />
+          <Form.Item 
+            name="departmentId" 
+            label="Bộ môn"
+            rules={[
+              { 
+                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD || selectedUser?.role === UserRole.LECTURER || selectedUser?.role === UserRole.HOD, 
+                message: 'Vui lòng chọn bộ môn' 
+              }
+            ]}
+          >
+            <Select 
+              placeholder="Chọn bộ môn"
+              showSearch
+              allowClear
+              disabled={!selectedFacultyId}
+              onChange={(value) => {
+                const dept = departments?.find(d => d.id === value);
+                setSelectedDepartment(dept?.name);
+              }}
+              options={departments?.map(d => ({
+                value: d.id,
+                label: d.name,
+              }))}
+              filterOption={(input, option) =>
+                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           {(selectedRole === UserRole.LECTURER || selectedUser?.role === UserRole.LECTURER) && (
             <Form.Item 

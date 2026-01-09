@@ -135,4 +135,21 @@ public class SubjectController {
         List<vn.edu.smd.core.module.syllabus.dto.SyllabusResponse> syllabi = subjectService.getSyllabiOfSubject(id);
         return ResponseEntity.ok(ApiResponse.success(syllabi));
     }
+
+    @Operation(summary = "Check cyclic dependency", description = "Check if adding a prerequisite would create a cyclic dependency")
+    @GetMapping("/{id}/check-cycle")
+    public ResponseEntity<ApiResponse<Boolean>> checkCyclicDependency(
+            @PathVariable UUID id,
+            @RequestParam UUID prerequisiteId,
+            @RequestParam(defaultValue = "PREREQUISITE") vn.edu.smd.shared.enums.SubjectRelationType type) {
+        boolean hasCycle = subjectService.checkCyclicDependency(id, prerequisiteId, type);
+        return ResponseEntity.ok(ApiResponse.success(hasCycle));
+    }
+
+    @Operation(summary = "Get all relationships of subject", description = "Get all relationships (prerequisites, co-requisites, replacements) of a subject")
+    @GetMapping("/{id}/relationships")
+    public ResponseEntity<ApiResponse<java.util.Map<String, java.util.List<vn.edu.smd.core.module.prerequisite.dto.PrerequisiteResponse>>>> getAllRelationshipsOfSubject(@PathVariable UUID id) {
+        java.util.Map<String, java.util.List<vn.edu.smd.core.module.prerequisite.dto.PrerequisiteResponse>> relationships = subjectService.getAllRelationshipsOfSubject(id);
+        return ResponseEntity.ok(ApiResponse.success(relationships));
+    }
 }
