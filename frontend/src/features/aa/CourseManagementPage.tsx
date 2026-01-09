@@ -16,6 +16,7 @@ import {
   message,
   Popconfirm,
   Tabs,
+  Switch,
 } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, LinkOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -61,10 +62,18 @@ export const CourseManagementPage: React.FC = () => {
   const [relationForm] = Form.useForm();
   const queryClient = useQueryClient();
 
-  // Fetch courses from API
+  // Fetch courses from API (sorted by createdAt descending - newest first)
   const { data: subjectsRaw, isLoading, error } = useQuery({
     queryKey: ['subjects'],
-    queryFn: () => subjectService.getAllSubjects(),
+    queryFn: async () => {
+      const subjects = await subjectService.getAllSubjects();
+      // Sort by createdAt descending so newest subjects appear first
+      return subjects.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    },
   });
 
   // Fetch academic terms
@@ -365,16 +374,9 @@ export const CourseManagementPage: React.FC = () => {
       render: (text) => text || <span style={{ color: '#999' }}>-</span>,
     },
     {
-      title: 'Môn tiên quyết',
-      dataIndex: 'prerequisites',
-      key: 'prerequisites',
-      width: 150,
-      render: (text) => text || <span style={{ color: '#999' }}>-</span>,
-    },
-    {
       title: 'Hành động',
       key: 'actions',
-      width: 150,
+      width: 220,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -388,38 +390,54 @@ export const CourseManagementPage: React.FC = () => {
               // Fetch full subject details to get departmentId and other fields
               try {
                 const fullSubject = await subjectService.getSubjectById(record.id);
+                if (!fullSubject) {
+                  message.error('Không tìm thấy môn học');
+                  return;
+                }
                 
                 // Set faculty ID from department's parent organization
+                let facultyId = undefined;
                 if (fullSubject.departmentId) {
                   // Fetch department to get its parent faculty
                   const deptResponse = await api.get(`/api/departments/${fullSubject.departmentId}`);
                   const department = deptResponse.data.data;
-                  if (department.parentId) {
-                    setSelectedFacultyId(department.parentId);
+                  // API trả về facultyId, không phải parentId
+                  if (department.facultyId) {
+                    facultyId = department.facultyId;
+                    setSelectedFacultyId(department.facultyId);
                   }
                 }
                 
-                form.setFieldsValue({
-                  code: fullSubject.code,
-                  name: fullSubject.currentNameVi,
-                  nameEn: fullSubject.currentNameEn,
-                  credits: fullSubject.defaultCredits,
-                  subjectType: fullSubject.subjectType,
-                  component: fullSubject.component,
-                  departmentId: fullSubject.departmentId,
-                  facultyId: fullSubject.departmentId ? (await api.get(`/api/departments/${fullSubject.departmentId}`)).data.data.parentId : undefined,
-                  theoryHours: fullSubject.defaultTheoryHours,
-                  practiceHours: fullSubject.defaultPracticeHours,
-                  selfStudyHours: fullSubject.defaultSelfStudyHours,
-                  description: fullSubject.description,
-                  recommendedTerm: fullSubject.recommendedTerm,
-                });
+                // Get active academic term for edit (if not stored with subject)
+                const activeTermId = academicTerms?.find((t: AcademicTerm) => t.isActive)?.id;
+                
+                // Mở modal trước
+                setIsFormModalVisible(true);
+                
+                // Đợi một chút để departmentsByFaculty được load sau khi setSelectedFacultyId
+                setTimeout(() => {
+                  form.setFieldsValue({
+                    academicTermId: activeTermId, // Mặc định học kỳ đang hoạt động
+                    code: fullSubject.code,
+                    name: fullSubject.currentNameVi,
+                    nameEn: fullSubject.currentNameEn,
+                    credits: fullSubject.defaultCredits,
+                    subjectType: fullSubject.subjectType || 'REQUIRED',
+                    component: fullSubject.component || 'BOTH',
+                    departmentId: fullSubject.departmentId,
+                    facultyId: facultyId,
+                    theoryHours: fullSubject.defaultTheoryHours || 0,
+                    practiceHours: fullSubject.defaultPracticeHours || 0,
+                    selfStudyHours: fullSubject.defaultSelfStudyHours || 0,
+                    description: fullSubject.description,
+                    recommendedTerm: fullSubject.recommendedTerm,
+                    isActive: fullSubject.isActive !== false,
+                  });
+                }, 300);
               } catch (error) {
                 console.error('Error loading subject details:', error);
                 message.error('Không thể tải thông tin môn học');
               }
-              
-              setIsFormModalVisible(true);
             }}
           >
             Sửa
@@ -443,7 +461,9 @@ export const CourseManagementPage: React.FC = () => {
             cancelText="Hủy"
             okButtonProps={{ danger: true }}
           >
-            <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+              Xóa
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -504,7 +524,7 @@ export const CourseManagementPage: React.FC = () => {
           dataSource={filteredCourses || []}
           rowKey="id"
           loading={isLoading}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1500 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
@@ -561,11 +581,18 @@ export const CourseManagementPage: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          onFinish={(values) => {
+          onFinish={async (values) => {
+            // Prevent double submit
+            if (createMutation.isPending || updateMutation.isPending) {
+              console.log('Mutation is pending, skipping...');
+              return;
+            }
+            
             // Map form values to backend format
             const payload = {
               code: values.code,
               departmentId: values.departmentId,
+              academicTermId: values.academicTermId, // Thêm academicTermId
               currentNameVi: values.name,
               currentNameEn: values.nameEn,
               defaultCredits: values.credits,
@@ -579,10 +606,15 @@ export const CourseManagementPage: React.FC = () => {
               isActive: values.isActive !== false,
             };
 
-            if (editingCourse) {
-              updateMutation.mutate({ id: editingCourse.id, values: payload });
-            } else {
-              createMutation.mutate(payload);
+            try {
+              if (editingCourse) {
+                await updateMutation.mutateAsync({ id: editingCourse.id, values: payload });
+              } else {
+                await createMutation.mutateAsync(payload);
+              }
+            } catch (error) {
+              // Error handled by mutation onError
+              console.error('Submit error:', error);
             }
           }}
         >
@@ -712,6 +744,18 @@ export const CourseManagementPage: React.FC = () => {
 
                     <Form.Item label="Kỳ học khuyến nghị" name="recommendedTerm">
                       <InputNumber min={1} max={10} placeholder="VD: 3 (học kỳ 3)" style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Form.Item 
+                      label="Trạng thái" 
+                      name="isActive" 
+                      valuePropName="checked"
+                      initialValue={true}
+                    >
+                      <Switch 
+                        checkedChildren="Hoạt động" 
+                        unCheckedChildren="Ẩn" 
+                      />
                     </Form.Item>
                   </>
                 ),

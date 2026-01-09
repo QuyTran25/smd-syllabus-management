@@ -38,19 +38,19 @@ public class DepartmentService {
     }
 
     public List<DepartmentResponse> getAllDepartments() {
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAllWithFaculty().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     public DepartmentResponse getDepartmentById(UUID id) {
-        Department department = departmentRepository.findById(id)
+        Department department = departmentRepository.findWithFacultyById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
         return mapToResponse(department);
     }
 
     public DepartmentResponse getDepartmentByCode(String code) {
-        Department department = departmentRepository.findByCode(code)
+        Department department = departmentRepository.findWithFacultyByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "code", code));
         return mapToResponse(department);
     }

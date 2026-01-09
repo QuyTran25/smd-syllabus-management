@@ -14,6 +14,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -26,6 +31,29 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+    
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Cho phép tất cả các frontend ports: admin (3000, 5173), student (3001, 5174)
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:5173", 
+            "http://localhost:5174", 
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:5173"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean
@@ -51,10 +79,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ⭐ QUAN TRỌNG NHẤT: Tắt CORS ở Core Service.
-            // Lý do: Gateway (port 8888) đã thêm header CORS rồi.
-            // Nếu Core thêm nữa sẽ bị lỗi "Duplicate Access-Control-Allow-Origin".
-            .cors(AbstractHttpConfigurer::disable) 
+            // ⭐ BẬT CORS cho phép frontend gọi trực tiếp (port 5173)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
