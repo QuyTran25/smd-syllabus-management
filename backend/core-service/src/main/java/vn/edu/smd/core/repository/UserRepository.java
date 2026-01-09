@@ -43,4 +43,21 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "faculty", "department"})
     @Query("SELECT u FROM User u")
     Page<User> findAllWithRoles(Pageable pageable);
+    
+    /**
+     * Tìm Trưởng bộ môn (HOD) theo department_id
+     * HOD được xác định qua:
+     * 1. User có department_id trùng với department cần tìm
+     * 2. User có role HOD
+     */
+    @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
+           "WHERE u.department.id = :departmentId AND r.code = 'HOD'")
+    Optional<User> findHodByDepartmentId(@Param("departmentId") UUID departmentId);
+    
+    /**
+     * Tìm HOD qua user_roles với scope_type = DEPARTMENT
+     */
+    @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
+           "WHERE ur.scopeType = 'DEPARTMENT' AND ur.scopeId = :departmentId AND r.code = 'HOD'")
+    Optional<User> findHodByScopeId(@Param("departmentId") UUID departmentId);
 }

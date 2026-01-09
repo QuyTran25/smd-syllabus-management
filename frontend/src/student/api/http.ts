@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 export const http = axios.create({
-  // ⭐ SỬA LẠI: Trỏ về Gateway (8080) thay vì Core (8081)
-  baseURL: 'http://localhost:8888/api',
+  // ⭐ Gọi trực tiếp Core Service (8081) để test, khi deploy sẽ dùng Gateway
+  baseURL: 'http://localhost:8081/api',
   headers: {
     'Content-Type': 'application/json',
   },

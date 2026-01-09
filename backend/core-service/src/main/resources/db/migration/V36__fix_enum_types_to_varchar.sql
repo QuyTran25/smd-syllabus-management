@@ -2,31 +2,62 @@
 -- Vấn đề: Hibernate không mapping đúng với PostgreSQL custom ENUM types
 -- Giải pháp: Chuyển sang VARCHAR với CHECK constraint
 
--- Step 0: Drop view that depends on these columns
+-- Step 0: Drop dependent views first
 DROP VIEW IF EXISTS core_service.v_syllabus_full CASCADE;
 
 -- Step 1: Add temporary columns
 ALTER TABLE core_service.syllabus_versions 
-    ADD COLUMN component_type_new VARCHAR(20),
-    ADD COLUMN course_type_new VARCHAR(20);
+    ADD COLUMN IF NOT EXISTS component_type_new VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS course_type_new VARCHAR(20);
 
--- Step 2: Copy data to new columns
-UPDATE core_service.syllabus_versions 
-SET component_type_new = component_type::text,
-    course_type_new = course_type::text;
+-- Step 2: Copy data to new columns (only if old columns exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' 
+               AND column_name = 'component_type' AND data_type = 'USER-DEFINED') THEN
+        UPDATE core_service.syllabus_versions 
+        SET component_type_new = component_type::text,
+            course_type_new = course_type::text;
+    END IF;
+END $$;
 
--- Step 3: Drop old columns
-ALTER TABLE core_service.syllabus_versions 
-    DROP COLUMN component_type,
-    DROP COLUMN course_type;
+-- Step 3: Drop old columns (if they exist and are ENUM type)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' 
+               AND column_name = 'component_type' AND data_type = 'USER-DEFINED') THEN
+        ALTER TABLE core_service.syllabus_versions DROP COLUMN component_type;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' 
+               AND column_name = 'course_type' AND data_type = 'USER-DEFINED') THEN
+        ALTER TABLE core_service.syllabus_versions DROP COLUMN course_type;
+    END IF;
+END $$;
 
--- Step 4: Rename new columns
-ALTER TABLE core_service.syllabus_versions 
-    RENAME COLUMN component_type_new TO component_type;
-ALTER TABLE core_service.syllabus_versions 
-    RENAME COLUMN course_type_new TO course_type;
+-- Step 4: Rename new columns (if they exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' 
+               AND column_name = 'component_type_new') THEN
+        ALTER TABLE core_service.syllabus_versions RENAME COLUMN component_type_new TO component_type;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_schema = 'core_service' AND table_name = 'syllabus_versions' 
+               AND column_name = 'course_type_new') THEN
+        ALTER TABLE core_service.syllabus_versions RENAME COLUMN course_type_new TO course_type;
+    END IF;
+END $$;
 
--- Step 5: Add CHECK constraints
+-- Step 5: Add CHECK constraints (drop first if exists)
+ALTER TABLE core_service.syllabus_versions DROP CONSTRAINT IF EXISTS chk_component_type;
+ALTER TABLE core_service.syllabus_versions DROP CONSTRAINT IF EXISTS chk_course_type;
+
 ALTER TABLE core_service.syllabus_versions 
     ADD CONSTRAINT chk_component_type 
     CHECK (component_type IN ('major', 'foundation', 'general', 'thesis'));
@@ -43,7 +74,7 @@ ALTER TABLE core_service.syllabus_versions
     ALTER COLUMN course_type SET DEFAULT 'required';
 
 -- Step 6: Recreate the view
-CREATE VIEW core_service.v_syllabus_full AS
+CREATE OR REPLACE VIEW core_service.v_syllabus_full AS
 SELECT 
     sv.*,
     s.code AS subject_code, 

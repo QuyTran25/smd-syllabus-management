@@ -75,6 +75,26 @@ export const subjectService = {
       return null;
     }
   },
+
+  async createSubject(data: Partial<Subject>): Promise<Subject> {
+    const response = await apiClient.post<{ success: boolean; data: Subject }>(
+      '/api/subjects',
+      data
+    );
+    return response.data.data;
+  },
+
+  async updateSubject(id: string, data: Partial<Subject>): Promise<Subject> {
+    const response = await apiClient.put<{ success: boolean; data: Subject }>(
+      `/api/subjects/${id}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  async deleteSubject(id: string): Promise<void> {
+    await apiClient.delete(`/api/subjects/${id}`);
+  },
 };
 
 export default subjectService;

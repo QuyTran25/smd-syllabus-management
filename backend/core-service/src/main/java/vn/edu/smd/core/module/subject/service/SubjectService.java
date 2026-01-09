@@ -1,37 +1,49 @@
 package vn.edu.smd.core.module.subject.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
+import vn.edu.smd.core.entity.AcademicTerm;
 import vn.edu.smd.core.entity.Curriculum;
 import vn.edu.smd.core.entity.Department;
+import vn.edu.smd.core.entity.Notification;
 import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.core.entity.SubjectRelationship;
 import vn.edu.smd.core.entity.SyllabusVersion;
+import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.prerequisite.dto.PrerequisiteRequest;
 import vn.edu.smd.core.module.prerequisite.dto.PrerequisiteResponse;
 import vn.edu.smd.core.module.subject.dto.SubjectRequest;
 import vn.edu.smd.core.module.subject.dto.SubjectResponse;
 import vn.edu.smd.core.module.syllabus.dto.SyllabusResponse;
+import vn.edu.smd.core.repository.AcademicTermRepository;
 import vn.edu.smd.core.repository.CurriculumRepository;
 import vn.edu.smd.core.repository.DepartmentRepository;
+import vn.edu.smd.core.repository.NotificationRepository;
 import vn.edu.smd.core.repository.SubjectRelationshipRepository;
 import vn.edu.smd.core.repository.SubjectRepository;
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
+import vn.edu.smd.core.repository.UserRepository;
 import vn.edu.smd.shared.enums.SubjectComponent;
 import vn.edu.smd.shared.enums.SubjectRelationType;
 import vn.edu.smd.shared.enums.SubjectType;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SubjectService {
@@ -41,6 +53,11 @@ public class SubjectService {
     private final CurriculumRepository curriculumRepository;
     private final SubjectRelationshipRepository relationshipRepository;
     private final SyllabusVersionRepository syllabusVersionRepository;
+    private final AcademicTermRepository academicTermRepository;
+    private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
+    
+    private static final int ASSIGNMENT_DEADLINE_DAYS = 7; // Hạn chốt phân công: 7 ngày sau khi tạo môn
 
     @Transactional(readOnly = true)
     public Page<SubjectResponse> getAllSubjects(Pageable pageable) {
@@ -130,19 +147,27 @@ public class SubjectService {
 
     @Transactional
     public SubjectResponse createSubject(SubjectRequest request) {
-        Department department = departmentRepository.findById(request.getDepartmentId())
+        // 1. Validate và lấy Department (eager load Faculty để tránh lazy loading issues)
+        Department department = departmentRepository.findWithFacultyById(request.getDepartmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
 
+        // 2. Validate mã môn học không trùng
         if (subjectRepository.findByCode(request.getCode()).isPresent()) {
             throw new BadRequestException("Subject code already exists");
         }
+        
+        // 3. Lấy Academic Term
+        AcademicTerm academicTerm = academicTermRepository.findById(request.getAcademicTermId())
+                .orElseThrow(() -> new ResourceNotFoundException("AcademicTerm", "id", request.getAcademicTermId()));
 
+        // 4. Lấy Curriculum (nếu có)
         Curriculum curriculum = null;
         if (request.getCurriculumId() != null) {
             curriculum = curriculumRepository.findById(request.getCurriculumId())
                     .orElseThrow(() -> new ResourceNotFoundException("Curriculum", "id", request.getCurriculumId()));
         }
 
+        // 5. Tạo Subject
         Subject subject = Subject.builder()
                 .code(request.getCode())
                 .department(department)
@@ -161,7 +186,88 @@ public class SubjectService {
                 .build();
 
         Subject savedSubject = subjectRepository.save(subject);
+        
+        // 6. Gửi thông báo cho Trưởng bộ môn
+        sendNotificationToHod(savedSubject, department, academicTerm);
+
         return mapToResponse(savedSubject);
+    }
+    
+    /**
+     * Gửi thông báo phân công biên soạn đề cương cho Trưởng bộ môn
+     */
+    private void sendNotificationToHod(Subject subject, Department department, AcademicTerm academicTerm) {
+        // Tìm Trưởng bộ môn của department
+        Optional<User> hodOpt = userRepository.findHodByDepartmentId(department.getId());
+        
+        // Nếu không tìm thấy qua department_id, thử tìm qua scope_id
+        if (hodOpt.isEmpty()) {
+            hodOpt = userRepository.findHodByScopeId(department.getId());
+        }
+        
+        if (hodOpt.isEmpty()) {
+            log.warn("Không tìm thấy Trưởng bộ môn cho department: {} ({}). Thông báo không được gửi.", 
+                    department.getName(), department.getId());
+            return;
+        }
+        
+        User hod = hodOpt.get();
+        
+        // Tính hạn chốt phân công (7 ngày sau khi tạo môn)
+        LocalDate deadline = LocalDate.now().plusDays(ASSIGNMENT_DEADLINE_DAYS);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        
+        // Tạo tiêu đề thông báo
+        String title = String.format("[Phân công biên soạn] Môn học mới: %s - %s", 
+                subject.getCode(), academicTerm.getName());
+        
+        // Tạo nội dung thông báo chi tiết
+        String message = buildNotificationMessage(subject, academicTerm, deadline, formatter);
+        
+        // Tạo payload chứa thông tin bổ sung
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("subjectId", subject.getId().toString());
+        payload.put("subjectCode", subject.getCode());
+        payload.put("departmentId", department.getId().toString());
+        payload.put("academicTermId", academicTerm.getId().toString());
+        payload.put("deadline", deadline.format(formatter));
+        payload.put("actionUrl", "/admin/teaching-assignment"); // URL để HOD phân công
+        
+        // Tạo và lưu notification
+        Notification notification = Notification.builder()
+                .user(hod)
+                .title(title)
+                .message(message)
+                .type("ASSIGNMENT") // Loại thông báo: Phân công
+                .payload(payload)
+                .isRead(false)
+                .relatedEntityType("SUBJECT")
+                .relatedEntityId(subject.getId())
+                .build();
+        
+        notificationRepository.save(notification);
+        
+        log.info("Đã gửi thông báo phân công biên soạn đề cương cho HOD: {} ({})", 
+                hod.getFullName(), hod.getEmail());
+    }
+    
+    /**
+     * Tạo nội dung chi tiết cho thông báo
+     */
+    private String buildNotificationMessage(Subject subject, AcademicTerm academicTerm, 
+            LocalDate deadline, DateTimeFormatter formatter) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Chào Trưởng bộ môn,\n\n");
+        sb.append(String.format("Phòng Đào tạo vừa khởi tạo môn học mới: %s - %s thuộc bộ môn của bạn cho %s.\n\n",
+                subject.getCode(), subject.getCurrentNameVi(), academicTerm.getName()));
+        sb.append("Thông tin tóm tắt:\n");
+        sb.append(String.format("• Số tín chỉ: %d (%d LT / %d TH)\n", 
+                subject.getDefaultCredits(), 
+                subject.getDefaultTheoryHours(), 
+                subject.getDefaultPracticeHours()));
+        sb.append(String.format("• Hạn chốt phân công: %s\n\n", deadline.format(formatter)));
+        sb.append("Vui lòng truy cập hệ thống để chỉ định Giảng viên chính và Giảng viên cộng tác biên soạn đề cương cho môn học này.");
+        return sb.toString();
     }
 
     @Transactional
@@ -169,7 +275,8 @@ public class SubjectService {
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", id));
 
-        Department department = departmentRepository.findById(request.getDepartmentId())
+        // Use findWithFacultyById to eagerly load Faculty to avoid lazy loading issues
+        Department department = departmentRepository.findWithFacultyById(request.getDepartmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
 
         if (!subject.getCode().equals(request.getCode()) 

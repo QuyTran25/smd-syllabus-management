@@ -25,13 +25,13 @@ WHERE academic_year IS NULL;
 -- ==========================================
 -- 2. TRIGGER ĐẢM BẢO CHỈ 1 HỌC KỲ ACTIVE
 -- ==========================================
-CREATE OR REPLACE FUNCTION ensure_single_active_term()
+CREATE OR REPLACE FUNCTION core_service.ensure_single_active_term()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Nếu học kỳ mới được set is_active = TRUE
     IF NEW.is_active = TRUE THEN
-        -- Vô hiệu hóa tất cả các học kỳ khác
-        UPDATE academic_terms 
+        -- Vô hiệu hóa tất cả các học kỳ khác (chỉ định rõ schema)
+        UPDATE core_service.academic_terms 
         SET is_active = FALSE 
         WHERE id != NEW.id AND is_active = TRUE;
     END IF;

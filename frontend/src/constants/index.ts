@@ -1,6 +1,6 @@
 // API Configuration
-// ⭐ SỬA: Gọi qua Gateway (8888) thay vì Core Service (8081) để tránh CORS
-export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8888';
+// ⭐ Gọi trực tiếp Core Service (8081) để test, khi deploy sẽ dùng Gateway
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8081';
 export const API_TIMEOUT = 10000;
 
 // Storage Keys

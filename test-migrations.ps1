@@ -1,11 +1,7 @@
 # Test all migrations
 docker exec smd-postgres psql -U smd_user -d smd_database -c "DROP SCHEMA IF EXISTS core_service CASCADE; CREATE SCHEMA core_service;" | Out-Null
 
-<<<<<<< HEAD
 $files = Get-ChildItem "$PSScriptRoot\database\core-service\V*.sql" | Sort-Object { 
-=======
-$files = Get-ChildItem "d:\smd-syllabus-management\database\core-service\V*.sql" | Sort-Object { 
->>>>>>> 0ec901f2d98f3b75296df3acee6d66b44cbbc3c7
     if ($_.Name -match 'V(\d+)') { [int]$matches[1] } 
 }
 
