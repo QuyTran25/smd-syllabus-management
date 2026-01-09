@@ -40,7 +40,7 @@ public class SubjectRelationship {
     @JoinColumn(name = "related_subject_id", nullable = false)
     private Subject relatedSubject;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = vn.edu.smd.core.config.SubjectRelationTypeConverter.class)
     @Column(name = "type", nullable = false, length = 20)
     private SubjectRelationType type;
 

@@ -35,11 +35,14 @@ import vn.edu.smd.shared.enums.SubjectType;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -349,6 +352,15 @@ public class SubjectService {
             throw new BadRequestException("Prerequisite relationship already exists");
         }
 
+        // Kiểm tra vòng lặp phụ thuộc trước khi thêm
+        if (checkCyclicDependency(id, request.getRelatedSubjectId(), request.getType())) {
+            throw new BadRequestException(
+                String.format("Cannot add relationship: would create cyclic dependency. " +
+                    "Subject %s cannot be prerequisite of %s because it would form a loop.",
+                    relatedSubject.getCode(), subject.getCode())
+            );
+        }
+
         SubjectRelationship relationship = SubjectRelationship.builder()
                 .subject(subject)
                 .relatedSubject(relatedSubject)
@@ -356,6 +368,10 @@ public class SubjectService {
                 .build();
 
         SubjectRelationship savedRelationship = relationshipRepository.save(relationship);
+        
+        log.info("Added {} relationship: {} -> {}", 
+                request.getType(), subject.getCode(), relatedSubject.getCode());
+        
         return mapToPrerequisiteResponse(savedRelationship);
     }
 
@@ -383,6 +399,90 @@ public class SubjectService {
         return syllabusVersionRepository.findBySubjectId(id).stream()
                 .map(this::mapToSyllabusResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Kiểm tra vòng lặp phụ thuộc (Cycle Detection) bằng DFS
+     * Đảm bảo không tạo ra vòng lặp: A -> B -> C -> A
+     * 
+     * @param subjectId ID của môn học gốc
+     * @param prerequisiteId ID của môn học tiên quyết muốn thêm
+     * @param type Loại quan hệ (PREREQUISITE, CO_REQUISITE, REPLACEMENT)
+     * @return true nếu có vòng lặp, false nếu hợp lệ
+     */
+    @Transactional(readOnly = true)
+    public boolean checkCyclicDependency(UUID subjectId, UUID prerequisiteId, SubjectRelationType type) {
+        // Nếu thêm chính nó làm tiên quyết -> vòng lặp
+        if (subjectId.equals(prerequisiteId)) {
+            return true;
+        }
+
+        // Chỉ check cycle cho PREREQUISITE (quan hệ có hướng)
+        // CO_REQUISITE và REPLACEMENT không cần check cycle
+        if (type != SubjectRelationType.PREREQUISITE) {
+            return false;
+        }
+
+        // DFS để tìm đường đi từ prerequisiteId về subjectId
+        // Nếu tìm thấy -> tạo vòng lặp
+        Set<UUID> visited = new HashSet<>();
+        return hasCycleDFS(prerequisiteId, subjectId, visited);
+    }
+
+    /**
+     * DFS đệ quy để tìm đường đi từ currentId đến targetId
+     */
+    private boolean hasCycleDFS(UUID currentId, UUID targetId, Set<UUID> visited) {
+        // Đã thăm node này rồi -> cắt nhánh
+        if (visited.contains(currentId)) {
+            return false;
+        }
+
+        // Tìm thấy đường về target -> có cycle
+        if (currentId.equals(targetId)) {
+            return true;
+        }
+
+        visited.add(currentId);
+
+        // Lấy tất cả các prerequisite của currentId
+        List<SubjectRelationship> prerequisites = relationshipRepository.findBySubjectIdAndType(
+                currentId, SubjectRelationType.PREREQUISITE);
+
+        // Duyệt qua các prerequisite
+        for (SubjectRelationship rel : prerequisites) {
+            UUID nextId = rel.getRelatedSubject().getId();
+            if (hasCycleDFS(nextId, targetId, visited)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Lấy tất cả quan hệ của một môn học (prerequisites, co-requisites, replacements)
+     */
+    @Transactional(readOnly = true)
+    public Map<String, List<PrerequisiteResponse>> getAllRelationshipsOfSubject(UUID id) {
+        if (!subjectRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Subject", "id", id);
+        }
+
+        List<SubjectRelationship> allRelationships = relationshipRepository.findBySubjectId(id);
+
+        Map<String, List<PrerequisiteResponse>> grouped = new HashMap<>();
+        grouped.put("PREREQUISITE", new ArrayList<>());
+        grouped.put("CO_REQUISITE", new ArrayList<>());
+        grouped.put("REPLACEMENT", new ArrayList<>());
+
+        for (SubjectRelationship rel : allRelationships) {
+            PrerequisiteResponse response = mapToPrerequisiteResponse(rel);
+            String typeKey = rel.getType().name();
+            grouped.get(typeKey).add(response);
+        }
+
+        return grouped;
     }
 
     private SubjectResponse mapToResponse(Subject subject) {

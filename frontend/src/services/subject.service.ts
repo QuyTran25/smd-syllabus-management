@@ -95,6 +95,64 @@ export const subjectService = {
   async deleteSubject(id: string): Promise<void> {
     await apiClient.delete(`/api/subjects/${id}`);
   },
+
+  // Relationship management
+  async checkCyclicDependency(
+    subjectId: string,
+    prerequisiteId: string,
+    type: 'PREREQUISITE' | 'CO_REQUISITE' | 'REPLACEMENT' = 'PREREQUISITE'
+  ): Promise<boolean> {
+    const response = await apiClient.get<{ success: boolean; data: boolean }>(
+      `/api/subjects/${subjectId}/check-cycle`,
+      { params: { prerequisiteId, type } }
+    );
+    return response.data.data;
+  },
+
+  async getAllRelationships(subjectId: string): Promise<{
+    PREREQUISITE: Array<{
+      id: string;
+      subjectId: string;
+      subjectCode: string;
+      subjectName: string;
+      relatedSubjectId: string;
+      relatedSubjectCode: string;
+      relatedSubjectName: string;
+      type: string;
+      createdAt: string;
+    }>;
+    CO_REQUISITE: Array<{
+      id: string;
+      subjectId: string;
+      subjectCode: string;
+      subjectName: string;
+      relatedSubjectId: string;
+      relatedSubjectCode: string;
+      relatedSubjectName: string;
+      type: string;
+      createdAt: string;
+    }>;
+    REPLACEMENT: Array<{
+      id: string;
+      subjectId: string;
+      subjectCode: string;
+      subjectName: string;
+      relatedSubjectId: string;
+      relatedSubjectCode: string;
+      relatedSubjectName: string;
+      type: string;
+      createdAt: string;
+    }>;
+  }> {
+    const response = await apiClient.get(
+      `/api/subjects/${subjectId}/relationships`
+    );
+    return response.data.data;
+  },
+
+  async deleteRelationship(subjectId: string, relationshipId: string): Promise<void> {
+    await apiClient.delete(`/api/subjects/${subjectId}/prerequisites/${relationshipId}`);
+  },
 };
 
 export default subjectService;
