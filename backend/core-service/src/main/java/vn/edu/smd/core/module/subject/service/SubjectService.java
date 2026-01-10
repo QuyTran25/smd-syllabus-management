@@ -200,6 +200,13 @@ public class SubjectService {
      * Gửi thông báo phân công biên soạn đề cương cho Trưởng bộ môn
      */
     private void sendNotificationToHod(Subject subject, Department department, AcademicTerm academicTerm) {
+        // Kiểm tra số lượng HOD trong department
+        long hodCount = userRepository.countHodByDepartmentId(department.getId());
+        if (hodCount > 1) {
+            log.warn("CẢNH BÁO: Phát hiện {} HOD trong department {} ({}). Chỉ gửi thông báo cho HOD đầu tiên.",
+                    hodCount, department.getName(), department.getId());
+        }
+        
         // Tìm Trưởng bộ môn của department
         Optional<User> hodOpt = userRepository.findHodByDepartmentId(department.getId());
         
@@ -215,6 +222,9 @@ public class SubjectService {
         }
         
         User hod = hodOpt.get();
+        
+        log.info("Đang gửi thông báo phân công cho HOD: {} ({}) - Department: {} ({})",
+                hod.getFullName(), hod.getEmail(), department.getName(), department.getId());
         
         // Tính hạn chốt phân công (7 ngày sau khi tạo môn)
         LocalDate deadline = LocalDate.now().plusDays(ASSIGNMENT_DEADLINE_DAYS);

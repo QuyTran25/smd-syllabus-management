@@ -1,15 +1,20 @@
 package vn.edu.smd.core.module.reviewcomment.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
 import vn.edu.smd.core.entity.ReviewComment;
 import vn.edu.smd.core.entity.SyllabusVersion;
+import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.reviewcomment.dto.ReviewCommentRequest;
 import vn.edu.smd.core.module.reviewcomment.dto.ReviewCommentResponse;
 import vn.edu.smd.core.repository.ReviewCommentRepository;
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
+import vn.edu.smd.core.repository.UserRepository;
+import vn.edu.smd.core.security.UserPrincipal;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +26,7 @@ public class ReviewCommentService {
 
     private final ReviewCommentRepository commentRepository;
     private final SyllabusVersionRepository syllabusRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<ReviewCommentResponse> getCommentsBySyllabus(UUID syllabusVersionId) {
@@ -50,12 +56,15 @@ public class ReviewCommentService {
                     .orElseThrow(() -> new ResourceNotFoundException("ReviewComment", "id", request.getParentId()));
         }
 
+        User currentUser = getCurrentUser();
+
         ReviewComment comment = ReviewComment.builder()
                 .syllabusVersion(syllabus)
                 .section(request.getSection())
                 .content(request.getContent())
                 .isResolved(request.getIsResolved() != null ? request.getIsResolved() : false)
                 .parent(parent)
+                .createdBy(currentUser)
                 .build();
 
         ReviewComment savedComment = commentRepository.save(comment);
@@ -83,6 +92,17 @@ public class ReviewCommentService {
             throw new ResourceNotFoundException("ReviewComment", "id", id);
         }
         commentRepository.deleteById(id);
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || 
+            !(authentication.getPrincipal() instanceof UserPrincipal)) {
+            return null;
+        }
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        return userRepository.findByIdWithRoles(userPrincipal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
     }
 
     private ReviewCommentResponse mapToResponse(ReviewComment comment) {

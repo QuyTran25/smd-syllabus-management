@@ -9,6 +9,7 @@ import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.shared.enums.SyllabusStatus;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -34,4 +35,11 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status = :status AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusAndNotDeleted(@Param("status") SyllabusStatus status);
+    
+    // Tìm syllabus theo subject, academic term và status
+    Optional<SyllabusVersion> findBySubjectIdAndAcademicTermIdAndStatus(
+            UUID subjectId, UUID academicTermId, SyllabusStatus status);
+    
+    // Đếm số syllabus versions của một môn trong một kỳ học
+    long countBySubjectIdAndAcademicTermId(UUID subjectId, UUID academicTermId);
 }

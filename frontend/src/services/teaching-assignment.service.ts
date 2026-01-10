@@ -67,6 +67,7 @@ export interface TeachingAssignment {
   deadline: string;
   status: 'pending' | 'in-progress' | 'submitted' | 'completed';
   syllabusId?: string;
+  comments?: string;
   createdAt: string;
   commentCount: number;
 }
@@ -86,6 +87,7 @@ const mapToTeachingAssignment = (dto: TeachingAssignmentDTO): TeachingAssignment
   deadline: dto.deadline,
   status: mapStatus(dto.status),
   syllabusId: dto.syllabusId || undefined,
+  comments: dto.comments || undefined,
   createdAt: dto.createdAt,
   commentCount: 0, // Backend doesn't have comment count yet
 });
