@@ -44,7 +44,7 @@ export const syllabusService = {
     }
 
     const response = await apiClient.get('/api/syllabi', { params });
-    
+
     return {
       data: response.data.data.content,
       total: response.data.data.totalElements,
@@ -94,7 +94,7 @@ export const syllabusService = {
     return response.data.data;
   },
 
-  // Approval actions
+  // Approval actions (Dành cho Hiệu trưởng/TBM - Giữ nguyên URL /approve)
   approveSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/approve`, {
       comment: action.reason,
@@ -118,15 +118,13 @@ export const syllabusService = {
 
   // Get statistics
   getStatistics: async (): Promise<Record<string, number>> => {
-    // This would need a custom stats endpoint in backend
-    // For now, we'll fetch all syllabi and count locally
     const response = await apiClient.get('/api/syllabi', {
-      params: { page: 0, size: 1000 }
+      params: { page: 0, size: 1000 },
     });
-    
+
     const syllabi = response.data.data.content;
     const stats: Record<string, number> = {};
-    
+
     Object.values(SyllabusStatus).forEach((status) => {
       stats[status] = syllabi.filter((s: Syllabus) => s.status === status).length;
     });
@@ -167,22 +165,38 @@ export const syllabusService = {
     return new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
   },
 
-  // Unpublish syllabus (Admin only)
+  // ==========================================
+  // ADMIN FUNCTIONS (Các hàm dành riêng cho Admin)
+  // ==========================================
+
+  // 1. Publish syllabus (Xuất hành - Gọi URL /publish mới)
+  publishSyllabus: async (
+    id: string,
+    effectiveDate: string,
+    comment?: string
+  ): Promise<Syllabus> => {
+    const response = await apiClient.patch(`/api/syllabi/${id}/publish`, {
+      effectiveDate,
+      comment,
+    });
+    return response.data.data;
+  },
+
+  // 2. Unpublish syllabus (Gỡ bỏ)
   unpublishSyllabus: async (id: string, reason: string): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${id}/unpublish`, { reason });
     return response.data.data;
   },
 
-  // Archive syllabus (Admin only)
+  // 3. Archive syllabus (Lưu trữ)
   archiveSyllabus: async (id: string): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${id}/archive`);
     return response.data.data;
   },
 
-  // Update effective date (Admin only)
+  // 4. Update effective date
   updateEffectiveDate: async (id: string, effectiveDate: string): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${id}/effective-date`, { effectiveDate });
     return response.data.data;
   },
 };
-

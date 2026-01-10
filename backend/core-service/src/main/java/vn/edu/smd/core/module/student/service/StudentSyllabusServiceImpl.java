@@ -2,6 +2,7 @@ package vn.edu.smd.core.module.student.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,7 +11,7 @@ import vn.edu.smd.core.module.student.dto.ReportIssueDto;
 import vn.edu.smd.core.module.student.dto.StudentSyllabusDetailDto;
 import vn.edu.smd.core.module.student.dto.StudentSyllabusSummaryDto;
 import vn.edu.smd.core.module.student.repository.StudentSyllabusTrackerRepository;
-import vn.edu.smd.core.repository.*; 
+import vn.edu.smd.core.repository.*;
 import vn.edu.smd.shared.enums.ErrorReportSection;
 import vn.edu.smd.shared.enums.FeedbackType;
 
@@ -34,12 +35,25 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     private final SyllabusErrorReportRepository errorReportRepository;
     private final UserRepository userRepository;
 
-    private final UUID MOCK_STUDENT_ID = UUID.fromString("1add472c-4664-4a22-8890-b7c6215996d2");
+    // =========================================================================
+    // HELPER: Lấy sinh viên hiện tại từ Token (Thay thế MOCK_STUDENT_ID)
+    // =========================================================================
+    private User getCurrentStudent() {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info(">>> Đang lấy thông tin sinh viên từ Token: {}", principal);
+
+        return userRepository.findByUsername(principal)
+                .or(() -> userRepository.findByEmail(principal))
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên! (Vui lòng đăng nhập lại)"));
+    }
 
     @Override
     @Transactional(readOnly = true)
     public List<StudentSyllabusSummaryDto> getAll() {
-        Set<UUID> trackedIds = trackerRepository.findByStudentId(MOCK_STUDENT_ID).stream()
+        // Lấy ID thật của sinh viên đang đăng nhập
+        User student = getCurrentStudent();
+
+        Set<UUID> trackedIds = trackerRepository.findByStudentId(student.getId()).stream()
                 .map(StudentSyllabusTracker::getSyllabusId)
                 .collect(Collectors.toSet());
 
@@ -64,21 +78,22 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     @Override
     @Transactional(readOnly = true)
     public StudentSyllabusDetailDto getById(UUID subjectId) {
+        // Lấy thông tin sinh viên để check đã track hay chưa
+        User student = getCurrentStudent();
+
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new RuntimeException("Môn học không tồn tại ID: " + subjectId));
 
         SyllabusVersion version = versionRepository.findFirstBySubjectIdOrderByCreatedAtDesc(subjectId)
                 .orElseThrow(() -> new RuntimeException("Chưa có đề cương cho môn học này"));
 
+        // ... (Giữ nguyên logic lấy CLO/PLO/Mapping cũ của bạn) ...
         List<CLO> clos = cloRepository.findBySyllabusVersionIdOrderByCodeAsc(version.getId());
         List<UUID> cloIds = clos.stream().map(CLO::getId).collect(Collectors.toList());
 
         List<PLO> allPlos = ploRepository.findAll();
         List<String> ploCodeList = allPlos.stream()
-                .map(PLO::getCode)
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+                .map(PLO::getCode).distinct().sorted().collect(Collectors.toList());
 
         List<CloPlOMapping> cloPloMappings = cloPloMappingRepository.findByCloIdIn(cloIds);
         Map<String, List<String>> matrixMap = new HashMap<>();
@@ -118,7 +133,8 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .build()
         ).collect(Collectors.toList());
 
-        boolean isTracked = trackerRepository.findByStudentIdAndSyllabusId(MOCK_STUDENT_ID, subjectId).isPresent();
+        // Check track dynamic
+        boolean isTracked = trackerRepository.findByStudentIdAndSyllabusId(student.getId(), subjectId).isPresent();
 
         return StudentSyllabusDetailDto.builder()
                 .id(subject.getId())
@@ -148,17 +164,19 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     @Override
     @Transactional
     public void toggleTrack(UUID syllabusId) {
+        User student = getCurrentStudent();
+
         if (!subjectRepository.existsById(syllabusId)) {
             throw new RuntimeException("Môn học không tồn tại ID: " + syllabusId);
         }
 
-        Optional<StudentSyllabusTracker> existing = trackerRepository.findByStudentIdAndSyllabusId(MOCK_STUDENT_ID, syllabusId);
+        Optional<StudentSyllabusTracker> existing = trackerRepository.findByStudentIdAndSyllabusId(student.getId(), syllabusId);
 
         if (existing.isPresent()) {
             trackerRepository.delete(existing.get());
         } else {
             StudentSyllabusTracker tracker = new StudentSyllabusTracker();
-            tracker.setStudentId(MOCK_STUDENT_ID);
+            tracker.setStudentId(student.getId());
             tracker.setSyllabusId(syllabusId);
             tracker.setCreatedAt(LocalDateTime.now());
             trackerRepository.save(tracker);
@@ -168,42 +186,39 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     @Override
     @Transactional
     public void reportIssue(ReportIssueDto dto) {
-        // 1. Tìm phiên bản đề cương mới nhất của môn học
+        // 1. Tìm phiên bản đề cương
         SyllabusVersion version = versionRepository.findFirstBySubjectIdOrderByCreatedAtDesc(dto.getSyllabusId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đề cương!"));
 
-        // 2. Lấy User sinh viên (Sử dụng Mock ID bạn đang dùng)
-        System.out.println(">>> ĐANG TÌM SINH VIÊN VỚI ID: " + MOCK_STUDENT_ID);
-        User student = userRepository.findById(MOCK_STUDENT_ID)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên!"));
+        // 2. Lấy User sinh viên THẬT (Fix lỗi 500)
+        User student = getCurrentStudent();
+        
+        log.info(">>> Đang tạo báo cáo lỗi cho User: {} (ID: {})", student.getEmail(), student.getId());
 
-        // 3. Mapping Section sang Enum chuẩn (Dựa trên V10)
+        // 3. Mapping Section
         ErrorReportSection sectionEnum;
         String inputSection = (dto.getSection() != null) ? dto.getSection().toLowerCase() : "other";
 
-        sectionEnum = switch (inputSection) {
-            case "subject_info" -> ErrorReportSection.SUBJECT_INFO;
-            case "objectives" -> ErrorReportSection.OBJECTIVES;
-            case "assessment_matrix" -> ErrorReportSection.ASSESSMENT_MATRIX;
-            case "clo" -> ErrorReportSection.CLO;
-            case "clo_plo_matrix" -> ErrorReportSection.CLO_PLO_MATRIX;
-            case "textbook" -> ErrorReportSection.TEXTBOOK;
-            case "reference" -> ErrorReportSection.REFERENCE;
-            default -> ErrorReportSection.OTHER;
-        };
+        // Logic mapping đơn giản (bạn có thể giữ nguyên hoặc custom)
+        if (inputSection.contains("info")) sectionEnum = ErrorReportSection.SUBJECT_INFO;
+        else if (inputSection.contains("object")) sectionEnum = ErrorReportSection.OBJECTIVES;
+        else if (inputSection.contains("assess")) sectionEnum = ErrorReportSection.ASSESSMENT_MATRIX;
+        else if (inputSection.contains("clo")) sectionEnum = ErrorReportSection.CLO;
+        else sectionEnum = ErrorReportSection.OTHER;
 
-        // 4. Tạo thực thể Báo lỗi và lưu vào DB
+        // 4. Tạo thực thể Báo lỗi và lưu
         SyllabusErrorReport report = SyllabusErrorReport.builder()
                 .syllabusVersion(version)
-                .user(student)
-                .title("Báo lỗi từ sinh viên: " + sectionEnum.getDisplayName())
+                .user(student) // <-- User lấy từ Token, đảm bảo tồn tại
+                .title("Báo lỗi từ sinh viên: " + student.getFullName())
                 .description(dto.getDescription())
                 .section(sectionEnum)
-                .type(FeedbackType.ERROR) // Mặc định là lỗi theo V8
-                .status("PENDING")        // Trạng thái chờ xử lý theo V6
+                .type(FeedbackType.ERROR)
+                .status("PENDING")
+                .editEnabled(false)
                 .build();
 
         errorReportRepository.save(report);
-        log.info("Đã lưu báo cáo lỗi cho môn: {}", version.getSnapSubjectNameVi());
+        log.info(">>> SUCCESS: Đã lưu báo cáo lỗi ID: {}", report.getId());
     }
 }
