@@ -6,7 +6,7 @@ import vn.edu.smd.shared.enums.ComponentType;
 
 /**
  * JPA Converter for ComponentType enum
- * Converts between Java enum (MAJOR, FOUNDATION, GENERAL, THESIS) and database values ('major', 'foundation', 'general', 'thesis')
+ * Converts between Java enum (MAJOR, FOUNDATION, GENERAL, THESIS) and database values (MAJOR, FOUNDATION, GENERAL, THESIS)
  */
 @Converter(autoApply = true)
 public class ComponentTypeConverter implements AttributeConverter<ComponentType, String> {
@@ -16,7 +16,7 @@ public class ComponentTypeConverter implements AttributeConverter<ComponentType,
         if (attribute == null) {
             return null;
         }
-        return attribute.name().toLowerCase();
+        return attribute.name();
     }
 
     @Override

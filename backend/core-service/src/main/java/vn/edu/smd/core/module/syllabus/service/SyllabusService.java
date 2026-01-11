@@ -833,6 +833,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REVIEW")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1217,6 +1219,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REJECTED")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1295,6 +1299,8 @@ public class SyllabusService {
                         .type("SYLLABUS_AA_REVIEW")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);
@@ -1373,6 +1379,8 @@ public class SyllabusService {
                         .type("SYLLABUS_PRINCIPAL_REVIEW")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);
@@ -1448,6 +1456,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REJECTED_NOTIFICATION")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1528,6 +1538,8 @@ public class SyllabusService {
                         .type("SYLLABUS_ADMIN_PUBLISH")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);

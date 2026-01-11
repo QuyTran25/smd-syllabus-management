@@ -27,23 +27,61 @@ interface SyllabusItem {
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
-  // Fetch statistics
-  const { data: stats } = useQuery({
-    queryKey: ['syllabus-stats'],
-    queryFn: () => syllabusService.getStatistics(),
+  // Fetch lightweight counts from backend to match management data precisely
+  const { data: totalCount } = useQuery({
+    queryKey: ['syllabi-total'],
+    queryFn: () => syllabusService.getSyllabi({}, { page: 1, pageSize: 1000 }),
+    select: (r) => {
+      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
+      return ids.size;
+    },
   });
 
-  // Fetch feedbacks with PENDING status for "Needs Edit" count
-  const { data: feedbacks } = useQuery({
-    queryKey: ['feedbacks', FeedbackStatus.PENDING],
-    queryFn: () => feedbackService.getFeedbacks({ status: [FeedbackStatus.PENDING] }),
+  // Fetch pending syllabi based on user role
+  const getPendingStatusByRole = () => {
+    switch (user?.role) {
+      case UserRole.HOD:
+        return [SyllabusStatus.PENDING_HOD];
+      case UserRole.AA:
+        return [SyllabusStatus.PENDING_AA];
+      case UserRole.PRINCIPAL:
+        return [SyllabusStatus.PENDING_PRINCIPAL];
+      case UserRole.ADMIN:
+        return [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_AA, SyllabusStatus.PENDING_PRINCIPAL];
+      default:
+        return [];
+    }
+  };
+
+  const { data: pendingCount } = useQuery({
+    queryKey: ['syllabi-pending', user?.role],
+    queryFn: () => syllabusService.getSyllabi({ status: getPendingStatusByRole() }, { page: 1, pageSize: 1000 }),
+    select: (r) => {
+      // dedupe by subjectId + academicTermId to match management counting
+      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
+      return ids.size;
+    },
   });
 
-  // Calculate unique syllabi needing edit (PUBLISHED + has PENDING feedback)
-  const needsEditCount = new Set(
-    feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).map((f) => f.syllabusId) || []
-  ).size;
+  const { data: publishedCount } = useQuery({
+    queryKey: ['syllabi-published'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.PUBLISHED] }, { page: 1, pageSize: 1000 }),
+    select: (r) => {
+      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
+      return ids.size;
+    },
+  });
 
+  const needsEditStatuses = [SyllabusStatus.REVISION_IN_PROGRESS, SyllabusStatus.PENDING_HOD_REVISION];
+  const { data: needsEditCount } = useQuery({
+    queryKey: ['syllabi-needs-edit'],
+    queryFn: () => syllabusService.getSyllabi({ status: needsEditStatuses }, { page: 1, pageSize: 1000 }),
+    select: (r) => {
+      // dedupe by subjectId + academicTermId
+      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
+      return ids.size;
+    },
+  });
   // Fetch pending syllabi for current user role
   const { data: pendingSyllabi, isLoading } = useQuery({
     queryKey: ['pending-syllabi', user?.role],
@@ -148,7 +186,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Tổng Đề cương"
-              value={stats?.PUBLISHED || 0}
+              value={totalCount}
               prefix={<FileTextOutlined />}
               valueStyle={{ color: '#018486' }}
             />
@@ -158,11 +196,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Chờ Phê duyệt"
-              value={
-                (stats?.PENDING_HOD || 0) +
-                (stats?.PENDING_AA || 0) +
-                (stats?.PENDING_PRINCIPAL || 0)
-              }
+              value={pendingCount || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -172,7 +206,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Đã Xuất bản"
-              value={stats?.PUBLISHED || 0}
+              value={publishedCount || 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -182,7 +216,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Đề cương cần chỉnh"
-              value={needsEditCount}
+              value={needsEditCount || 0}
               prefix={<EditOutlined />}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -225,19 +259,12 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Đã hoàn thành</Text>
-                    <Text strong>{stats?.PUBLISHED || 0}</Text>
+                    <Text strong>{publishedCount || 0}</Text>
                   </div>
                   <Progress
                     percent={
-                      stats
-                        ? Math.round(
-                            (stats.PUBLISHED /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
+                      totalCount
+                        ? Math.round(((publishedCount || 0) / (totalCount || 1)) * 100)
                         : 0
                     }
                     strokeColor="#52c41a"
@@ -247,23 +274,12 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Đang xử lý</Text>
-                    <Text strong>
-                      {(stats?.PENDING_HOD || 0) +
-                        (stats?.PENDING_AA || 0) +
-                        (stats?.PENDING_PRINCIPAL || 0)}
-                    </Text>
+                    <Text strong>{pendingCount || 0}</Text>
                   </div>
                   <Progress
                     percent={
-                      stats
-                        ? Math.round(
-                            ((stats.PENDING_HOD + stats.PENDING_AA + stats.PENDING_PRINCIPAL) /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
+                      totalCount
+                        ? Math.round(((pendingCount || 0) / (totalCount || 1)) * 100)
                         : 0
                     }
                     strokeColor="#faad14"
@@ -273,19 +289,12 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Cần chỉnh sửa</Text>
-                    <Text strong>{needsEditCount}</Text>
+                    <Text strong>{needsEditCount || 0}</Text>
                   </div>
                   <Progress
                     percent={
-                      stats
-                        ? Math.round(
-                            (needsEditCount /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
+                      totalCount
+                        ? Math.round(((needsEditCount || 0) / (totalCount || 1)) * 100)
                         : 0
                     }
                     strokeColor="#ff4d4f"

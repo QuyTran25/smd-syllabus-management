@@ -6,7 +6,7 @@ import vn.edu.smd.shared.enums.CourseType;
 
 /**
  * JPA Converter for CourseType enum
- * Converts between Java enum (REQUIRED, ELECTIVE, FREE) and database values ('required', 'elective', 'free')
+ * Converts between Java enum (REQUIRED, ELECTIVE, FREE) and database values (REQUIRED, ELECTIVE, FREE)
  */
 @Converter(autoApply = true)
 public class CourseTypeConverter implements AttributeConverter<CourseType, String> {
@@ -16,7 +16,7 @@ public class CourseTypeConverter implements AttributeConverter<CourseType, Strin
         if (attribute == null) {
             return null;
         }
-        return attribute.name().toLowerCase();
+        return attribute.name();
     }
 
     @Override
