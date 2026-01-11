@@ -79,11 +79,24 @@ export const SyllabusDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['syllabus', id] });
       queryClient.invalidateQueries({ queryKey: ['syllabi'] });
       setIsApproveModalVisible(false);
+    },
+    onError: () => {
+      message.error('Phê duyệt thất bại');
+    },
+  });
+
+  // Reject mutation
+  const rejectMutation = useMutation({
+    mutationFn: (action: ApprovalAction) => syllabusService.rejectSyllabus(action),
+    onSuccess: () => {
+      message.success('Đã từ chối đề cương');
+      queryClient.invalidateQueries({ queryKey: ['syllabus', id] });
+      queryClient.invalidateQueries({ queryKey: ['syllabi'] });
       setIsRejectModalVisible(false);
       setRejectReason('');
     },
     onError: () => {
-      message.error('Phê duyệt thất bại');
+      message.error('Từ chối thất bại');
     },
   });
 
@@ -160,7 +173,7 @@ export const SyllabusDetailPage: React.FC = () => {
       return;
     }
 
-    approveMutation.mutate({
+    rejectMutation.mutate({
       syllabusId: id,
       action: 'REJECT',
       reason: rejectReason,
@@ -241,7 +254,7 @@ export const SyllabusDetailPage: React.FC = () => {
                 danger
                 icon={<CloseOutlined />}
                 onClick={() => setIsRejectModalVisible(true)}
-                loading={approveMutation.isPending}
+                loading={rejectMutation.isPending}
               >
                 Từ chối
               </Button>
@@ -530,9 +543,10 @@ export const SyllabusDetailPage: React.FC = () => {
 
                 <Title level={4}>Ánh xạ CLO - PLO</Title>
                 <Table
-                  dataSource={syllabus.ploMappings || []}
-                  rowKey={(record) => `${record.cloCode}-${record.ploCode}`}
+                  dataSource={(syllabus.ploMappings || []).filter(m => m.cloCode && m.ploCode)}
+                  rowKey={(record, index) => record.cloCode && record.ploCode ? `${record.cloCode}-${record.ploCode}` : `mapping-${index}`}
                   pagination={false}
+                  locale={{ emptyText: 'Chưa có ánh xạ CLO-PLO. Giảng viên cần cập nhật đề cương để tự động tạo ánh xạ.' }}
                   columns={[
                     { title: 'CLO', dataIndex: 'cloCode', key: 'cloCode' },
                     { title: 'PLO', dataIndex: 'ploCode', key: 'ploCode' },
@@ -750,7 +764,7 @@ export const SyllabusDetailPage: React.FC = () => {
         okText="Từ chối"
         cancelText="Hủy"
         okButtonProps={{ danger: true }}
-        confirmLoading={approveMutation.isPending}
+        confirmLoading={rejectMutation.isPending}
       >
         <p>Vui lòng nhập lý do từ chối:</p>
         <TextArea

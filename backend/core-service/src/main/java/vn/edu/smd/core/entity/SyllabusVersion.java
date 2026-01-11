@@ -52,6 +52,10 @@ public class SyllabusVersion {
     @Column(name = "version_no", nullable = false, length = 20)
     private String versionNo;
 
+    @Column(name = "version_number")
+    @Builder.Default
+    private Integer versionNumber = 1;
+
     @Enumerated(EnumType.STRING)
     @org.hibernate.annotations.JdbcType(org.hibernate.dialect.PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "core_service.syllabus_status")
