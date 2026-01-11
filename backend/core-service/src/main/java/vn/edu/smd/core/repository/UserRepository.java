@@ -49,15 +49,26 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * HOD được xác định qua:
      * 1. User có department_id trùng với department cần tìm
      * 2. User có role HOD
+     * Note: Nếu có nhiều HOD trong cùng department, chỉ lấy 1 người đầu tiên
      */
     @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
-           "WHERE u.department.id = :departmentId AND r.code = 'HOD'")
+           "WHERE u.department.id = :departmentId AND r.code = 'HOD' " +
+           "ORDER BY u.createdAt ASC")
     Optional<User> findHodByDepartmentId(@Param("departmentId") UUID departmentId);
     
     /**
      * Tìm HOD qua user_roles với scope_type = DEPARTMENT
+     * Note: Nếu có nhiều HOD, chỉ lấy 1 người đầu tiên
      */
     @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
-           "WHERE ur.scopeType = 'DEPARTMENT' AND ur.scopeId = :departmentId AND r.code = 'HOD'")
+           "WHERE ur.scopeType = 'DEPARTMENT' AND ur.scopeId = :departmentId AND r.code = 'HOD' " +
+           "ORDER BY u.createdAt ASC")
     Optional<User> findHodByScopeId(@Param("departmentId") UUID departmentId);
+    
+    /**
+     * Đếm số lượng HOD trong department (để kiểm tra data integrity)
+     */
+    @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.userRoles ur JOIN ur.role r " +
+           "WHERE u.department.id = :departmentId AND r.code = 'HOD'")
+    long countHodByDepartmentId(@Param("departmentId") UUID departmentId);
 }

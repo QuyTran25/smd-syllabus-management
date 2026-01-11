@@ -31,4 +31,7 @@ public class SyllabusRequest {
     private String description;
     private String objectives;
     private String studentTasks;
+    
+    // Link to teaching assignment (if created from notification)
+    private UUID teachingAssignmentId;
 }

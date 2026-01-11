@@ -27,7 +27,7 @@ import {
   CommentOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { syllabusService } from '@/services';
 import { SyllabusStatus } from '@/types';
@@ -82,6 +82,10 @@ const SyllabusFormPage: React.FC = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
+  const [searchParams] = useSearchParams();
+
+  // Get assignmentId from query params
+  const assignmentId = searchParams.get('assignmentId');
 
   // Detect mode
   const isCreateMode = location.pathname.includes('/create');
@@ -93,6 +97,29 @@ const SyllabusFormPage: React.FC = () => {
   const [assessmentMethods, setAssessmentMethods] = useState<AssessmentMethod[]>([]);
   const [prerequisites, setPrerequisites] = useState<PrerequisiteCourse[]>([]);
   const [newComment, setNewComment] = useState('');
+
+  // Auto-create syllabus from teaching assignment
+  const { data: autoCreatedSyllabus, isLoading: isAutoCreating, error: autoCreateError } = useQuery({
+    queryKey: ['create-syllabus-from-assignment', assignmentId],
+    queryFn: () => syllabusService.createSyllabusFromAssignment(assignmentId!),
+    enabled: !!assignmentId && isCreateMode,
+    retry: false,
+  });
+
+  // Handle auto-create result - redirect to edit mode
+  useEffect(() => {
+    if (autoCreatedSyllabus && assignmentId && isCreateMode) {
+      message.success('Đã tạo bản nháp đề cương từ nhiệm vụ được giao');
+      navigate(`/lecturer/syllabi/edit/${autoCreatedSyllabus.id}`, { replace: true });
+    }
+  }, [autoCreatedSyllabus, assignmentId, isCreateMode, navigate]);
+
+  // Handle auto-create error
+  useEffect(() => {
+    if (autoCreateError) {
+      message.error('Không thể tạo đề cương từ nhiệm vụ');
+    }
+  }, [autoCreateError]);
 
   // Fetch syllabus data (edit/view mode)
   const { data: syllabus, isLoading: isSyllabusLoading } = useQuery({
@@ -341,6 +368,7 @@ const SyllabusFormPage: React.FC = () => {
         content,
         description: values.description,
         objectives: values.objectives,
+        teachingAssignmentId: assignmentId || undefined, // Link to teaching assignment if from notification
       };
 
       if (isCreateMode) {
@@ -523,11 +551,14 @@ const SyllabusFormPage: React.FC = () => {
     },
   ];
 
-  if (isSyllabusLoading) {
+  // Show loading when fetching syllabus or auto-creating from assignment
+  if (isSyllabusLoading || isAutoCreating) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spin spinning={true} size="large">
-          <div style={{ padding: '50px' }}>Đang tải đề cương...</div>
+          <div style={{ padding: '50px' }}>
+            Đang tải đề cương...
+          </div>
         </Spin>
       </div>
     );

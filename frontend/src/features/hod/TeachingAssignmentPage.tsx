@@ -1,98 +1,16 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Select, Input, Tag, message, DatePicker, Tooltip, Badge } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Select, Input, Tag, message, DatePicker, Tooltip, Badge, Spin, Empty } from 'antd';
 import { PlusOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, MessageOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import { teachingAssignmentService, TeachingAssignment } from '@/services/teaching-assignment.service';
+import { academicTermService } from '@/services/academic-term.service';
+import { syllabusService, SyllabusComment } from '@/services/syllabus.service';
 
 const { Option } = Select;
 const { TextArea } = Input;
-
-// Mock data lecturers
-const mockLecturers = [
-  { id: 'l1', name: 'TS. Nguyễn Văn A', email: 'nva@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l3', name: 'TS. Lê Văn C', email: 'lvc@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l4', name: 'PGS. Phạm Thị D', email: 'ptd@university.edu.vn', department: 'Khoa CNTT' },
-  { id: 'l5', name: 'ThS. Hoàng Văn E', email: 'hve@university.edu.vn', department: 'Khoa CNTT' },
-];
-
-// Mock courses from AA's course management
-const mockCourses = [
-  { id: 'c1', code: 'CS101', name: 'Nhập môn Lập trình', semester: 'HK1 2024-2025' },
-  { id: 'c2', code: 'CS201', name: 'Cấu trúc Dữ liệu và Giải thuật', semester: 'HK1 2024-2025' },
-  { id: 'c3', code: 'CS301', name: 'Cơ sở Dữ liệu', semester: 'HK2 2024-2025' },
-  { id: 'c4', code: 'CS401', name: 'Hệ điều hành', semester: 'HK2 2024-2025' },
-];
-
-// Mock assignments
-const mockAssignments: TeachingAssignment[] = [
-  {
-    id: 'ta1',
-    courseCode: 'CS201',
-    courseName: 'Cấu trúc Dữ liệu và Giải thuật',
-    semester: 'HK1 2024-2025',
-    mainLecturer: { id: 'l1', name: 'TS. Nguyễn Văn A', email: 'nva@university.edu.vn' },
-    coLecturers: [
-      { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn' },
-    ],
-    deadline: '2025-01-15',
-    status: 'in-progress',
-    createdAt: '2024-12-01',
-    commentCount: 5,
-  },
-  {
-    id: 'ta2',
-    courseCode: 'CS301',
-    courseName: 'Cơ sở Dữ liệu',
-    semester: 'HK2 2024-2025',
-    mainLecturer: { id: 'l3', name: 'TS. Lê Văn C', email: 'lvc@university.edu.vn' },
-    coLecturers: [
-      { id: 'l4', name: 'PGS. Phạm Thị D', email: 'ptd@university.edu.vn' },
-      { id: 'l5', name: 'ThS. Hoàng Văn E', email: 'hve@university.edu.vn' },
-    ],
-    deadline: '2025-02-28',
-    status: 'pending',
-    syllabusId: 's10',
-    createdAt: '2024-12-05',
-    commentCount: 0,
-  },
-  {
-    id: 'ta3',
-    courseCode: 'CS101',
-    courseName: 'Nhập môn Lập trình',
-    semester: 'HK1 2024-2025',
-    mainLecturer: { id: 'l2', name: 'ThS. Trần Thị B', email: 'ttb@university.edu.vn' },
-    coLecturers: [],
-    deadline: '2024-12-20',
-    status: 'submitted',
-    syllabusId: 's11',
-    createdAt: '2024-11-15',
-    commentCount: 12,
-  },
-];
-
-// Mock comments
-const mockComments = [
-  {
-    id: 'c1',
-    assignmentId: 'ta1',
-    userId: 'l2',
-    userName: 'ThS. Trần Thị B',
-    content: 'Phần CLO3 cần bổ sung thêm về phân tích độ phức tạp thuật toán',
-    createdAt: '2024-12-10 14:30',
-  },
-  {
-    id: 'c2',
-    assignmentId: 'ta1',
-    userId: 'l1',
-    userName: 'TS. Nguyễn Văn A',
-    content: 'Đã cập nhật CLO3, cảm ơn góp ý',
-    createdAt: '2024-12-10 16:20',
-  },
-];
 
 export const TeachingAssignmentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -100,12 +18,31 @@ export const TeachingAssignmentPage: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TeachingAssignment | null>(null);
+  const [commentText, setCommentText] = useState('');
   const [form] = Form.useForm();
 
   // Fetch assignments from real API
-  const { data: assignments, isLoading, error } = useQuery({
+  const { data: assignments = [], isLoading, error } = useQuery({
     queryKey: ['teaching-assignments'],
     queryFn: () => teachingAssignmentService.getAll(),
+  });
+
+  // Fetch subjects for HOD
+  const { data: subjects = [] } = useQuery({
+    queryKey: ['hod-subjects'],
+    queryFn: () => teachingAssignmentService.getHodSubjects(),
+  });
+
+  // Fetch lecturers for HOD
+  const { data: lecturers = [] } = useQuery({
+    queryKey: ['hod-lecturers'],
+    queryFn: () => teachingAssignmentService.getHodLecturers(),
+  });
+
+  // Fetch academic terms
+  const { data: academicTerms = [] } = useQuery({
+    queryKey: ['academic-terms'],
+    queryFn: () => academicTermService.getAllTerms(),
   });
 
   // Show error message if API call fails
@@ -117,9 +54,22 @@ export const TeachingAssignmentPage: React.FC = () => {
 
   // Create assignment mutation
   const createAssignmentMutation = useMutation({
-    mutationFn: async (values: any) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return values;
+    mutationFn: async (values: {
+      subjectId: string;
+      academicTermId: string;
+      mainLecturerId: string;
+      coLecturers?: string[];
+      deadline: Dayjs;
+      comments?: string;
+    }) => {
+      return teachingAssignmentService.create({
+        subjectId: values.subjectId,
+        academicTermId: values.academicTermId,
+        mainLecturerId: values.mainLecturerId,
+        collaboratorIds: values.coLecturers || [],
+        deadline: values.deadline.format('YYYY-MM-DD'),
+        comments: values.comments,
+      });
     },
     onSuccess: () => {
       message.success('Gán nhiệm vụ thành công');
@@ -127,11 +77,48 @@ export const TeachingAssignmentPage: React.FC = () => {
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ['teaching-assignments'] });
     },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Gán nhiệm vụ thất bại');
+    },
   });
 
   const handleViewComments = (assignment: TeachingAssignment) => {
     setSelectedAssignment(assignment);
+    setCommentText('');
     setIsCommentModalVisible(true);
+  };
+
+  // Fetch review comments for selected assignment's syllabus
+  const { data: reviewComments = [], isLoading: isLoadingComments, refetch: refetchComments } = useQuery({
+    queryKey: ['review-comments', selectedAssignment?.syllabusId],
+    queryFn: () => syllabusService.getComments(selectedAssignment!.syllabusId!),
+    enabled: !!selectedAssignment?.syllabusId && isCommentModalVisible,
+  });
+
+  // Add comment mutation for HOD
+  const addCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedAssignment?.syllabusId) {
+        throw new Error('Chưa có đề cương');
+      }
+      return syllabusService.addComment(selectedAssignment.syllabusId, content);
+    },
+    onSuccess: () => {
+      message.success('Đã thêm bình luận');
+      setCommentText('');
+      refetchComments();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Thêm bình luận thất bại');
+    },
+  });
+
+  const handleAddComment = () => {
+    if (!commentText.trim()) {
+      message.warning('Vui lòng nhập nội dung bình luận');
+      return;
+    }
+    addCommentMutation.mutate(commentText.trim());
   };
 
   const handleViewSyllabus = (syllabusId: string) => {
@@ -205,12 +192,12 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 140,
       render: (status) => {
         const config = {
-          PENDING: { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
-          IN_PROGRESS: { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
-          SUBMITTED: { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
-          COMPLETED: { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
+          'pending': { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
+          'in-progress': { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
+          'submitted': { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
+          'completed': { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
         };
-        const { color, text, icon } = config[status as keyof typeof config] || config.PENDING;
+        const { color, text, icon } = config[status as keyof typeof config] || config['pending'];
         return <Tag color={color} icon={icon}>{text}</Tag>;
       },
     },
@@ -219,15 +206,32 @@ export const TeachingAssignmentPage: React.FC = () => {
       key: 'comments',
       width: 100,
       align: 'center',
-      render: (_, record) => (
-        <Badge count={record.comments ? 1 : 0} showZero>
+      render: (_, record) => {
+        // If no syllabus yet, show assignment comments indicator
+        if (!record.syllabusId) {
+          return (
+            <Badge count={record.comments ? 1 : 0} showZero>
+              <Button
+                type="text"
+                icon={<MessageOutlined />}
+                onClick={() => handleViewComments(record)}
+                disabled={!record.comments}
+              />
+            </Badge>
+          );
+        }
+        
+        // If syllabus exists, show "Xem" button (comments count will be fetched in modal)
+        return (
           <Button
-            type="text"
+            type="link"
             icon={<MessageOutlined />}
             onClick={() => handleViewComments(record)}
-          />
-        </Badge>
-      ),
+          >
+            Xem
+          </Button>
+        );
+      },
     },
     {
       title: 'Hành động',
@@ -235,15 +239,13 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          {record.syllabusId && (
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewSyllabus(record.syllabusId!)}
-            >
-              Xem đề cương
-            </Button>
-          )}
+          <Button
+            size="small"
+            icon={<MessageOutlined />}
+            onClick={() => handleViewComments(record)}
+          >
+            Bình luận
+          </Button>
         </Space>
       ),
     },
@@ -291,13 +293,40 @@ export const TeachingAssignmentPage: React.FC = () => {
         >
           <Form.Item
             label="Chọn môn học"
-            name="courseId"
+            name="subjectId"
             rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
           >
-            <Select placeholder="Chọn môn học cần làm đề cương">
-              {mockCourses.map((course) => (
-                <Option key={course.id} value={course.id}>
-                  {course.code} - {course.name} ({course.semester})
+            <Select 
+              placeholder="Chọn môn học cần làm đề cương"
+              showSearch
+              onChange={() => {
+                // Auto-select first/latest academic term when subject is selected
+                if (academicTerms.length > 0) {
+                  form.setFieldValue('academicTermId', academicTerms[0].id);
+                }
+              }}
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {subjects.map((subject) => (
+                <Option key={subject.id} value={subject.id}>
+                  {subject.code} - {subject.nameVi} ({subject.credits} TC)
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Học kỳ"
+            name="academicTermId"
+            rules={[{ required: true, message: 'Vui lòng chọn học kỳ' }]}
+            tooltip="Học kỳ được tự động chọn, bạn có thể thay đổi nếu cần"
+          >
+            <Select placeholder="Chọn học kỳ">
+              {academicTerms.map((term) => (
+                <Option key={term.id} value={term.id}>
+                  {term.name}
                 </Option>
               ))}
             </Select>
@@ -312,11 +341,13 @@ export const TeachingAssignmentPage: React.FC = () => {
             <Select
               placeholder="Chọn giáo viên chính"
               showSearch
-              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
             >
-              {mockLecturers.map((lecturer) => (
+              {lecturers.map((lecturer) => (
                 <Option key={lecturer.id} value={lecturer.id}>
-                  {lecturer.name} ({lecturer.email})
+                  {lecturer.fullName} ({lecturer.email})
                 </Option>
               ))}
             </Select>
@@ -324,20 +355,24 @@ export const TeachingAssignmentPage: React.FC = () => {
 
           <Form.Item
             label="Giáo viên cộng tác"
-            name="coLecturerIds"
+            name="coLecturers"
             tooltip="Giáo viên cộng tác chỉ được comment góp ý, không được sửa trực tiếp đề cương"
           >
             <Select
               mode="multiple"
               placeholder="Chọn giáo viên cộng tác (không bắt buộc)"
               showSearch
-              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
             >
-              {mockLecturers.map((lecturer) => (
-                <Option key={lecturer.id} value={lecturer.id}>
-                  {lecturer.name} ({lecturer.email})
-                </Option>
-              ))}
+              {lecturers
+                .filter(l => l.id !== form.getFieldValue('mainLecturerId'))
+                .map((lecturer) => (
+                  <Option key={lecturer.id} value={lecturer.id}>
+                    {lecturer.fullName} ({lecturer.email})
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -354,7 +389,7 @@ export const TeachingAssignmentPage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="Ghi chú" name="note">
+          <Form.Item label="Ghi chú" name="comments">
             <TextArea rows={3} placeholder="Ghi chú cho giáo viên (không bắt buộc)..." />
           </Form.Item>
         </Form>
@@ -365,16 +400,27 @@ export const TeachingAssignmentPage: React.FC = () => {
         title={
           <Space>
             <MessageOutlined />
-            <span>Phản hồi giữa giáo viên</span>
+            <span>Bình luận đề cương</span>
           </Space>
         }
         open={isCommentModalVisible}
         onCancel={() => {
           setIsCommentModalVisible(false);
           setSelectedAssignment(null);
+          setCommentText('');
         }}
-        footer={null}
-        width={800}
+        footer={[
+          <Button 
+            key="close" 
+            onClick={() => {
+              setIsCommentModalVisible(false);
+              setCommentText('');
+            }}
+          >
+            Đóng
+          </Button>,
+        ]}
+        width={900}
       >
         {selectedAssignment && (
           <div>
@@ -392,28 +438,109 @@ export const TeachingAssignmentPage: React.FC = () => {
                     ? selectedAssignment.coLecturers.map(c => c.name).join(', ')
                     : 'Không có'}
                 </div>
+                <div>
+                  <strong>Trạng thái:</strong>{' '}
+                  <Tag color={
+                    selectedAssignment.status === 'pending' ? 'default' :
+                    selectedAssignment.status === 'in-progress' ? 'blue' :
+                    selectedAssignment.status === 'submitted' ? 'orange' : 'green'
+                  }>
+                    {selectedAssignment.status === 'pending' ? 'Chưa bắt đầu' :
+                     selectedAssignment.status === 'in-progress' ? 'Đang làm' :
+                     selectedAssignment.status === 'submitted' ? 'Đã gửi duyệt' : 'Hoàn thành'}
+                  </Tag>
+                </div>
               </Space>
             </Card>
 
-            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-              {selectedAssignment.comments ? (
-                <Card size="small">
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <strong>Ghi chú</strong>
-                    </div>
-                    <div style={{ padding: '8px 12px', backgroundColor: '#f0f0f0', borderRadius: 4 }}>
-                      {selectedAssignment.comments}
+            {/* Assignment Comments (HOD's note) */}
+            {selectedAssignment.comments && (
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <strong>Ghi chú của trưởng bộ môn</strong>
+                  </div>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#fff3cd', borderRadius: 4, border: '1px solid #ffc107' }}>
+                    {selectedAssignment.comments}
+                  </div>
+                </Space>
+              </Card>
+            )}
+
+            {/* Review Comments from Lecturers */}
+            <div style={{ marginBottom: 8 }}>
+              <strong>Bình luận của giảng viên ({reviewComments.length})</strong>
+            </div>
+            
+            {!selectedAssignment.syllabusId ? (
+              <Empty
+                description="Chưa có đề cương. Giảng viên chưa tạo đề cương."
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <>
+                {isLoadingComments ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <Spin />
+                  </div>
+                ) : reviewComments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 20, color: '#999', backgroundColor: '#fafafa', borderRadius: 4, marginBottom: 16 }}>
+                    <MessageOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                    <p>Chưa có bình luận nào</p>
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
+                    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                      {reviewComments.map((comment) => (
+                        <Card key={comment.id} size="small">
+                          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Space>
+                                <UserOutlined style={{ color: '#1890ff' }} />
+                                <strong>{comment.createdByName || 'Không rõ'}</strong>
+                                {comment.section && (
+                                  <Tag color="blue">{comment.section}</Tag>
+                                )}
+                              </Space>
+                              <span style={{ fontSize: '12px', color: '#999' }}>
+                                {dayjs(comment.createdAt).format('DD/MM/YYYY HH:mm')}
+                              </span>
+                            </div>
+                            <div style={{ padding: '8px 0', whiteSpace: 'pre-wrap' }}>
+                              {comment.content}
+                            </div>
+                          </Space>
+                        </Card>
+                      ))}
+                    </Space>
+                  </div>
+                )}
+
+                {/* Add Comment Section for HOD */}
+                <Card size="small" title="Thêm bình luận của bạn" style={{ marginTop: 16 }}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <TextArea
+                      rows={4}
+                      placeholder="Nhập bình luận của bạn về đề cương..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      disabled={addCommentMutation.isPending}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        type="primary"
+                        icon={<MessageOutlined />}
+                        onClick={handleAddComment}
+                        loading={addCommentMutation.isPending}
+                        disabled={!commentText.trim()}
+                      >
+                        Gửi bình luận
+                      </Button>
                     </div>
                   </Space>
                 </Card>
-              ) : (
-                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-                  <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-                  <p>Chưa có phản hồi nào</p>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

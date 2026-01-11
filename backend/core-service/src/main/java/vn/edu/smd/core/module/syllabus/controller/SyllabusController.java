@@ -63,6 +63,15 @@ public class SyllabusController {
         return ResponseEntity.ok(ApiResponse.success("Syllabus created successfully", syllabus));
     }
 
+    @Operation(summary = "Create syllabus from teaching assignment", 
+               description = "Create syllabus draft from teaching assignment with auto-filled basic info")
+    @PostMapping("/from-assignment")
+    public ResponseEntity<ApiResponse<SyllabusResponse>> createSyllabusFromAssignment(
+            @Valid @RequestBody CreateSyllabusFromAssignmentRequest request) {
+        SyllabusResponse syllabus = syllabusService.createSyllabusFromAssignment(request);
+        return ResponseEntity.ok(ApiResponse.success("Syllabus draft created from assignment", syllabus));
+    }
+
     @Operation(summary = "Update syllabus", description = "Update syllabus (only DRAFT status)")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<SyllabusResponse>> updateSyllabus(@PathVariable UUID id, @Valid @RequestBody SyllabusRequest request) {
