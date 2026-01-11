@@ -9,6 +9,7 @@ interface NotificationResponseDTO {
   message: string;
   relatedEntityType?: string;
   relatedEntityId?: string;
+  payload?: Record<string, any>;
   isRead: boolean;
   readAt?: string;
   createdAt: string;
@@ -31,6 +32,7 @@ export const notificationService = {
       readAt: n.readAt,
       relatedEntityId: n.relatedEntityId,
       relatedEntityType: n.relatedEntityType as Notification['relatedEntityType'],
+      payload: n.payload,
     }));
   },
 

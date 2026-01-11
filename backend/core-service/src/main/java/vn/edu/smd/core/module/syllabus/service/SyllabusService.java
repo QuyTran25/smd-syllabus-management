@@ -16,6 +16,8 @@ import vn.edu.smd.core.module.syllabus.dto.*;
 import vn.edu.smd.core.repository.*;
 import vn.edu.smd.core.security.UserPrincipal;
 import vn.edu.smd.shared.enums.SyllabusStatus;
+import vn.edu.smd.shared.enums.NotificationType;
+import vn.edu.smd.shared.enums.AssignmentStatus;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,7 +35,11 @@ public class SyllabusService {
     private final AssessmentSchemeRepository assessmentSchemeRepository;
     private final CloPlOMappingRepository cloPlOMappingRepository;
     private final AssessmentCloMappingRepository assessmentCloMappingRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
+    private final TeachingAssignmentCollaboratorRepository teachingAssignmentCollaboratorRepository;
+    private final SyllabusCollaboratorRepository syllabusCollaboratorRepository;
     private final AITaskService aiTaskService;
+    private final NotificationRepository notificationRepository;
 
     @Transactional(readOnly = true)
     public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
@@ -137,7 +143,108 @@ public class SyllabusService {
                 .isDeleted(false)
                 .build();
 
-        return mapToResponse(syllabusVersionRepository.save(syllabus));
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // If created from teaching assignment, update status and notify HOD
+        if (request.getTeachingAssignmentId() != null) {
+            updateTeachingAssignmentStatus(request.getTeachingAssignmentId(), AssignmentStatus.IN_PROGRESS);
+            sendNotificationToHodOnCreate(request.getTeachingAssignmentId(), savedSyllabus, currentUser);
+        }
+        
+        return mapToResponse(savedSyllabus);
+    }
+
+    /**
+     * Tạo syllabus draft từ teaching assignment
+     * Tự động điền các thông tin cơ bản từ subject và academic term
+     */
+    @Transactional
+    public SyllabusResponse createSyllabusFromAssignment(CreateSyllabusFromAssignmentRequest request) {
+        // Lấy teaching assignment
+        TeachingAssignment assignment = teachingAssignmentRepository.findById(request.getTeachingAssignmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("TeachingAssignment", "id", request.getTeachingAssignmentId()));
+        
+        User currentUser = getCurrentUser();
+        
+        // Kiểm tra quyền: chỉ main lecturer mới có thể tạo
+        if (!assignment.getMainLecturer().getId().equals(currentUser.getId())) {
+            throw new BadRequestException("Chỉ giảng viên chính mới có thể tạo đề cương");
+        }
+        
+        // Kiểm tra xem đã có syllabus draft cho assignment này chưa
+        Optional<SyllabusVersion> existingDraft = syllabusVersionRepository
+                .findBySubjectIdAndAcademicTermIdAndStatus(
+                        assignment.getSubject().getId(),
+                        assignment.getAcademicTerm().getId(),
+                        SyllabusStatus.DRAFT
+                );
+        
+        if (existingDraft.isPresent()) {
+            // Nếu đã có draft thì trả về draft đó, nhưng vẫn cần đảm bảo collaborators được tạo
+            log.info("Đã tồn tại syllabus draft cho assignment {}, trả về draft hiện tại", assignment.getId());
+            SyllabusVersion existingSyllabus = existingDraft.get();
+            
+            // Đảm bảo collaborators được tạo cho draft hiện tại (nếu chưa có)
+            createSyllabusCollaboratorsFromAssignment(assignment, existingSyllabus, currentUser);
+            
+            // Link syllabus to teaching assignment and update status
+            linkSyllabusToAssignment(assignment, existingSyllabus);
+            
+            return mapToResponse(existingSyllabus);
+        }
+        
+        Subject subject = assignment.getSubject();
+        AcademicTerm academicTerm = assignment.getAcademicTerm();
+        
+        // Tạo version number tự động
+        String versionNo = generateVersionNo(subject.getId(), academicTerm.getId());
+        
+        log.info("Tạo syllabus draft từ teaching assignment {} cho môn {} - {}",
+                assignment.getId(), subject.getCode(), subject.getCurrentNameVi());
+        
+        // Tạo syllabus version với thông tin cơ bản từ assignment
+        SyllabusVersion syllabus = SyllabusVersion.builder()
+                .subject(subject)
+                .academicTerm(academicTerm)
+                .versionNo(versionNo)
+                .status(SyllabusStatus.DRAFT)
+                .reviewDeadline(assignment.getDeadline().atStartOfDay())
+                // Snapshot từ subject
+                .snapSubjectCode(subject.getCode())
+                .snapSubjectNameVi(subject.getCurrentNameVi())
+                .snapSubjectNameEn(subject.getCurrentNameEn())
+                .snapCreditCount(subject.getDefaultCredits())
+                // Theory/Practice hours từ subject
+                .theoryHours(subject.getDefaultTheoryHours())
+                .practiceHours(subject.getDefaultPracticeHours())
+                .selfStudyHours(subject.getDefaultSelfStudyHours())
+                // Audit fields
+                .createdBy(currentUser)
+                .updatedBy(currentUser)
+                .isDeleted(false)
+                .build();
+        
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // Auto-create syllabus collaborators from teaching assignment collaborators
+        createSyllabusCollaboratorsFromAssignment(assignment, savedSyllabus, currentUser);
+        
+        // Link syllabus to teaching assignment and update status to IN_PROGRESS
+        linkSyllabusToAssignment(assignment, savedSyllabus);
+        
+        log.info("Đã tạo syllabus draft {} cho môn {} (Teaching Assignment: {})",
+                savedSyllabus.getId(), subject.getCode(), assignment.getId());
+        
+        return mapToResponse(savedSyllabus);
+    }
+    
+    /**
+     * Generate version number tự động
+     */
+    private String generateVersionNo(UUID subjectId, UUID academicTermId) {
+        // Đếm số syllabus versions của môn học trong kỳ này
+        long count = syllabusVersionRepository.countBySubjectIdAndAcademicTermId(subjectId, academicTermId);
+        return "v" + (count + 1) + ".0";
     }
 
     @Transactional
@@ -187,8 +294,12 @@ public class SyllabusService {
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
         syllabus.setUpdatedBy(getCurrentUser());
         SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+                // Update teaching assignment status to SUBMITTED
+        updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.SUBMITTED);
+                // � Send notification to HOD
+        sendNotificationToHod(savedSyllabus);
         
-        // 🚀 Send message to RabbitMQ AI Queue for processing
+        // �🚀 Send message to RabbitMQ AI Queue for processing
         try {
             User currentUser = getCurrentUser();
             String messageId = aiTaskService.requestCloPloMapping(
@@ -226,7 +337,14 @@ public class SyllabusService {
 
         syllabus.setStatus(nextStatus);
         syllabus.setUpdatedBy(getCurrentUser());
-        return mapToResponse(syllabusVersionRepository.save(syllabus));
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // When HOD approves (PENDING_HOD → PENDING_AA), update assignment to COMPLETED
+        if (syllabus.getStatus() == SyllabusStatus.PENDING_HOD && nextStatus == SyllabusStatus.PENDING_AA) {
+            updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.COMPLETED);
+        }
+        
+        return mapToResponse(savedSyllabus);
     }
 
     @Transactional
@@ -530,5 +648,259 @@ public class SyllabusService {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         return userRepository.findByIdWithRoles(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
+    }
+    
+    /**
+     * Send notification to HOD when lecturer submits syllabus for approval
+     */
+    private void sendNotificationToHod(SyllabusVersion syllabus) {
+        try {
+            // Find teaching assignment to get HOD (assignedBy)
+            Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
+                    .findBySubjectIdAndAcademicTermId(
+                        syllabus.getSubject().getId(),
+                        syllabus.getAcademicTerm().getId()
+                    );
+            
+            if (assignmentOpt.isEmpty()) {
+                log.warn("No teaching assignment found for syllabus {} - cannot send HOD notification", 
+                         syllabus.getId());
+                return;
+            }
+            
+            TeachingAssignment assignment = assignmentOpt.get();
+            User hod = assignment.getAssignedBy(); // HOD is the one who assigned
+            User lecturer = syllabus.getCreatedBy();
+            
+            if (hod == null) {
+                log.warn("HOD not found for teaching assignment {} - cannot send notification", 
+                         assignment.getId());
+                return;
+            }
+            
+            // Build notification message
+            String title = String.format("[Đề cương mới] %s - %s", 
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi());
+            
+            String message = String.format(
+                "Giảng viên %s đã nộp đề cương môn học %s (%s) - %s để bạn phê duyệt.\n\n" +
+                "Số tín chỉ: %d\n" +
+                "Học kỳ: %s\n" +
+                "Phiên bản: %s\n\n" +
+                "Vui lòng xem xét và phê duyệt đề cương.",
+                lecturer != null ? lecturer.getFullName() : "Unknown",
+                syllabus.getSnapSubjectNameVi(),
+                syllabus.getSnapSubjectCode(),
+                syllabus.getAcademicTerm() != null ? syllabus.getAcademicTerm().getName() : "",
+                syllabus.getSnapCreditCount(),
+                syllabus.getAcademicTerm() != null ? syllabus.getAcademicTerm().getName() : "",
+                syllabus.getVersionNo()
+            );
+            
+            // Create payload for action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/hod/syllabi/" + syllabus.getId());
+            payload.put("actionLabel", "Xem và phê duyệt");
+            
+            Notification notification = Notification.builder()
+                    .user(hod)
+                    .title(title)
+                    .message(message)
+                    .type("SYLLABUS_REVIEW")
+                    .payload(payload)
+                    .isRead(false)
+                    .build();
+            
+            notificationRepository.save(notification);
+            
+            log.info("Sent notification to HOD {} for syllabus {} submission", 
+                     hod.getEmail(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send notification to HOD for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send notification to HOD when lecturer starts creating syllabus from assignment
+     */
+    private void sendNotificationToHodOnCreate(UUID teachingAssignmentId, SyllabusVersion syllabus, User lecturer) {
+        try {
+            TeachingAssignment assignment = teachingAssignmentRepository.findById(teachingAssignmentId)
+                    .orElse(null);
+            
+            if (assignment == null) {
+                log.warn("Teaching assignment {} not found - cannot send HOD notification", teachingAssignmentId);
+                return;
+            }
+            
+            User hod = assignment.getAssignedBy();
+            if (hod == null) {
+                log.warn("HOD not found for teaching assignment {} - cannot send notification", teachingAssignmentId);
+                return;
+            }
+            
+            String title = String.format("[Đang biên soạn] %s - %s", 
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi());
+            
+            String message = String.format(
+                "Giảng viên %s đã bắt đầu biên soạn đề cương môn học %s (%s) - %s.\n\n" +
+                "Số tín chỉ: %d\n" +
+                "Học kỳ: %s\n" +
+                "Trạng thái: Đang soạn thảo\n\n" +
+                "Bạn sẽ nhận được thông báo khi giảng viên nộp đề cương để phê duyệt.",
+                lecturer.getFullName(),
+                syllabus.getSnapSubjectNameVi(),
+                syllabus.getSnapSubjectCode(),
+                syllabus.getAcademicTerm() != null ? syllabus.getAcademicTerm().getName() : "",
+                syllabus.getSnapCreditCount(),
+                syllabus.getAcademicTerm() != null ? syllabus.getAcademicTerm().getName() : ""
+            );
+            
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("assignmentId", teachingAssignmentId.toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/hod/syllabi/" + syllabus.getId());
+            payload.put("actionLabel", "Xem tiến độ");
+            
+            Notification notification = Notification.builder()
+                    .user(hod)
+                    .title(title)
+                    .message(message)
+                    .type("SYLLABUS_PROGRESS")
+                    .payload(payload)
+                    .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
+                    .build();
+            
+            notificationRepository.save(notification);
+            
+            log.info("Sent progress notification to HOD {} for syllabus {} creation", 
+                     hod.getEmail(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send progress notification to HOD for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Auto-create syllabus collaborators from teaching assignment collaborators
+     */
+    private void createSyllabusCollaboratorsFromAssignment(TeachingAssignment assignment, 
+                                                           SyllabusVersion syllabus, 
+                                                           User mainLecturer) {
+        try {
+            // Get collaborators from teaching assignment
+            List<TeachingAssignmentCollaborator> assignmentCollaborators = 
+                    teachingAssignmentCollaboratorRepository.findByAssignmentId(assignment.getId());
+            
+            if (assignmentCollaborators.isEmpty()) {
+                log.info("No collaborators found for teaching assignment {}", assignment.getId());
+                return;
+            }
+            
+            log.info("Creating {} syllabus collaborators from teaching assignment {}", 
+                     assignmentCollaborators.size(), assignment.getId());
+            
+            for (TeachingAssignmentCollaborator assignmentCollab : assignmentCollaborators) {
+                // Check if collaborator already exists
+                Optional<SyllabusCollaborator> existing = syllabusCollaboratorRepository
+                        .findBySyllabusVersionIdAndUserId(syllabus.getId(), assignmentCollab.getLecturer().getId());
+                
+                if (existing.isEmpty()) {
+                    SyllabusCollaborator syllabusCollab = SyllabusCollaborator.builder()
+                            .syllabusVersion(syllabus)
+                            .user(assignmentCollab.getLecturer())
+                            .role(vn.edu.smd.shared.enums.CollaboratorRole.EDITOR) // Default role for all collaborators
+                            .build();
+                    
+                    syllabusCollaboratorRepository.save(syllabusCollab);
+                    
+                    log.info("Created syllabus collaborator for user {} on syllabus {}", 
+                             assignmentCollab.getLecturer().getEmail(), syllabus.getId());
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to create syllabus collaborators from assignment {}: {}", 
+                      assignment.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Link syllabus to teaching assignment and update status
+     */
+    private void linkSyllabusToAssignment(TeachingAssignment assignment, SyllabusVersion syllabus) {
+        try {
+            // Set syllabus reference
+            assignment.setSyllabusVersion(syllabus);
+            
+            // Update status to IN_PROGRESS if still PENDING
+            if (assignment.getStatus() == AssignmentStatus.PENDING) {
+                assignment.setStatus(AssignmentStatus.IN_PROGRESS);
+            }
+            
+            teachingAssignmentRepository.save(assignment);
+            log.info("Linked syllabus {} to teaching assignment {} with status {}", 
+                    syllabus.getId(), assignment.getId(), assignment.getStatus());
+        } catch (Exception e) {
+            log.error("Failed to link syllabus {} to teaching assignment {}: {}", 
+                      syllabus.getId(), assignment.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Update teaching assignment status by ID
+     */
+    private void updateTeachingAssignmentStatus(UUID assignmentId, AssignmentStatus newStatus) {
+        try {
+            TeachingAssignment assignment = teachingAssignmentRepository.findById(assignmentId)
+                    .orElse(null);
+            
+            if (assignment != null) {
+                assignment.setStatus(newStatus);
+                teachingAssignmentRepository.save(assignment);
+                log.info("Updated teaching assignment {} status to {}", assignmentId, newStatus);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update teaching assignment {} status: {}", 
+                      assignmentId, e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Update teaching assignment status by syllabus (find assignment by subject + term)
+     */
+    private void updateTeachingAssignmentStatusBySyllabus(SyllabusVersion syllabus, AssignmentStatus newStatus) {
+        try {
+            if (syllabus.getSubject() == null || syllabus.getAcademicTerm() == null) {
+                return;
+            }
+            
+            Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
+                    .findBySubjectIdAndAcademicTermId(
+                        syllabus.getSubject().getId(),
+                        syllabus.getAcademicTerm().getId()
+                    );
+            
+            if (assignmentOpt.isPresent()) {
+                TeachingAssignment assignment = assignmentOpt.get();
+                assignment.setStatus(newStatus);
+                teachingAssignmentRepository.save(assignment);
+                log.info("Updated teaching assignment {} status to {} for syllabus {}", 
+                         assignment.getId(), newStatus, syllabus.getId());
+            }
+        } catch (Exception e) {
+            log.error("Failed to update teaching assignment status for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
     }
 }

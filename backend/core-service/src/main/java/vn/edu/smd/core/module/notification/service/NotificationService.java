@@ -104,6 +104,7 @@ public class NotificationService {
         response.setMessage(notification.getMessage());
         response.setRelatedEntityType(notification.getRelatedEntityType());
         response.setRelatedEntityId(notification.getRelatedEntityId());
+        response.setPayload(notification.getPayload());
         response.setIsRead(notification.getIsRead());
         response.setReadAt(notification.getReadAt());
         response.setCreatedAt(notification.getCreatedAt());

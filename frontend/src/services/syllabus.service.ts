@@ -66,6 +66,14 @@ export const syllabusService = {
     return response.data.data;
   },
 
+  // Create syllabus from teaching assignment
+  createSyllabusFromAssignment: async (teachingAssignmentId: string): Promise<Syllabus> => {
+    const response = await apiClient.post('/api/syllabi/from-assignment', {
+      teachingAssignmentId,
+    });
+    return response.data.data;
+  },
+
   // Update syllabus
   updateSyllabus: async (id: string, data: Partial<Syllabus>): Promise<Syllabus> => {
     const response = await apiClient.put(`/api/syllabi/${id}`, data);

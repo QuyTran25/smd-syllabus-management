@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Select, Input, Tag, message, DatePicker, Tooltip, Badge } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Select, Input, Tag, message, DatePicker, Tooltip, Badge, Spin, Empty } from 'antd';
 import { PlusOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, MessageOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
 import { teachingAssignmentService, TeachingAssignment } from '@/services/teaching-assignment.service';
 import { academicTermService } from '@/services/academic-term.service';
+import { syllabusService, SyllabusComment } from '@/services/syllabus.service';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -17,6 +18,7 @@ export const TeachingAssignmentPage: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TeachingAssignment | null>(null);
+  const [commentText, setCommentText] = useState('');
   const [form] = Form.useForm();
 
   // Fetch assignments from real API
@@ -82,7 +84,41 @@ export const TeachingAssignmentPage: React.FC = () => {
 
   const handleViewComments = (assignment: TeachingAssignment) => {
     setSelectedAssignment(assignment);
+    setCommentText('');
     setIsCommentModalVisible(true);
+  };
+
+  // Fetch review comments for selected assignment's syllabus
+  const { data: reviewComments = [], isLoading: isLoadingComments, refetch: refetchComments } = useQuery({
+    queryKey: ['review-comments', selectedAssignment?.syllabusId],
+    queryFn: () => syllabusService.getComments(selectedAssignment!.syllabusId!),
+    enabled: !!selectedAssignment?.syllabusId && isCommentModalVisible,
+  });
+
+  // Add comment mutation for HOD
+  const addCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedAssignment?.syllabusId) {
+        throw new Error('Chưa có đề cương');
+      }
+      return syllabusService.addComment(selectedAssignment.syllabusId, content);
+    },
+    onSuccess: () => {
+      message.success('Đã thêm bình luận');
+      setCommentText('');
+      refetchComments();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Thêm bình luận thất bại');
+    },
+  });
+
+  const handleAddComment = () => {
+    if (!commentText.trim()) {
+      message.warning('Vui lòng nhập nội dung bình luận');
+      return;
+    }
+    addCommentMutation.mutate(commentText.trim());
   };
 
   const handleViewSyllabus = (syllabusId: string) => {
@@ -156,12 +192,12 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 140,
       render: (status) => {
         const config = {
-          PENDING: { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
-          IN_PROGRESS: { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
-          SUBMITTED: { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
-          COMPLETED: { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
+          'pending': { color: 'default', text: 'Chưa bắt đầu', icon: <ClockCircleOutlined /> },
+          'in-progress': { color: 'blue', text: 'Đang làm', icon: <ClockCircleOutlined /> },
+          'submitted': { color: 'orange', text: 'Đã gửi duyệt', icon: <CheckCircleOutlined /> },
+          'completed': { color: 'green', text: 'Hoàn thành', icon: <CheckCircleOutlined /> },
         };
-        const { color, text, icon } = config[status as keyof typeof config] || config.PENDING;
+        const { color, text, icon } = config[status as keyof typeof config] || config['pending'];
         return <Tag color={color} icon={icon}>{text}</Tag>;
       },
     },
@@ -170,15 +206,32 @@ export const TeachingAssignmentPage: React.FC = () => {
       key: 'comments',
       width: 100,
       align: 'center',
-      render: (_, record) => (
-        <Badge count={record.comments ? 1 : 0} showZero>
+      render: (_, record) => {
+        // If no syllabus yet, show assignment comments indicator
+        if (!record.syllabusId) {
+          return (
+            <Badge count={record.comments ? 1 : 0} showZero>
+              <Button
+                type="text"
+                icon={<MessageOutlined />}
+                onClick={() => handleViewComments(record)}
+                disabled={!record.comments}
+              />
+            </Badge>
+          );
+        }
+        
+        // If syllabus exists, show "Xem" button (comments count will be fetched in modal)
+        return (
           <Button
-            type="text"
+            type="link"
             icon={<MessageOutlined />}
             onClick={() => handleViewComments(record)}
-          />
-        </Badge>
-      ),
+          >
+            Xem
+          </Button>
+        );
+      },
     },
     {
       title: 'Hành động',
@@ -186,15 +239,13 @@ export const TeachingAssignmentPage: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          {record.syllabusId && (
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewSyllabus(record.syllabusId!)}
-            >
-              Xem đề cương
-            </Button>
-          )}
+          <Button
+            size="small"
+            icon={<MessageOutlined />}
+            onClick={() => handleViewComments(record)}
+          >
+            Bình luận
+          </Button>
         </Space>
       ),
     },
@@ -349,16 +400,27 @@ export const TeachingAssignmentPage: React.FC = () => {
         title={
           <Space>
             <MessageOutlined />
-            <span>Phản hồi giữa giáo viên</span>
+            <span>Bình luận đề cương</span>
           </Space>
         }
         open={isCommentModalVisible}
         onCancel={() => {
           setIsCommentModalVisible(false);
           setSelectedAssignment(null);
+          setCommentText('');
         }}
-        footer={null}
-        width={800}
+        footer={[
+          <Button 
+            key="close" 
+            onClick={() => {
+              setIsCommentModalVisible(false);
+              setCommentText('');
+            }}
+          >
+            Đóng
+          </Button>,
+        ]}
+        width={900}
       >
         {selectedAssignment && (
           <div>
@@ -376,28 +438,109 @@ export const TeachingAssignmentPage: React.FC = () => {
                     ? selectedAssignment.coLecturers.map(c => c.name).join(', ')
                     : 'Không có'}
                 </div>
+                <div>
+                  <strong>Trạng thái:</strong>{' '}
+                  <Tag color={
+                    selectedAssignment.status === 'pending' ? 'default' :
+                    selectedAssignment.status === 'in-progress' ? 'blue' :
+                    selectedAssignment.status === 'submitted' ? 'orange' : 'green'
+                  }>
+                    {selectedAssignment.status === 'pending' ? 'Chưa bắt đầu' :
+                     selectedAssignment.status === 'in-progress' ? 'Đang làm' :
+                     selectedAssignment.status === 'submitted' ? 'Đã gửi duyệt' : 'Hoàn thành'}
+                  </Tag>
+                </div>
               </Space>
             </Card>
 
-            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-              {selectedAssignment.comments ? (
-                <Card size="small">
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <strong>Ghi chú</strong>
-                    </div>
-                    <div style={{ padding: '8px 12px', backgroundColor: '#f0f0f0', borderRadius: 4 }}>
-                      {selectedAssignment.comments}
+            {/* Assignment Comments (HOD's note) */}
+            {selectedAssignment.comments && (
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <strong>Ghi chú của trưởng bộ môn</strong>
+                  </div>
+                  <div style={{ padding: '8px 12px', backgroundColor: '#fff3cd', borderRadius: 4, border: '1px solid #ffc107' }}>
+                    {selectedAssignment.comments}
+                  </div>
+                </Space>
+              </Card>
+            )}
+
+            {/* Review Comments from Lecturers */}
+            <div style={{ marginBottom: 8 }}>
+              <strong>Bình luận của giảng viên ({reviewComments.length})</strong>
+            </div>
+            
+            {!selectedAssignment.syllabusId ? (
+              <Empty
+                description="Chưa có đề cương. Giảng viên chưa tạo đề cương."
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <>
+                {isLoadingComments ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}>
+                    <Spin />
+                  </div>
+                ) : reviewComments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 20, color: '#999', backgroundColor: '#fafafa', borderRadius: 4, marginBottom: 16 }}>
+                    <MessageOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                    <p>Chưa có bình luận nào</p>
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
+                    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                      {reviewComments.map((comment) => (
+                        <Card key={comment.id} size="small">
+                          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Space>
+                                <UserOutlined style={{ color: '#1890ff' }} />
+                                <strong>{comment.createdByName || 'Không rõ'}</strong>
+                                {comment.section && (
+                                  <Tag color="blue">{comment.section}</Tag>
+                                )}
+                              </Space>
+                              <span style={{ fontSize: '12px', color: '#999' }}>
+                                {dayjs(comment.createdAt).format('DD/MM/YYYY HH:mm')}
+                              </span>
+                            </div>
+                            <div style={{ padding: '8px 0', whiteSpace: 'pre-wrap' }}>
+                              {comment.content}
+                            </div>
+                          </Space>
+                        </Card>
+                      ))}
+                    </Space>
+                  </div>
+                )}
+
+                {/* Add Comment Section for HOD */}
+                <Card size="small" title="Thêm bình luận của bạn" style={{ marginTop: 16 }}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <TextArea
+                      rows={4}
+                      placeholder="Nhập bình luận của bạn về đề cương..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      disabled={addCommentMutation.isPending}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        type="primary"
+                        icon={<MessageOutlined />}
+                        onClick={handleAddComment}
+                        loading={addCommentMutation.isPending}
+                        disabled={!commentText.trim()}
+                      >
+                        Gửi bình luận
+                      </Button>
                     </div>
                   </Space>
                 </Card>
-              ) : (
-                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-                  <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-                  <p>Chưa có phản hồi nào</p>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

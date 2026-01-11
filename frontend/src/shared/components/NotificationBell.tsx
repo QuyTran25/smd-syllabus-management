@@ -17,6 +17,7 @@ export interface Notification {
   readAt?: string;
   relatedEntityId?: string;
   relatedEntityType?: 'SYLLABUS' | 'REVIEW' | 'SUBJECT' | 'TEACHING_ASSIGNMENT';
+  payload?: Record<string, any>;
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -99,10 +100,16 @@ const NotificationBell: React.FC = () => {
     setDetailModalOpen(false);
     setDropdownOpen(false);
     
-    // Navigate based on type and actionUrl in payload
-    if (notification.type === 'ASSIGNMENT' && notification.relatedEntityType === 'SUBJECT') {
-      // Navigate to teaching assignment page
+    // Navigate using actionUrl from payload if available
+    if (notification.payload?.actionUrl) {
+      navigate(notification.payload.actionUrl);
+    } else if (notification.type === 'ASSIGNMENT' && notification.relatedEntityType === 'SUBJECT') {
+      // Fallback for HOD assignment notification
       navigate('/admin/teaching-assignment');
+    } else if (notification.type === 'ASSIGNMENT' && notification.relatedEntityType === 'TEACHING_ASSIGNMENT') {
+      // For lecturer assignment notification
+      const actionUrl = notification.payload?.actionUrl || '/lecturer/dashboard';
+      navigate(actionUrl);
     }
   };
 
@@ -216,6 +223,23 @@ const NotificationBell: React.FC = () => {
                       <div style={{ marginTop: '4px', fontSize: '12px', color: '#999' }}>
                         {item.createdAt}
                       </div>
+                      {/* Action button if payload has actionUrl */}
+                      {item.payload?.actionUrl && (
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNavigateToAction(item);
+                            if (!item.isRead) {
+                              markAsReadMutation.mutate(item.id);
+                            }
+                          }}
+                          style={{ marginTop: '8px' }}
+                        >
+                          {item.payload.actionLabel || 'Xem chi tiết'}
+                        </Button>
+                      )}
                     </>
                   }
                 />
@@ -279,12 +303,12 @@ const NotificationBell: React.FC = () => {
 
       {/* Actions */}
       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-        {selectedNotification.type === 'ASSIGNMENT' && (
+        {selectedNotification.type === 'ASSIGNMENT' && selectedNotification.payload?.actionUrl && (
           <Button
             type="primary"
             onClick={() => handleNavigateToAction(selectedNotification)}
           >
-            Đi đến Phân công
+            {selectedNotification.payload?.actionLabel || 'Đi đến Phiên giao'}
           </Button>
         )}
         {!selectedNotification.isRead && (
