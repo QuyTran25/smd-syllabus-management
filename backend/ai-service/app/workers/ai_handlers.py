@@ -4,8 +4,24 @@ Xử lý messages từ RabbitMQ và route tới handlers tương ứng
 """
 import logging
 import time
+import json
 from datetime import datetime
 from typing import Dict, Any
+import os
+
+# AI Model imports
+try:
+    from transformers import (
+        AutoTokenizer, 
+        AutoModelForSeq2SeqLM,
+        BartForConditionalGeneration,
+        AutoModelForCausalLM
+    )
+    import torch
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+    logging.warning("⚠️ AI libraries not installed. Running in MOCK mode.")
 
 logger = logging.getLogger(__name__)
 
@@ -13,31 +29,51 @@ logger = logging.getLogger(__name__)
 class AIMessageHandler:
     """Handler chính cho AI messages"""
     
-    def __init__(self):
+    def __init__(self, rabbitmq_manager=None):
         """
-        Initialize handler
-        TODO: Inject các services (DB, Redis, AI models) khi implement thật
+        Initialize handler with AI model for SUMMARIZE function
         """
-        logger.info("🤖 AI Message Handler initialized")
+        self.mock_mode = os.getenv('MOCK_MODE', 'false').lower() == 'true'
+        self.model = None
+        self.tokenizer = None
+        self.device = None
+        self.rabbitmq_manager = rabbitmq_manager
+        
+        # Load AI model for SUMMARIZE if not in mock mode
+        if not self.mock_mode and AI_AVAILABLE:
+            try:
+                self._load_summarize_model()
+            except Exception as e:
+                logger.error(f"❌ Failed to load AI model: {e}")
+                logger.warning("⚠️ Falling back to MOCK mode")
+                self.mock_mode = True
+        
+        mode = "MOCK" if self.mock_mode else "AI"
+        logger.info(f"🤖 AI Message Handler initialized in {mode} mode")
     
     def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """
         Route message tới handler phù hợp dựa trên action
         
         Args:
-            message: Message dict từ RabbitMQ
+            message: Message dict từ RabbitMQ (format: AIMessageRequest)
             
         Returns:
-            Response dict với status và result
+            Response dict với status và result (format: AIMessageResponse)
         """
         action = message.get('action')
-        message_id = message.get('message_id')
+        message_id = message.get('messageId') or message.get('message_id')  # Support both formats
         payload = message.get('payload', {})
+        priority = message.get('priority', 'MEDIUM')
+        user_id = message.get('userId') or message.get('user_id')
         
         start_time = datetime.now()
         
         try:
-            logger.info(f"🔄 Processing {action} - Message ID: {message_id}")
+            logger.info(f"[Received] Action: {action} for Message ID: {message_id}")
+            logger.info(f"[Priority] {priority} | User: {user_id}")
+            mode_status = "MOCK mode" if self.mock_mode else "AI mode"
+            logger.info(f"[Processing] {action} with {mode_status}...")
             
             # Route to appropriate handler
             if action == 'MAP_CLO_PLO':
@@ -52,28 +88,61 @@ class AIMessageHandler:
             processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
             
             response = {
-                'message_id': message_id,
+                'messageId': message_id,
                 'action': action,
                 'status': 'SUCCESS',
+                'progress': 100,
                 'result': result,
-                'processing_time_ms': processing_time
+                'processingTimeMs': processing_time
             }
             
+            logger.info(f"[Done] Processing completed.")
             logger.info(f"✅ {action} completed in {processing_time}ms")
             
             # TODO: Lưu result vào DB (ai_service.syllabus_ai_analysis)
             # self._save_to_database(message_id, action, result, processing_time)
             
+            # Send result to result queue
+            self._send_result_to_queue(response)
+            
             return response
             
         except Exception as e:
             logger.error(f"❌ Error handling {action}: {e}", exc_info=True)
-            return {
-                'message_id': message_id,
+            
+            processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
+            
+            # Error response
+            error_response = {
+                'messageId': message_id,
                 'action': action,
-                'status': 'FAILED',
-                'error_message': str(e)
+                'status': 'ERROR',
+                'progress': 0,
+                'result': None,
+                'errorMessage': str(e),
+                'processingTimeMs': processing_time
             }
+            
+            # Send error to result queue
+            self._send_result_to_queue(error_response)
+            
+            return error_response
+    
+    def _send_result_to_queue(self, response: Dict[str, Any]) -> None:
+        """Send result to ai_result_queue"""
+        if not self.rabbitmq_manager:
+            logger.warning("⚠️ No RabbitMQ manager, skipping result publish")
+            return
+        
+        try:
+            result_queue = os.getenv('QUEUE_AI_RESULT', 'ai_result_queue')
+            success = self.rabbitmq_manager.publish_message(result_queue, response)
+            if success:
+                logger.info(f"📤 Result sent to {result_queue}: {response.get('messageId')}")
+            else:
+                logger.error(f"❌ Failed to send result to {result_queue}")
+        except Exception as e:
+            logger.error(f"❌ Error sending result: {e}", exc_info=True)
     
     def _handle_map_clo_plo(self, message_id: str, payload: Dict) -> Dict:
         """
@@ -227,12 +296,19 @@ class AIMessageHandler:
         """
         Handler cho SUMMARIZE_SYLLABUS - Tóm tắt cho sinh viên
         
-        MOCK DATA
+        Sử dụng AI model thật (VietAI/vit5-base) để tóm tắt
         """
         syllabus_id = payload.get('syllabus_id')
+        syllabus_data = payload.get('syllabus_data', {})
         
         logger.info(f"📝 Summarizing syllabus: {syllabus_id}")
         
+        # Use real AI if available
+        if not self.mock_mode and self.model is not None:
+            return self._summarize_with_ai(syllabus_data)
+        
+        # Fallback to mock
+        logger.info("⚠️ Using MOCK data (AI model not available)")
         time.sleep(2)  # 2 seconds
         
         # MOCK RESULT
@@ -293,3 +369,341 @@ class AIMessageHandler:
         
         logger.info(f"✅ Summarization completed")
         return result
+    
+    # =============================================
+    # AI MODEL METHODS - REAL IMPLEMENTATION
+    # =============================================
+    
+    def _load_summarize_model(self):
+        """
+        Load VinAI/bartpho-word model cho summarization
+        BART Vietnamese - Tốt hơn cho Vietnamese text generation
+        """
+        model_name = os.getenv('AI_MODEL_NAME', 'vinai/bartpho-word')
+        logger.info(f"📦 Loading model: {model_name}")
+        
+        # Determine device
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"🔧 Using device: {self.device}")
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        # Load model - BART architecture
+        self.model = BartForConditionalGeneration.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+        ).to(self.device)
+        
+        logger.info(f"✅ Model loaded successfully on {self.device}")
+    
+    def _summarize_with_ai(self, syllabus_data: Dict) -> Dict:
+        """
+        Tạo tóm tắt có cấu trúc từ dữ liệu đề cương theo format chuẩn
+        """
+        try:
+            # Extract syllabus information
+            course_name = syllabus_data.get('course_name', 'N/A')
+            description = syllabus_data.get('description', '')
+            learning_outcomes = syllabus_data.get('learning_outcomes', [])
+            assessment_scheme = syllabus_data.get('assessment_scheme', [])
+            objectives = syllabus_data.get('objectives', [])
+            theory_hours = syllabus_data.get('theory_hours', 0)
+            practice_hours = syllabus_data.get('practice_hours', 0)
+            prerequisites = syllabus_data.get('prerequisites', [])
+            textbooks = syllabus_data.get('textbooks', [])
+            references = syllabus_data.get('references', [])
+            weekly_content = syllabus_data.get('weekly_content', [])
+            
+            # 1. Mô tả học phần
+            mo_ta = description if description else "Không có thông tin"
+            
+            # 2. Mục tiêu học phần
+            muc_tieu = []
+            if objectives:
+                # Check if objectives is a list or string
+                if isinstance(objectives, list):
+                    for obj in objectives:
+                        obj_text = obj if isinstance(obj, str) else str(obj)
+                        if obj_text:
+                            muc_tieu.append(obj_text)
+                elif isinstance(objectives, str):
+                    # If it's a string, split by common delimiters or add as single item
+                    if '\n' in objectives:
+                        muc_tieu = [o.strip() for o in objectives.split('\n') if o.strip()]
+                    elif '. ' in objectives:
+                        muc_tieu = [o.strip() + '.' for o in objectives.split('. ') if o.strip()]
+                    else:
+                        muc_tieu = [objectives]
+            
+            # 3. Phương pháp giảng dạy (từ weekly_content nếu có)
+            phuong_phap_giang_day = []
+            if weekly_content and len(weekly_content) > 0:
+                for week in weekly_content[:3]:
+                    if isinstance(week, dict):
+                        activities = week.get('activities', '')
+                        if activities and activities not in phuong_phap_giang_day:
+                            phuong_phap_giang_day.append(activities)
+            if not phuong_phap_giang_day:
+                phuong_phap_giang_day = ["Bài giảng trên lớp", "Thảo luận nhóm", "Bài tập thực hành"]
+            
+            # 4. Phương pháp đánh giá
+            phuong_phap_danh_gia = []
+            if assessment_scheme and len(assessment_scheme) > 0:
+                for assess in assessment_scheme:
+                    if isinstance(assess, dict):
+                        method = assess.get('method', '')
+                        weight = assess.get('weight', '')
+                        if method:
+                            phuong_phap_danh_gia.append({
+                                "method": method,
+                                "weight": str(weight)
+                            })
+            
+            # 5. Giáo trình chính
+            giao_trinh_chinh = []
+            if textbooks and len(textbooks) > 0:
+                for book in textbooks:
+                    if isinstance(book, dict):
+                        if book.get('type') == 'required':
+                            giao_trinh_chinh.append({
+                                "title": book.get('title', ''),
+                                "authors": book.get('authors', ''),
+                                "year": book.get('year', '')
+                            })
+            
+            # 6. Tài liệu tham khảo
+            tai_lieu_tham_khao = []
+            if textbooks and len(textbooks) > 0:
+                for book in textbooks:
+                    if isinstance(book, dict):
+                        if book.get('type') == 'reference':
+                            tai_lieu_tham_khao.append({
+                                "title": book.get('title', ''),
+                                "authors": book.get('authors', ''),
+                                "year": book.get('year', '')
+                            })
+            if references and len(references) > 0:
+                for ref in references:
+                    ref_text = ref if isinstance(ref, str) else str(ref)
+                    if ref_text:
+                        tai_lieu_tham_khao.append({"title": ref_text})
+            
+            # 7. Nhiệm vụ của Sinh viên
+            nhiem_vu = []
+            student_duties = syllabus_data.get('student_duties', '')
+            if student_duties:
+                # If data from database exists
+                if isinstance(student_duties, str):
+                    if '. ' in student_duties:
+                        nhiem_vu = [nv.strip() + '.' for nv in student_duties.split('. ') if nv.strip()]
+                    else:
+                        nhiem_vu = [student_duties]
+                elif isinstance(student_duties, list):
+                    nhiem_vu = student_duties
+            
+            # If no data from database, generate generic template
+            if not nhiem_vu:
+                nhiem_vu = [
+                    f"Tham gia đầy đủ {theory_hours + practice_hours} tiết học ({theory_hours} lý thuyết + {practice_hours} thực hành)",
+                    "Hoàn thành các bài tập được giao đúng hạn",
+                    "Tham gia thảo luận và làm việc nhóm tích cực",
+                    "Chuẩn bị bài trước khi đến lớp"
+                ]
+            
+            # 8. Chuẩn đầu ra học phần (CLO)
+            clo_list = []
+            if learning_outcomes and len(learning_outcomes) > 0:
+                for clo in learning_outcomes:
+                    if isinstance(clo, dict):
+                        clo_list.append({
+                            "code": clo.get('code', ''),
+                            "description": clo.get('description', ''),
+                            "bloom_level": clo.get('bloom_level', ''),
+                            "weight": str(clo.get('weight', ''))
+                        })
+            
+            result = {
+                "course_name": course_name,
+                "mo_ta_hoc_phan": mo_ta,
+                "muc_tieu_hoc_phan": muc_tieu,
+                "phuong_phap_giang_day": phuong_phap_giang_day,
+                "phuong_phap_danh_gia": phuong_phap_danh_gia,
+                "giao_trinh_chinh": giao_trinh_chinh,
+                "tai_lieu_tham_khao": tai_lieu_tham_khao,
+                "nhiem_vu_sinh_vien": nhiem_vu,
+                "clo": clo_list
+            }
+            
+            logger.info("✅ Structured Summary completed")
+            logger.info(f"📄 Result:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Summary creation failed: {e}", exc_info=True)
+            # Fallback to basic structured summary
+            return self._create_structured_summary(syllabus_data)
+    
+    def _generate_summary(self, prompt: str, max_length: int = 150) -> str:
+        """
+        Generate summary using BARTpho
+        """
+        try:
+            # Tokenize (BARTpho doesn't use token_type_ids)
+            inputs = self.tokenizer(
+                prompt,
+                max_length=512,
+                truncation=True,
+                return_tensors="pt",
+                add_special_tokens=True
+            )
+            # Remove token_type_ids if present (not used by BARTpho)
+            if 'token_type_ids' in inputs:
+                del inputs['token_type_ids']
+            
+            inputs = inputs.to(self.device)
+            
+            # Generate with better parameters for quality
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_length=max_length,
+                    min_length=20,
+                    num_beams=5,
+                    no_repeat_ngram_size=3,
+                    repetition_penalty=2.0,
+                    length_penalty=1.0,
+                    early_stopping=True
+                )
+            
+            # Decode
+            summary = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            return summary.strip()
+            
+        except Exception as e:
+            logger.error(f"❌ Generation failed: {e}")
+            return prompt[:max_length]  # Fallback to truncated input
+    
+    def _format_learning_outcomes(self, outcomes: list) -> str:
+        """Format learning outcomes for prompt"""
+        if not outcomes:
+            return "Không có thông tin"
+        formatted = []
+        for o in outcomes[:5]:
+            if isinstance(o, dict):
+                formatted.append(f"- {o.get('description', str(o))}")
+            else:
+                formatted.append(f"- {str(o)}")
+        return "\n".join(formatted)
+    
+    def _format_assessment_scheme(self, scheme: list) -> str:
+        """Format assessment scheme for prompt"""
+        if not scheme:
+            return "Không có thông tin"
+        return "\n".join([f"- {s.get('type', 'N/A')}: {s.get('weight', 0)}%" for s in scheme])
+    
+    def _extract_highlights(self, syllabus_data: Dict) -> Dict:
+        """Extract key highlights from syllabus data"""
+        theory_hours = syllabus_data.get('theory_hours', 0)
+        practice_hours = syllabus_data.get('practice_hours', 0)
+        total_hours = theory_hours + practice_hours
+        assessment_scheme = syllabus_data.get('assessment_scheme', [])
+        learning_outcomes = syllabus_data.get('learning_outcomes', [])
+        
+        # Determine difficulty
+        difficulty_level = "MEDIUM"
+        if total_hours > 60:
+            difficulty_level = "HIGH"
+        elif total_hours < 30:
+            difficulty_level = "EASY"
+        
+        return {
+            "difficulty": {
+                "level": difficulty_level,
+                "description": f"{difficulty_level.capitalize()} - Tổng {total_hours} tiết"
+            },
+            "duration": {
+                "theory_hours": theory_hours,
+                "practice_hours": practice_hours,
+                "total_hours": total_hours,
+                "description": f"{theory_hours} lý thuyết + {practice_hours} tiết thực hành"
+            },
+            "assessment": {
+                "summary": f"Có {len(assessment_scheme) if assessment_scheme else 0} phương pháp đánh giá",
+                "breakdown": assessment_scheme if assessment_scheme else []
+            },
+            "skills_acquired": {
+                "summary": f"Có {len(learning_outcomes) if learning_outcomes else 0} kết quả học tập",
+                "key_skills": [
+                    o.get('description', str(o))[:100] if isinstance(o, dict) else str(o)[:100] 
+                    for o in (learning_outcomes[:5] if learning_outcomes else [])
+                ]
+            }
+        }
+    
+    def _generate_recommendations(self, syllabus_data: Dict) -> Dict:
+        """Generate study recommendations"""
+        prerequisites = syllabus_data.get('prerequisites', [])
+        theory_hours = syllabus_data.get('theory_hours', 0)
+        practice_hours = syllabus_data.get('practice_hours', 0)
+        
+        # Calculate study time
+        total_hours = theory_hours + practice_hours
+        hours_per_week = max(4, int(total_hours / 15 * 1.5))  # Assume 15 weeks
+        
+        return {
+            "prerequisites": {
+                "required": prerequisites if prerequisites else ["Không có yêu cầu tiên quyết"],
+                "description": "Nên có kiến thức cơ bản về các môn tiên quyết" if prerequisites else "Không yêu cầu tiên quyết"
+            },
+            "preparation": {
+                "tips": [
+                    "Đọc trước syllabus và tài liệu tham khảo",
+                    f"Chuẩn bị {hours_per_week} giờ học mỗi tuần",
+                    "Tham gia đầy đủ các buổi thực hành"
+                ],
+                "description": "Chuẩn bị trước khi học"
+            },
+            "study_time": {
+                "hours_per_week": hours_per_week,
+                "breakdown": f"{int(hours_per_week * 0.6)} giờ làm bài tập + {int(hours_per_week * 0.4)} giờ đọc tài liệu",
+                "description": f"Dành ít nhất {hours_per_week} giờ/tuần"
+            }
+        }
+    
+    def _create_structured_summary(self, syllabus_data: Dict) -> Dict:
+        """Create structured summary without AI generation (fallback)"""
+        course_name = syllabus_data.get('course_name', 'N/A')
+        description = syllabus_data.get('description', 'Không có mô tả')
+        
+        return {
+            "overview": {
+                "title": course_name,
+                "description": description[:200] if len(description) > 200 else description
+            },
+            "highlights": self._extract_highlights(syllabus_data),
+            "recommendations": self._generate_recommendations(syllabus_data)
+        }
+    
+    def _compare_embeddings_similarity(self, text1: str, text2: str) -> float:
+        """
+        🚀 TODO: So sánh semantic similarity giữa 2 texts
+        
+        Example implementation:
+        
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        # Get embeddings
+        emb1 = self._get_embeddings([text1])[0]
+        emb2 = self._get_embeddings([text2])[0]
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity(
+            np.array(emb1).reshape(1, -1),
+            np.array(emb2).reshape(1, -1)
+        )[0][0]
+        
+        return float(similarity)
+        """
+        pass

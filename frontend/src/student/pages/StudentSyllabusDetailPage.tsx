@@ -26,6 +26,8 @@ import {
   useReportIssue,
   useStudentSyllabusDetail,
   useToggleTrack,
+  useSummarizeSyllabus,
+  useAITaskStatus,
 } from '../hooks/useStudentSyllabus';
 
 const { Title, Text } = Typography;
@@ -41,10 +43,15 @@ export const StudentSyllabusDetailPage: React.FC = () => {
   const toggleTrack = useToggleTrack();
   const downloadPdf = useDownloadPdf();
   const reportIssue = useReportIssue();
+  const summarizeAI = useSummarizeSyllabus();
 
   const [openAi, setOpenAi] = useState(false);
   const [openCloPlo, setOpenCloPlo] = useState(false);
   const [openReport, setOpenReport] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  
+  // Poll AI task status
+  const taskStatus = useAITaskStatus(currentTaskId);
 
   // ===== 1. AI summary object for modal =====
   const aiSummary = useMemo(() => {
@@ -221,7 +228,30 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         </Space>
 
         <Space wrap>
-          <Button icon={<RobotOutlined />} onClick={() => setOpenAi(true)}>
+          <Button 
+            icon={<RobotOutlined />} 
+            loading={summarizeAI.isPending || taskStatus.isFetching}
+            onClick={async () => {
+              console.log('🔵 Robot button clicked! Data ID:', data.id);
+              try {
+                message.loading({ content: 'Đang gửi yêu cầu AI...', key: 'ai-loading', duration: 0 });
+                const taskId = await summarizeAI.mutateAsync(data.id);
+                console.log('🟢 Task ID:', taskId);
+                
+                // Lưu taskId và bắt đầu polling
+                setCurrentTaskId(taskId);
+                message.destroy('ai-loading');
+                message.success('Đang xử lý với AI... (khoảng 15 giây)');
+                
+                // Mở modal ngay (sẽ hiển thị loading)
+                setOpenAi(true);
+              } catch (error: any) {
+                console.error('🔴 Error:', error);
+                message.destroy('ai-loading');
+                message.error(error?.response?.data?.message || 'Không thể gọi AI');
+              }
+            }}
+          >
             🤖 Tóm tắt AI
           </Button>
           <Button icon={<TableOutlined />} onClick={() => setOpenCloPlo(true)}>
@@ -400,7 +430,14 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         Bản quyền thuộc về © Trung tâm Thông tin - Thư viện
       </div>
 
-      <AISummaryModal open={openAi} onClose={() => setOpenAi(false)} summary={aiSummary} />
+      <AISummaryModal 
+        open={openAi} 
+        onClose={() => {
+          setOpenAi(false);
+          setCurrentTaskId(null); // Reset taskId when closing
+        }} 
+        taskStatus={taskStatus.data} 
+      />
       <CloPloModal
         open={openCloPlo}
         onClose={() => setOpenCloPlo(false)}

@@ -8,6 +8,7 @@ import {
   ReportIssuePayload, // ⭐ THÊM: Import Interface từ file API
 } from '../api/studentSyllabus.api';
 import { StudentSyllabiFilters } from '../types';
+import { aiService } from '../../services/aiService';
 
 // ❌ XÓA ĐOẠN ĐỊNH NGHĨA LOCAL NÀY ĐI ĐỂ TRÁNH XUNG ĐỘT
 // export interface ReportIssuePayload {
@@ -54,3 +55,32 @@ export const useReportIssue = () =>
   useMutation<void, Error, ReportIssuePayload>({
     mutationFn: reportIssue,
   });
+
+/**
+ * Hook để gọi AI Summarize
+ * Returns task_id để có thể poll status
+ */
+export const useSummarizeSyllabus = () =>
+  useMutation<string, Error, string>({
+    mutationFn: (syllabusId: string) => aiService.summarizeSyllabus(syllabusId),
+  });
+
+/**
+ * Hook để poll AI task status
+ * Polling interval: 2 seconds
+ */
+export const useAITaskStatus = (taskId: string | null) =>
+  useQuery({
+    queryKey: ['ai-task-status', taskId],
+    queryFn: () => aiService.getTaskStatus(taskId!),
+    enabled: !!taskId,
+    refetchInterval: (data) => {
+      // Continue polling if status is QUEUED or PROCESSING
+      if (data?.status === 'QUEUED' || data?.status === 'PROCESSING') {
+        return 2000; // Poll every 2 seconds
+      }
+      return false; // Stop polling
+    },
+    retry: false,
+  });
+

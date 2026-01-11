@@ -11,7 +11,7 @@ def send_test_message():
     credentials = pika.PlainCredentials('guest', 'guest')
     parameters = pika.ConnectionParameters(
         host='localhost',
-        port=5673,
+        port=5672,  # Sửa từ 5673 → 5672
         credentials=credentials
     )
     

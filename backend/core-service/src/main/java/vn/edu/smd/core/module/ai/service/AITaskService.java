@@ -5,13 +5,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import vn.edu.smd.core.config.RabbitMQConfig;
+import vn.edu.smd.core.entity.CLO;
+import vn.edu.smd.core.entity.AssessmentScheme;
+import vn.edu.smd.core.entity.SyllabusVersion;
+import vn.edu.smd.core.repository.CLORepository;
+import vn.edu.smd.core.repository.AssessmentSchemeRepository;
+import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.shared.dto.ai.AIMessageRequest;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * AI Task Service
@@ -23,6 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AITaskService {
     
     private final RabbitTemplate rabbitTemplate;
+    private final SyllabusVersionRepository syllabusVersionRepository;
+    private final CLORepository cloRepository;
+    private final AssessmentSchemeRepository assessmentSchemeRepository;
     
     // In-memory cache cho task status (TODO: Replace with Redis in production)
     private final Map<String, Map<String, Object>> taskStatusCache = new ConcurrentHashMap<>();
@@ -157,8 +168,69 @@ public class AITaskService {
     public String requestSummarize(UUID syllabusId, String userId) {
         String messageId = UUID.randomUUID().toString();
         
+        // Query syllabus data from database
+        SyllabusVersion syllabus = syllabusVersionRepository.findById(syllabusId)
+                .orElseThrow(() -> new RuntimeException("Syllabus not found: " + syllabusId));
+        
+        // Query CLOs from database (separate table) - REAL DATA!
+        List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabusId);
+        
+        // Query Assessment Schemes from database (separate table) - REAL DATA!
+        List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabusId);
+        
+        // Build FULL syllabus_data payload
+        Map<String, Object> content = syllabus.getContent();
+        Map<String, Object> syllabusData = new HashMap<>();
+        
+        // Basic info
+        syllabusData.put("course_name", syllabus.getSnapSubjectNameVi());
+        syllabusData.put("course_code", content != null ? content.get("subject_code") : "");
+        syllabusData.put("credit_count", syllabus.getSnapCreditCount());
+        syllabusData.put("theory_hours", syllabus.getTheoryHours() != null ? syllabus.getTheoryHours() : 0);
+        syllabusData.put("practice_hours", syllabus.getPracticeHours() != null ? syllabus.getPracticeHours() : 0);
+        
+        // CLOs from database table (REAL DATA)
+        List<Map<String, Object>> cloList = clos.stream().map(clo -> {
+            Map<String, Object> cloMap = new HashMap<>();
+            cloMap.put("code", clo.getCode());
+            cloMap.put("description", clo.getDescription());
+            cloMap.put("bloom_level", clo.getBloomLevel());
+            cloMap.put("weight", clo.getWeight());
+            return cloMap;
+        }).collect(Collectors.toList());
+        syllabusData.put("learning_outcomes", cloList);
+        
+        // Assessment from database table (REAL DATA)
+        List<Map<String, Object>> assessmentList = assessments.stream().map(as -> {
+            Map<String, Object> assessMap = new HashMap<>();
+            assessMap.put("method", as.getName());  // Field is 'name' not 'assessmentType'
+            assessMap.put("weight", as.getWeightPercent());  // Field is 'weightPercent' not 'weight'
+            return assessMap;
+        }).collect(Collectors.toList());
+        syllabusData.put("assessment_scheme", assessmentList);
+        
+        if (content != null) {
+            // Description & Objectives from JSONB
+            syllabusData.put("description", content.get("description"));
+            syllabusData.put("objectives", content.get("objectives"));
+            
+            // Weekly Content/Schedule
+            syllabusData.put("weekly_content", content.get("courseOutline"));
+            
+            // Prerequisites
+            syllabusData.put("prerequisites", content.get("prerequisites"));
+            
+            // References & Materials
+            syllabusData.put("references", content.get("references"));
+            syllabusData.put("textbooks", content.get("textbooks"));
+            
+            // Student Duties (Nhiệm vụ sinh viên)
+            syllabusData.put("student_duties", content.get("studentDuties"));
+        }
+        
         Map<String, Object> payload = new HashMap<>();
         payload.put("syllabus_id", syllabusId.toString());
+        payload.put("syllabus_data", syllabusData);  // NOW WITH FULL DATA!
         payload.put("language", "vi");
         payload.put("include_prerequisites", true);
         
@@ -191,8 +263,8 @@ public class AITaskService {
                 }
         );
         
-        log.info("Sent SUMMARIZE_SYLLABUS request: messageId={}, syllabusId={}", 
-                 messageId, syllabusId);
+        log.info("Sent SUMMARIZE_SYLLABUS request: messageId={}, syllabusId={}, course={}", 
+                 messageId, syllabusId, syllabus.getSnapSubjectNameVi());
         
         return messageId;
     }

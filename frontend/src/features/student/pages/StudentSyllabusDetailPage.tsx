@@ -24,6 +24,7 @@ import {
   useReportIssue,
   useStudentSyllabusDetail,
   useToggleTrack,
+  useSummarizeSyllabus,
 } from '../hooks/useStudentSyllabus';
 
 const { Title, Text } = Typography;
@@ -37,6 +38,9 @@ export const StudentSyllabusDetailPage: React.FC = () => {
   const toggleTrack = useToggleTrack();
   const downloadPdf = useDownloadPdf();
   const reportIssue = useReportIssue();
+  const summarizeAI = useSummarizeSyllabus();
+  
+  console.log('✅ PAGE LOADED WITH NEW CODE - summarizeAI:', summarizeAI);
 
   const [openAi, setOpenAi] = useState(false);
   const [openCloPlo, setOpenCloPlo] = useState(false);
@@ -233,7 +237,30 @@ export const StudentSyllabusDetailPage: React.FC = () => {
         </Space>
 
         <Space wrap>
-          <Button onClick={() => setOpenAi(true)}>Tóm tắt AI</Button>
+          <Button 
+            loading={summarizeAI.isPending}
+            onClick={async () => {
+              console.log('🔵 Button clicked! Data ID:', data.id);
+              console.log('🔵 summarizeAI mutation:', summarizeAI);
+              try {
+                message.loading({ content: 'Đang xử lý với AI... (khoảng 15 giây)', key: 'ai-loading', duration: 0 });
+                console.log('🔵 Calling API...');
+                const taskId = await summarizeAI.mutateAsync(data.id);
+                console.log('🟢 API Success! Task ID:', taskId);
+                message.destroy('ai-loading');
+                message.success(`AI đã xử lý xong! Task ID: ${taskId}`);
+                // TODO: Poll task status để lấy kết quả thực tế
+                // Tạm thời mở modal với mock data
+                setOpenAi(true);
+              } catch (error: any) {
+                console.error('🔴 API Error:', error);
+                message.destroy('ai-loading');
+                message.error(error?.response?.data?.message || 'Không thể gọi AI');
+              }
+            }}
+          >
+            Tóm tắt AI
+          </Button>
           <Button onClick={() => setOpenCloPlo(true)}>Bản đồ CLO-PLO</Button>
 
           <Button

@@ -92,6 +92,9 @@ public class SecurityConfig {
                 // ⭐ CHO PHÉP STUDENT API PUBLIC (sinh viên không cần đăng nhập để xem đề cương)
                 .requestMatchers("/api/student/**").permitAll()
                 
+                // ⭐ CHO PHÉP AI API PUBLIC (để student có thể gọi AI summarize)
+                .requestMatchers("/api/ai/**").permitAll()
+                
                 // ⭐ CHO PHÉP ACADEMIC TERMS API (tạm thời để admin config)
                 .requestMatchers("/api/academic-terms/**").permitAll()
                 .requestMatchers("/api/semesters/**").permitAll()
