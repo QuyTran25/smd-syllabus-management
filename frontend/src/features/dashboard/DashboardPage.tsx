@@ -44,6 +44,9 @@ export const DashboardPage: React.FC = () => {
     feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).map((f) => f.syllabusId) || []
   ).size;
 
+  // Calculate total syllabi count from stats
+  const totalCount = stats ? Object.values(stats).reduce((sum, count) => sum + count, 0) : 0;
+
   // Fetch pending syllabi for current user role
   const { data: pendingSyllabi, isLoading } = useQuery({
     queryKey: ['pending-syllabi', user?.role],
@@ -148,7 +151,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Tổng Đề cương"
-              value={stats?.PUBLISHED || 0}
+              value={totalCount}
               prefix={<FileTextOutlined />}
               valueStyle={{ color: '#018486' }}
             />

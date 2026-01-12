@@ -126,20 +126,8 @@ export const syllabusService = {
 
   // Get statistics
   getStatistics: async (): Promise<Record<string, number>> => {
-    // This would need a custom stats endpoint in backend
-    // For now, we'll fetch all syllabi and count locally
-    const response = await apiClient.get('/api/syllabi', {
-      params: { page: 0, size: 1000 }
-    });
-    
-    const syllabi = response.data.data.content;
-    const stats: Record<string, number> = {};
-    
-    Object.values(SyllabusStatus).forEach((status) => {
-      stats[status] = syllabi.filter((s: Syllabus) => s.status === status).length;
-    });
-
-    return stats;
+    const response = await apiClient.get('/api/syllabi/statistics');
+    return response.data.data;
   },
 
   // Export to CSV

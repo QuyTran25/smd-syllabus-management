@@ -42,4 +42,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     
     // Đếm số syllabus versions của một môn trong một kỳ học
     long countBySubjectIdAndAcademicTermId(UUID subjectId, UUID academicTermId);
+    
+    // Count syllabi by status
+    long countByStatusAndIsDeletedFalse(SyllabusStatus status);
 }
