@@ -113,7 +113,7 @@ export const syllabusService = {
   // Reject syllabus
   rejectSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/reject`, {
-      reason: action.reason,
+      comment: action.reason,
     });
     return response.data.data;
   },
