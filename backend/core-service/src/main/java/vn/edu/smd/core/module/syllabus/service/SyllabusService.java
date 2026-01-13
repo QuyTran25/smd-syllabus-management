@@ -8,6 +8,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import vn.edu.smd.core.common.dto.PageResponse;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
 import vn.edu.smd.core.entity.*;
@@ -27,8 +29,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class SyllabusService {
 
     private final SyllabusVersionRepository syllabusVersionRepository;
@@ -56,7 +58,8 @@ public class SyllabusService {
     // ----------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
+    public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings, String search, 
+                                                  List<String> faculties, List<String> departments) {
         User currentUser = getCurrentUser();
         
         if (statusStrings == null || statusStrings.isEmpty()) {
@@ -70,6 +73,7 @@ public class SyllabusService {
             
             List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
             List<SyllabusResponse> responses = allResults.stream()
+                    .filter(sv -> matchesSearchCriteria(sv, search, faculties, departments))
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
             
@@ -115,6 +119,61 @@ public class SyllabusService {
         };
     }
 
+    private boolean matchesSearchCriteria(SyllabusVersion syllabus, String search, 
+                                         List<String> faculties, List<String> departments) {
+        // Nếu không có tiêu chí tìm kiếm, chấp nhận
+        if ((search == null || search.trim().isEmpty()) && 
+            (faculties == null || faculties.isEmpty()) && 
+            (departments == null || departments.isEmpty())) {
+            return true;
+        }
+
+        Subject subject = syllabus.getSubject();
+        if (subject == null) {
+            return false;
+        }
+
+        // Kiểm tra search text
+        if (search != null && !search.trim().isEmpty()) {
+            String searchLower = search.toLowerCase();
+            String code = subject.getCode() != null ? subject.getCode().toLowerCase() : "";
+            String nameVi = subject.getCurrentNameVi() != null ? subject.getCurrentNameVi().toLowerCase() : "";
+            String nameEn = subject.getCurrentNameEn() != null ? subject.getCurrentNameEn().toLowerCase() : "";
+            
+            boolean matchesSearch = code.contains(searchLower) || 
+                                   nameVi.contains(searchLower) || 
+                                   nameEn.contains(searchLower);
+            if (!matchesSearch) {
+                return false;
+            }
+        }
+
+        // Kiểm tra faculty filter
+        if (faculties != null && !faculties.isEmpty()) {
+            boolean matchesFaculty = false;
+            if (subject.getDepartment() != null && subject.getDepartment().getFaculty() != null) {
+                String facultyName = subject.getDepartment().getFaculty().getName();
+                matchesFaculty = faculties.contains(facultyName);
+            }
+            if (!matchesFaculty) {
+                return false;
+            }
+        }
+
+        // Kiểm tra department filter
+        if (departments != null && !departments.isEmpty()) {
+            boolean matchesDept = false;
+            if (subject.getDepartment() != null) {
+                String deptName = subject.getDepartment().getName();
+                matchesDept = departments.contains(deptName);
+            }
+            if (!matchesDept) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     @Transactional
     public SyllabusResponse publishSyllabus(UUID id, PublishSyllabusRequest request) {
@@ -512,12 +571,18 @@ public class SyllabusService {
         return response;
     }
 
+// File: vn/edu/smd/core/service/impl/SyllabusServiceImpl.java
+
+    // Hàm này bị xóa vì đã có getAllSyllabi ở trên xử lý tất cả logic
+
     @Transactional(readOnly = true)
     public List<SyllabusResponse> getSyllabiBySubject(UUID subjectId) {
         return syllabusVersionRepository.findBySubjectId(subjectId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
+    
 
     public byte[] exportSyllabusToPdf(UUID id) {
         return new byte[0];
@@ -901,6 +966,7 @@ public class SyllabusService {
         if (syllabus.getPrincipalApprovedBy() != null) {
             response.setPrincipalApprovedByName(syllabus.getPrincipalApprovedBy().getFullName());
         }
+        response.setPublishedAt(syllabus.getPublishedAt());
 
         response.setCreatedAt(syllabus.getCreatedAt());
         response.setUpdatedAt(syllabus.getUpdatedAt());

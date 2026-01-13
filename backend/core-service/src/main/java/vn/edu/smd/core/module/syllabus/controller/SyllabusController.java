@@ -28,8 +28,13 @@ public class SyllabusController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(
             Pageable pageable,
-            @RequestParam(required = false) List<String> status) {
-        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<String> status,
+            @RequestParam(required = false) List<String> faculty,
+            @RequestParam(required = false) List<String> department
+    ) {
+        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status, search, faculty, department);
+        
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
     }
 
