@@ -8,9 +8,9 @@ import {
   RiseOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../auth';
-import { UserRole, SyllabusStatus, FeedbackStatus } from '@/types';
+import { UserRole, SyllabusStatus } from '@/types';
 import { useQuery } from '@tanstack/react-query';
-import { syllabusService, feedbackService } from '@/services';
+import { syllabusService } from '@/services';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -33,16 +33,28 @@ export const DashboardPage: React.FC = () => {
     queryFn: () => syllabusService.getStatistics(),
   });
 
-  // Fetch feedbacks with PENDING status for "Needs Edit" count
-  const { data: feedbacks } = useQuery({
-    queryKey: ['feedbacks', FeedbackStatus.PENDING],
-    queryFn: () => feedbackService.getFeedbacks({ status: [FeedbackStatus.PENDING] }),
-  });
-
-  // Calculate unique syllabi needing edit (PUBLISHED + has PENDING feedback)
-  const needsEditCount = new Set(
-    feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).map((f) => f.syllabusId) || []
-  ).size;
+  // Calculate statistics based on user role
+  const isPrincipal = user?.role === UserRole.PRINCIPAL;
+  
+  // For Principal: Special calculation
+  const principalStats = {
+    totalCount: (stats?.PENDING_PRINCIPAL || 0) + (stats?.APPROVED || 0) + (stats?.PUBLISHED || 0),
+    pendingCount: stats?.PENDING_PRINCIPAL || 0,
+    approvedCount: stats?.APPROVED || 0,
+    publishedCount: stats?.PUBLISHED || 0,
+  };
+  
+  // For other roles: Original calculation
+  const needsEditCount = (stats?.REJECTED || 0) + (stats?.REVISION_IN_PROGRESS || 0);
+  const generalStats = {
+    totalCount: stats ? Object.values(stats).reduce((sum, count) => sum + count, 0) : 0,
+    pendingCount: (stats?.PENDING_HOD || 0) + (stats?.PENDING_AA || 0) + (stats?.PENDING_PRINCIPAL || 0) + (stats?.PENDING_HOD_REVISION || 0) + (stats?.PENDING_ADMIN_REPUBLISH || 0),
+    publishedCount: stats?.PUBLISHED || 0,
+    needsEditCount,
+  };
+  
+  // Use appropriate stats based on role
+  const displayStats = isPrincipal ? principalStats : generalStats;
 
   // Fetch pending syllabi for current user role
   const { data: pendingSyllabi, isLoading } = useQuery({
@@ -108,6 +120,8 @@ export const DashboardPage: React.FC = () => {
           [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất bản' },
           [SyllabusStatus.DRAFT]: { color: 'default', text: 'Nháp' },
           [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
+          [SyllabusStatus.REVISION_IN_PROGRESS]: { color: 'volcano', text: 'Đang sửa' },
+          [SyllabusStatus.INACTIVE]: { color: 'default', text: 'Không hoạt động' },
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
         };
 
@@ -144,50 +158,95 @@ export const DashboardPage: React.FC = () => {
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Tổng Đề cương"
-              value={stats?.PUBLISHED || 0}
-              prefix={<FileTextOutlined />}
-              valueStyle={{ color: '#018486' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Chờ Phê duyệt"
-              value={
-                (stats?.PENDING_HOD || 0) +
-                (stats?.PENDING_AA || 0) +
-                (stats?.PENDING_PRINCIPAL || 0)
-              }
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Đã Xuất bản"
-              value={stats?.PUBLISHED || 0}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Đề cương cần chỉnh"
-              value={needsEditCount}
-              prefix={<EditOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
+        {isPrincipal ? (
+          <>
+            {/* Principal Dashboard Cards */}
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Tổng Đề cương"
+                  value={displayStats.totalCount}
+                  prefix={<FileTextOutlined />}
+                  valueStyle={{ color: '#018486' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Chờ Phê duyệt"
+                  value={displayStats.pendingCount}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Đã Duyệt"
+                  value={principalStats.approvedCount}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Đã Xuất bản"
+                  value={displayStats.publishedCount}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+          </>
+        ) : (
+          <>
+            {/* General Dashboard Cards for HOD, AA, ADMIN */}
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Tổng Đề cương"
+                  value={displayStats.totalCount}
+                  prefix={<FileTextOutlined />}
+                  valueStyle={{ color: '#018486' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Chờ Phê duyệt"
+                  value={displayStats.pendingCount}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Đã Xuất bản"
+                  value={displayStats.publishedCount}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Đề cương cần chỉnh"
+                  value={generalStats.needsEditCount}
+                  prefix={<EditOutlined />}
+                  valueStyle={{ color: '#ff4d4f' }}
+                />
+              </Card>
+            </Col>
+          </>
+        )}
       </Row>
 
       {/* Main Content */}
@@ -221,77 +280,101 @@ export const DashboardPage: React.FC = () => {
               title="Tiến độ Quy trình"
               extra={<RiseOutlined style={{ color: '#52c41a' }} />}
             >
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Đã hoàn thành</Text>
-                    <Text strong>{stats?.PUBLISHED || 0}</Text>
+              {isPrincipal ? (
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đã Xuất bản</Text>
+                      <Text strong>{principalStats.publishedCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        principalStats.totalCount > 0
+                          ? Math.round((principalStats.publishedCount / principalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#1890ff"
+                    />
                   </div>
-                  <Progress
-                    percent={
-                      stats
-                        ? Math.round(
-                            (stats.PUBLISHED /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
-                        : 0
-                    }
-                    strokeColor="#52c41a"
-                  />
-                </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Đang xử lý</Text>
-                    <Text strong>
-                      {(stats?.PENDING_HOD || 0) +
-                        (stats?.PENDING_AA || 0) +
-                        (stats?.PENDING_PRINCIPAL || 0)}
-                    </Text>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đã Duyệt</Text>
+                      <Text strong>{principalStats.approvedCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        principalStats.totalCount > 0
+                          ? Math.round((principalStats.approvedCount / principalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#52c41a"
+                    />
                   </div>
-                  <Progress
-                    percent={
-                      stats
-                        ? Math.round(
-                            ((stats.PENDING_HOD + stats.PENDING_AA + stats.PENDING_PRINCIPAL) /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
-                        : 0
-                    }
-                    strokeColor="#faad14"
-                  />
-                </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Cần chỉnh sửa</Text>
-                    <Text strong>{needsEditCount}</Text>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Chờ Phê duyệt</Text>
+                      <Text strong>{principalStats.pendingCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        principalStats.totalCount > 0
+                          ? Math.round((principalStats.pendingCount / principalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#faad14"
+                    />
                   </div>
-                  <Progress
-                    percent={
-                      stats
-                        ? Math.round(
-                            (needsEditCount /
-                              (stats.PUBLISHED +
-                                stats.PENDING_HOD +
-                                stats.PENDING_AA +
-                                stats.PENDING_PRINCIPAL)) *
-                              100
-                          )
-                        : 0
-                    }
-                    strokeColor="#ff4d4f"
-                  />
-                </div>
-              </Space>
+                </Space>
+              ) : (
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đã hoàn thành</Text>
+                      <Text strong>{generalStats.publishedCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        generalStats.totalCount > 0
+                          ? Math.round((generalStats.publishedCount / generalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#52c41a"
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đang xử lý</Text>
+                      <Text strong>{generalStats.pendingCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        generalStats.totalCount > 0
+                          ? Math.round((generalStats.pendingCount / generalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#faad14"
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Cần chỉnh sửa</Text>
+                      <Text strong>{generalStats.needsEditCount}</Text>
+                    </div>
+                    <Progress
+                      percent={
+                        generalStats.totalCount > 0
+                          ? Math.round((generalStats.needsEditCount / generalStats.totalCount) * 100)
+                          : 0
+                      }
+                      strokeColor="#ff4d4f"
+                    />
+                  </div>
+                </Space>
+              )}
             </Card>
 
             {/* Quick Actions */}

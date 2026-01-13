@@ -102,7 +102,7 @@ export const syllabusService = {
     return response.data.data;
   },
 
-  // Approval actions (Dành cho Hiệu trưởng/TBM - Giữ nguyên URL /approve)
+  // Approval actions (Dành cho Hiệu trưởng/TBM)
   approveSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/approve`, {
       comment: action.reason,
@@ -113,7 +113,7 @@ export const syllabusService = {
   // Reject syllabus
   rejectSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
     const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/reject`, {
-      reason: action.reason,
+      comment: action.reason,
     });
     return response.data.data;
   },
@@ -125,19 +125,10 @@ export const syllabusService = {
   },
 
   // Get statistics
+  // Resolved Conflict: Sử dụng API statistics của Backend để tối ưu hiệu năng
   getStatistics: async (): Promise<Record<string, number>> => {
-    const response = await apiClient.get('/api/syllabi', {
-      params: { page: 0, size: 1000 },
-    });
-
-    const syllabi = response.data.data.content;
-    const stats: Record<string, number> = {};
-
-    Object.values(SyllabusStatus).forEach((status) => {
-      stats[status] = syllabi.filter((s: Syllabus) => s.status === status).length;
-    });
-
-    return stats;
+    const response = await apiClient.get('/api/syllabi/statistics');
+    return response.data.data;
   },
 
   // Export to CSV
@@ -177,14 +168,12 @@ export const syllabusService = {
   // ADMIN FUNCTIONS (Các hàm dành riêng cho Admin)
   // ==========================================
 
-  // 1. Publish syllabus (Xuất hành - Gọi URL /publish mới)
-  // ADMIN FUNCTIONS
+  // 1. Publish syllabus (Xuất hành)
   publishSyllabus: async (
     id: string,
     effectiveDate: string,
     comment?: string
   ): Promise<Syllabus> => {
-    // Sửa đường dẫn thành /publish để khớp với Backend Controller
     const response = await apiClient.patch(`/api/syllabi/${id}/publish`, {
       effectiveDate,
       comment,

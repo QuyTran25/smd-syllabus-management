@@ -47,4 +47,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     // 3. Lấy Syllabus mới nhất (theo ngày tạo) của một Subject
     Optional<SyllabusVersion> findFirstBySubjectIdOrderByCreatedAtDesc(UUID subjectId);
+    
+    // Count syllabi by status
+    long countByStatusAndIsDeletedFalse(SyllabusStatus status);
 }

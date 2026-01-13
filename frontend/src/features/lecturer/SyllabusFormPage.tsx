@@ -334,6 +334,55 @@ const SyllabusFormPage: React.FC = () => {
       }
 
       // Build content object - match JSONB structure from V31 migration
+      // Auto-suggest PLO mappings if not manually set
+      let ploMappings: Array<{
+        cloCode: string;
+        ploCode: string;
+        contributionLevel: string;
+      }> = [];
+      
+      // Check if any CLO has manual PLO mappings
+      const hasManualMappings = clos.some(clo => clo.mappedPLOs && clo.mappedPLOs.length > 0);
+      
+      if (hasManualMappings) {
+        // Use manual mappings from form
+        clos.forEach(clo => {
+          if (clo.mappedPLOs && clo.mappedPLOs.length > 0) {
+            clo.mappedPLOs.forEach(ploCode => {
+              ploMappings.push({
+                cloCode: clo.code,
+                ploCode: ploCode,
+                contributionLevel: 'M' // Default to Main
+              });
+            });
+          }
+        });
+      } else {
+        // Auto-suggest PLO mappings from backend
+        console.log('🤖 Auto-suggesting PLO mappings for CLOs...');
+        try {
+          const response = await fetch('/api/syllabi/suggest-plo-mappings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(clos)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            ploMappings = result.data || [];
+            console.log(`✅ Auto-suggested ${ploMappings.length} PLO mappings`);
+          } else {
+            console.warn('⚠️ Failed to auto-suggest PLO mappings, continuing without them');
+          }
+        } catch (error) {
+          console.error('❌ Error auto-suggesting PLO mappings:', error);
+          // Continue without PLO mappings rather than failing
+        }
+      }
+
       const content = {
         description: values.description,
         objectives: values.objectives,
@@ -352,6 +401,7 @@ const SyllabusFormPage: React.FC = () => {
         clos,
         assessmentMethods,
         prerequisites,
+        ploMappings, // Add PLO mappings extracted from CLOs
       };
 
       console.log('💾 Saving syllabus with content:', {
