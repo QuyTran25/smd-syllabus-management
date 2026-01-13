@@ -178,11 +178,13 @@ export const syllabusService = {
   // ==========================================
 
   // 1. Publish syllabus (Xuất hành - Gọi URL /publish mới)
+  // ADMIN FUNCTIONS
   publishSyllabus: async (
     id: string,
     effectiveDate: string,
     comment?: string
   ): Promise<Syllabus> => {
+    // Sửa đường dẫn thành /publish để khớp với Backend Controller
     const response = await apiClient.patch(`/api/syllabi/${id}/publish`, {
       effectiveDate,
       comment,

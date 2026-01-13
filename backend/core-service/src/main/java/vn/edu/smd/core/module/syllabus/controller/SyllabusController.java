@@ -29,24 +29,8 @@ public class SyllabusController {
     public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(
             Pageable pageable,
             @RequestParam(required = false) List<String> status) {
-        try {
-            System.out.println("=== GET ALL SYLLABI ===");
-            System.out.println("Status filter: " + status);
-            System.out.println("Pageable: " + pageable);
-            
-            Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
-            
-            System.out.println("Total elements: " + syllabi.getTotalElements());
-            System.out.println("Success!");
-            
-            return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
-        } catch (Exception e) {
-            System.err.println("=== ERROR IN GET ALL SYLLABI ===");
-            System.err.println("Error type: " + e.getClass().getName());
-            System.err.println("Message: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
+        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
     }
 
     @Operation(summary = "Get syllabus by ID", description = "Get syllabus details by ID")
@@ -94,6 +78,11 @@ public class SyllabusController {
         SyllabusResponse syllabus = syllabusService.submitSyllabus(id, request);
         return ResponseEntity.ok(ApiResponse.success("Syllabus submitted for approval", syllabus));
     }
+
+    // --- ĐÃ XÓA HÀM publishSyllabus ĐỂ TRÁNH XUNG ĐỘT VỚI ADMIN CONTROLLER ---
+    // Frontend gọi vào /api/syllabi/{id}/publish sẽ được Spring tự động chuyển 
+    // đến AdminSyllabusController (nơi đã có sẵn API này).
+    // --------------------------------------------------------------------------
 
     @Operation(summary = "Approve syllabus", description = "Approve syllabus (moves to next approval stage)")
     @PatchMapping("/{id}/approve")

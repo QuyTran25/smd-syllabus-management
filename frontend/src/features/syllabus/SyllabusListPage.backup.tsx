@@ -151,13 +151,13 @@ export const SyllabusListPage: React.FC = () => {
         { text: 'Khóa luận', value: 'thesis' },
       ],
       render: (type: string) => {
-        const typeMap = {
+        const typeMap: Record<string, string> = {
           major: 'Chuyên ngành',
           foundation: 'Cơ sở ngành',
           general: 'Đại cương',
           thesis: 'Khóa luận/TT',
         };
-        return typeMap[type as keyof typeof typeMap] || 'N/A';
+        return typeMap[type] || 'N/A';
       },
     },
     {
@@ -191,7 +191,8 @@ export const SyllabusListPage: React.FC = () => {
       width: 150,
       filters: Object.values(SyllabusStatus).map((s) => ({ text: s, value: s })),
       render: (status: SyllabusStatus) => {
-        const statusConfig = {
+        // --- ĐÃ SỬA: Thêm Record<string, ...> và bổ sung đầy đủ trạng thái ---
+        const statusConfig: Record<string, { color: string; text: string }> = {
           [SyllabusStatus.DRAFT]: { color: 'default', text: 'Nháp' },
           [SyllabusStatus.PENDING_HOD]: { color: 'orange', text: 'Chờ Trưởng BM' },
           [SyllabusStatus.PENDING_AA]: { color: 'blue', text: 'Chờ Phòng ĐT' },
@@ -200,8 +201,15 @@ export const SyllabusListPage: React.FC = () => {
           [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất bản' },
           [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
+          // Bổ sung các trạng thái còn thiếu để tránh lỗi
+          [SyllabusStatus.PENDING_HOD_REVISION]: { color: 'gold', text: 'Chờ TBM (Sửa lỗi)' },
+          [SyllabusStatus.REVISION_IN_PROGRESS]: { color: 'volcano', text: 'Đang chỉnh sửa' },
+          [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: { color: 'lime', text: 'Chờ xuất bản lại' },
+          [SyllabusStatus.INACTIVE]: { color: 'default', text: 'Không hoạt động' },
         };
-        const config = statusConfig[status];
+
+        // Thêm fallback an toàn
+        const config = statusConfig[status] || { color: 'default', text: status };
         return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
@@ -247,7 +255,14 @@ export const SyllabusListPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: 24,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <Title level={2} style={{ margin: 0 }}>
           Quản lý Đề cương
         </Title>

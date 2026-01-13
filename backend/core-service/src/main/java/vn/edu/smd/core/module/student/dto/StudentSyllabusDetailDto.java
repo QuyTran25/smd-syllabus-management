@@ -11,6 +11,7 @@ import java.util.UUID;
 @Builder
 public class StudentSyllabusDetailDto {
     private UUID id;
+    private UUID versionId;
     private String code;
     private String nameVi;
     private String nameEn;

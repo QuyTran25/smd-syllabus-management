@@ -1,13 +1,11 @@
 import React from 'react';
-import { Layout, Space, Typography, Badge, Dropdown, Avatar, MenuProps } from 'antd';
-import {
-  BellOutlined,
-  UserOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  ProfileOutlined,
-} from '@ant-design/icons';
+import { Layout, Space, Typography, Dropdown, Avatar, MenuProps } from 'antd';
+import { UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
+
+// 1. IMPORT CÁC COMPONENT & CONTEXT QUAN TRỌNG
+import { useAuth } from '@/features/auth/AuthContext'; // (Đảm bảo đường dẫn đúng tới file AuthContext)
+import { StudentNotificationBell } from '@/student/components/StudentNotificationBell';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -15,13 +13,23 @@ const { Text } = Typography;
 export const StudentLayout: React.FC = () => {
   const navigate = useNavigate();
 
+  // 2. LẤY THÔNG TIN USER TỪ AUTH CONTEXT
+  const { user, logout } = useAuth();
+
+  // Hàm đăng xuất chuẩn
+  const handleLogout = async () => {
+    await logout(); // Xóa token trong localStorage/Session
+    navigate('/login');
+  };
+
   const items: MenuProps['items'] = [
     {
       key: 'profileCard',
       label: (
         <div style={{ padding: '10px 12px' }}>
+          {/* Hiển thị Tên thật */}
           <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8, color: '#1f1f1f' }}>
-            Nguyễn Văn A
+            {user?.fullName || 'Sinh viên'}
           </div>
 
           <div
@@ -33,17 +41,16 @@ export const StudentLayout: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', gap: 10, marginBottom: 6, color: '#595959' }}>
-              <span style={{ width: 18, textAlign: 'center' }}>🆔</span>
-              <span>
-                MSSV: <b>2021600001</b>
-              </span>
+              <span style={{ width: 18, textAlign: 'center' }}>✉️</span>
+              {/* Hiển thị Email thật */}
+              <span>{user?.email || 'Chưa cập nhật'}</span>
             </div>
 
+            {/* Các thông tin khác nếu User có trường dữ liệu thì bind vào đây */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 6, color: '#595959' }}>
               <span style={{ width: 18, textAlign: 'center' }}>🏛️</span>
               <span>Ngành: Công nghệ Thông tin</span>
             </div>
-
             <div style={{ display: 'flex', gap: 10, marginBottom: 6, color: '#595959' }}>
               <span style={{ width: 18, textAlign: 'center' }}>📚</span>
               <span>Khóa: K16 (2021-2025)</span>
@@ -66,12 +73,6 @@ export const StudentLayout: React.FC = () => {
 
     { type: 'divider' },
 
-    // {
-    //   key: 'profile',
-    //   icon: <ProfileOutlined />,
-    //   label: 'Thông tin cá nhân',
-    //   onClick: () => navigate('/student/profile'),
-    // },
     {
       key: 'tracked',
       icon: <UserOutlined />,
@@ -92,7 +93,7 @@ export const StudentLayout: React.FC = () => {
       icon: <LogoutOutlined />,
       danger: true,
       label: 'Đăng xuất',
-      onClick: () => navigate('/login'),
+      onClick: handleLogout, // Gọi hàm logout chuẩn
     },
   ];
 
@@ -151,22 +152,8 @@ export const StudentLayout: React.FC = () => {
 
         {/* Right: Actions */}
         <Space align="center" size={14}>
-          <Badge count={2} size="small" offset={[-2, 2]}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                display: 'grid',
-                placeItems: 'center',
-                border: '1px solid rgba(0,0,0,0.06)',
-                background: 'white',
-                cursor: 'pointer',
-              }}
-            >
-              <BellOutlined style={{ fontSize: 18, color: '#262626' }} />
-            </div>
-          </Badge>
+          {/* 3. THAY THẾ CHUÔNG CỨNG BẰNG COMPONENT CHUÔNG THÔNG MINH */}
+          <StudentNotificationBell />
 
           <Dropdown menu={{ items }} trigger={['click']}>
             <div
@@ -183,18 +170,22 @@ export const StudentLayout: React.FC = () => {
             >
               <Avatar
                 size={30}
+                src={user?.avatar} // Hiển thị Avatar thật nếu có
                 style={{
                   background: 'linear-gradient(135deg, #018486, #1EA69A)',
                   fontWeight: 700,
                 }}
               >
-                A
+                {/* Fallback nếu không có avatar thì lấy chữ cái đầu */}
+                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
               </Avatar>
 
               <div style={{ lineHeight: 1.05 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1f1f1f' }}>Nguyễn Văn A</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1f1f1f' }}>
+                  {user?.fullName || 'Sinh viên'}
+                </div>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  2021600001
+                  {user?.email || 'student@smd.edu.vn'}
                 </Text>
               </div>
 

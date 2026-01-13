@@ -1,29 +1,43 @@
 import React, { useState } from 'react';
 import { Button, Card, Form, Input, Space, Typography, App } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+// Không cần useNavigate vì dùng window.location.href
 import { http } from '../api/http';
 
 const { Title, Text } = Typography;
 
 export const StudentLoginPage: React.FC = () => {
-  const navigate = useNavigate();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
+      // Gọi API Login
       const res = await http.post('/auth/login', values);
-      if (res.data?.data?.accessToken) {
-        localStorage.setItem('student_token', res.data.data.accessToken);
-        message.success('Đăng nhập thành công');
-        navigate('/syllabi');
+
+      // Lấy token (tìm kỹ ở mọi chỗ)
+      const token = res.data?.data?.accessToken || res.data?.accessToken || res.data?.token;
+
+      if (token) {
+        // 1. Lưu vào LOCAL STORAGE (Giống bạn của bạn)
+        localStorage.setItem('student_token', token);
+        // Lưu thêm key chuẩn của hệ thống để AuthContext đọc được
+        localStorage.setItem('access_token', token);
+
+        message.success('Đăng nhập thành công!');
+
+        // 2. Reload trang để AuthContext verify lại token và cấp quyền
+        setTimeout(() => {
+          window.location.href = '/syllabi';
+        }, 500);
       } else {
-        message.error('Sai thông tin đăng nhập');
+        message.error('Lỗi: Server không trả về Token');
+        console.error('Response:', res.data);
       }
-    } catch (err) {
-      message.error('Không thể kết nối máy chủ');
+    } catch (err: any) {
+      console.error('Login Error:', err);
+      message.error('Sai tài khoản hoặc mật khẩu');
     } finally {
       setLoading(false);
     }

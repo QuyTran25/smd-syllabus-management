@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.shared.enums.SyllabusStatus;
-import java.util.Optional;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,7 +19,6 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
-    // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
     // Use custom query to avoid PostgreSQL enum casting issues
@@ -35,4 +34,17 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status = :status AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusAndNotDeleted(@Param("status") SyllabusStatus status);
+
+    // ==========================================
+    // CÁC HÀM MỚI ĐƯỢC THÊM ĐỂ FIX LỖI BUILD
+    // ==========================================
+
+    // 1. Tìm Syllabus theo Subject, Term và Status (Trả về Optional để xử lý null safe)
+    Optional<SyllabusVersion> findBySubjectIdAndAcademicTermIdAndStatus(UUID subjectId, UUID academicTermId, SyllabusStatus status);
+
+    // 2. Đếm số lượng Syllabus theo Subject và Term
+    long countBySubjectIdAndAcademicTermId(UUID subjectId, UUID academicTermId);
+
+    // 3. Lấy Syllabus mới nhất (theo ngày tạo) của một Subject
+    Optional<SyllabusVersion> findFirstBySubjectIdOrderByCreatedAtDesc(UUID subjectId);
 }

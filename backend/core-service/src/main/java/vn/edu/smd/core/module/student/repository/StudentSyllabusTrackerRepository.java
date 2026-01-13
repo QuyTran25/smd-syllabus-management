@@ -14,4 +14,7 @@ public interface StudentSyllabusTrackerRepository extends JpaRepository<StudentS
 
     // Lấy danh sách tất cả các môn sinh viên đang theo dõi
     List<StudentSyllabusTracker> findByStudentId(UUID studentId);
+
+    // 🔥 THÊM DÒNG NÀY: Để tìm tất cả sinh viên đang theo dõi một đề cương cụ thể
+    List<StudentSyllabusTracker> findBySyllabusId(UUID syllabusId);
 }

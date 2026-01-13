@@ -27,8 +27,8 @@ public class StudentSyllabusController {
     }
 
     @GetMapping("/{id}")
-    public StudentSyllabusDetailDto getById(@PathVariable UUID id) {
-        return service.getById(id);
+    public ResponseEntity<StudentSyllabusDetailDto> getById(@PathVariable UUID id) {  // Thêm ResponseEntity để handle error nếu cần
+        return ResponseEntity.ok(service.getById(id));
     }
 
     @PostMapping("/{id}/track")

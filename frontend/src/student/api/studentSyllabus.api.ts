@@ -31,39 +31,56 @@ export async function listStudentSyllabi(
 }
 
 export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDetail> {
-  const res = await http.get(`/student/syllabi/${id}`);
-  const d = res.data;
+  try {
+    // ✅ FIX: Thêm try-catch để handle error graceful (không reload trang)
+    const res = await http.get(`/student/syllabi/${id}`);
+    const d = res.data;
 
-  return {
-    ...d,
-    id: d.id,
-    code: d.code,
-    nameVi: d.nameVi,
-    faculty: d.faculty || 'Khoa Công nghệ Thông tin',
-    program: d.program || 'Chương trình đào tạo',
-    lecturerName: d.lecturerName || 'Giảng viên hướng dẫn',
-    status: d.status || 'PUBLISHED',
-    summaryInline: d.description || 'Chưa có tóm tắt nội dung môn học.',
+    return {
+      ...d,
+      id: d.id,
+      code: d.code,
+      nameVi: d.nameVi,
+      faculty: d.faculty || 'Khoa Công nghệ Thông tin',
+      program: d.program || 'Chương trình đào tạo',
+      lecturerName: d.lecturerName || 'Giảng viên hướng dẫn',
+      status: d.status || 'PUBLISHED',
+      summaryInline: d.description || 'Chưa có tóm tắt nội dung môn học.',
 
-    // ⭐ Map isTracked từ backend sang tracked
-    tracked: d.tracked ?? d.isTracked ?? false,
+      // ⭐ Map isTracked từ backend sang tracked
+      tracked: d.tracked ?? d.isTracked ?? false,
 
-    assessmentMatrix: d.assessmentMatrix || [],
-    clos: d.clos || [],
-    timeAllocation: {
-      theory: d.theoryHours || 30,
-      practice: d.practiceHours || 30,
-      selfStudy: d.selfStudyHours || 90,
-    },
-    objectives: d.objectives || [],
-    studentTasks: d.studentTasks || [],
-    teachingMethods: d.teachingMethods || 'Giảng dạy lý thuyết và thực hành nhóm',
-  };
+      assessmentMatrix: d.assessmentMatrix || [],
+      clos: d.clos || [],
+      timeAllocation: {
+        theory: d.theoryHours || 30,
+        practice: d.practiceHours || 30,
+        selfStudy: d.selfStudyHours || 90,
+      },
+      objectives: d.objectives || [],
+      studentTasks: d.studentTasks || [],
+      teachingMethods: d.teachingMethods || 'Giảng dạy lý thuyết và thực hành nhóm',
+    };
+  } catch (error: any) {
+    console.error('Lỗi khi lấy detail đề cương:', error);
+    // ✅ Handle error: Có thể throw hoặc return default object với message error
+    throw new Error(
+      error.response?.data?.message || 'Không thể tải đề cương. Vui lòng thử lại sau.'
+    );
+  }
 }
 
 export async function toggleTrackSyllabus(id: string) {
-  const res = await http.post(`/student/syllabi/${id}/track`);
-  return res.data;
+  try {
+    // ✅ FIX: Thêm try-catch để handle error (không reload trang)
+    const res = await http.post(`/student/syllabi/${id}/track`);
+    return res.data;
+  } catch (error: any) {
+    console.error('Lỗi khi toggle theo dõi:', error);
+    throw new Error(
+      error.response?.data?.message || 'Không thể cập nhật theo dõi. Vui lòng thử lại.'
+    );
+  }
 }
 
 export async function reportIssue(payload: ReportIssuePayload) {
