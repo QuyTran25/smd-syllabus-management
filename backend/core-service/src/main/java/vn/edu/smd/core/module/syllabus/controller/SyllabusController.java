@@ -144,6 +144,15 @@ public class SyllabusController {
         return ResponseEntity.ok(ApiResponse.success(syllabi));
     }
 
+    @Operation(summary = "Auto-suggest PLO mappings for CLOs", 
+               description = "Intelligently suggest PLO mappings based on CLO descriptions and Bloom's levels")
+    @PostMapping("/suggest-plo-mappings")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> suggestPloMappings(
+            @RequestBody List<java.util.Map<String, Object>> clos) {
+        List<java.util.Map<String, Object>> mappings = syllabusService.suggestPloMappings(clos);
+        return ResponseEntity.ok(ApiResponse.success("PLO mappings suggested", mappings));
+    }
+
     @Operation(summary = "Export syllabus to PDF", description = "Export syllabus to PDF format")
     @PostMapping("/{id}/export/pdf")
     public ResponseEntity<ApiResponse<byte[]>> exportSyllabusToPdf(@PathVariable UUID id) {

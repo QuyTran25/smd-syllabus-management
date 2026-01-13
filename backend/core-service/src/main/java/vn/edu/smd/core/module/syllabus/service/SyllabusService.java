@@ -18,7 +18,11 @@ import vn.edu.smd.core.security.UserPrincipal;
 import vn.edu.smd.shared.enums.SyllabusStatus;
 import vn.edu.smd.shared.enums.NotificationType;
 import vn.edu.smd.shared.enums.AssignmentStatus;
+import vn.edu.smd.shared.enums.ActorRoleType;
+import vn.edu.smd.shared.enums.DecisionType;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,6 +44,9 @@ public class SyllabusService {
     private final SyllabusCollaboratorRepository syllabusCollaboratorRepository;
     private final AITaskService aiTaskService;
     private final NotificationRepository notificationRepository;
+    private final vn.edu.smd.core.service.PloMappingService ploMappingService;
+    private final ApprovalHistoryRepository approvalHistoryRepository;
+    private final SyllabusVersionHistoryRepository syllabusVersionHistoryRepository;
 
     @Transactional(readOnly = true)
     public Page<SyllabusResponse> getAllSyllabi(Pageable pageable, List<String> statusStrings) {
@@ -252,8 +259,32 @@ public class SyllabusService {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
 
-        if (syllabus.getStatus() != SyllabusStatus.DRAFT) {
-            throw new BadRequestException("Only DRAFT syllabus can be updated");
+        // Allow update for DRAFT, REJECTED, and REVISION_IN_PROGRESS
+        if (!syllabus.getStatus().isEditable()) {
+            throw new BadRequestException("Chỉ có thể chỉnh sửa đề cương ở trạng thái Bản nháp, Bị từ chối hoặc Đang chỉnh sửa");
+        }
+
+        User currentUser = getCurrentUser();
+        SyllabusStatus previousStatus = syllabus.getStatus();
+        
+        // If saving draft after rejection, create snapshot and increment version
+        if (previousStatus == SyllabusStatus.REJECTED) {
+            log.info("Creating snapshot for rejected syllabus {} before revision", syllabus.getId());
+            
+            // Create snapshot of current version before updating
+            createSnapshot(syllabus, "BEFORE_REVISION_V" + (syllabus.getVersionNumber() != null ? syllabus.getVersionNumber() : 1));
+            
+            // Increment version number
+            Integer currentVersionNumber = syllabus.getVersionNumber() != null ? syllabus.getVersionNumber() : 1;
+            Integer newVersionNumber = currentVersionNumber + 1;
+            syllabus.setVersionNumber(newVersionNumber);
+            syllabus.setVersionNo("v" + newVersionNumber + ".0");
+            
+            // Change status to REVISION_IN_PROGRESS
+            syllabus.setStatus(SyllabusStatus.REVISION_IN_PROGRESS);
+            
+            log.info("Incremented version from {} to {} for syllabus {}", 
+                     currentVersionNumber, newVersionNumber, syllabus.getId());
         }
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
@@ -266,7 +297,7 @@ public class SyllabusService {
         syllabus.setKeywords(request.getKeywords());
         syllabus.setContent(request.getContent());
         syllabus.setDescription(request.getDescription());
-        syllabus.setUpdatedBy(getCurrentUser());
+        syllabus.setUpdatedBy(currentUser);
 
         return mapToResponse(syllabusVersionRepository.save(syllabus));
     }
@@ -286,14 +317,22 @@ public class SyllabusService {
     public SyllabusResponse submitSyllabus(UUID id, SyllabusApprovalRequest request) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
-        if (syllabus.getStatus() != SyllabusStatus.DRAFT) {
-            throw new BadRequestException("Only DRAFT syllabus can be submitted");
+        
+        // Allow submit for DRAFT, REJECTED, and REVISION_IN_PROGRESS
+        if (!syllabus.getStatus().isEditable()) {
+            throw new BadRequestException("Chỉ có thể gửi phê duyệt đề cương ở trạng thái Bản nháp, Bị từ chối hoặc Đang chỉnh sửa");
         }
         
-        // Update status to SUBMITTED (PENDING_HOD)
+        User currentUser = getCurrentUser();
+        
+        // Single Active Record: Just update status, no new record creation
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
-        syllabus.setUpdatedBy(getCurrentUser());
+        syllabus.setUpdatedBy(currentUser);
+        syllabus.setSubmittedAt(LocalDateTime.now());
         SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        log.info("Submitted syllabus {} (version {}) for approval", 
+                 savedSyllabus.getId(), savedSyllabus.getVersionNo());
                 // Update teaching assignment status to SUBMITTED
         updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.SUBMITTED);
                 // � Send notification to HOD
@@ -301,7 +340,6 @@ public class SyllabusService {
         
         // �🚀 Send message to RabbitMQ AI Queue for processing
         try {
-            User currentUser = getCurrentUser();
             String messageId = aiTaskService.requestCloPloMapping(
                 savedSyllabus.getId(),
                 syllabus.getSubject() != null && syllabus.getSubject().getCurriculum() != null 
@@ -327,7 +365,10 @@ public class SyllabusService {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
 
-        SyllabusStatus nextStatus = switch (syllabus.getStatus()) {
+        User currentUser = getCurrentUser();
+        SyllabusStatus currentStatus = syllabus.getStatus();
+        
+        SyllabusStatus nextStatus = switch (currentStatus) {
             case PENDING_HOD -> SyllabusStatus.PENDING_AA;
             case PENDING_AA -> SyllabusStatus.PENDING_PRINCIPAL;
             case PENDING_PRINCIPAL -> SyllabusStatus.APPROVED;
@@ -336,12 +377,35 @@ public class SyllabusService {
         };
 
         syllabus.setStatus(nextStatus);
-        syllabus.setUpdatedBy(getCurrentUser());
+        syllabus.setUpdatedBy(currentUser);
         SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
         
+        // Save approval history
+        ActorRoleType actorRole = determineActorRole(currentStatus);
+        ApprovalHistory approvalHistory = ApprovalHistory.builder()
+                .syllabusVersion(savedSyllabus)
+                .actor(currentUser)
+                .action(DecisionType.APPROVED)
+                .comment(request != null ? request.getComment() : null)
+                .actorRole(actorRole)
+                .build();
+        approvalHistoryRepository.save(approvalHistory);
+        
         // When HOD approves (PENDING_HOD → PENDING_AA), update assignment to COMPLETED
-        if (syllabus.getStatus() == SyllabusStatus.PENDING_HOD && nextStatus == SyllabusStatus.PENDING_AA) {
+        if (currentStatus == SyllabusStatus.PENDING_HOD && nextStatus == SyllabusStatus.PENDING_AA) {
             updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.COMPLETED);
+            // Send notification to AA
+            sendNotificationToAA(savedSyllabus, currentUser);
+        }
+        
+        // When AA approves (PENDING_AA → PENDING_PRINCIPAL), send notification to Principal
+        if (currentStatus == SyllabusStatus.PENDING_AA && nextStatus == SyllabusStatus.PENDING_PRINCIPAL) {
+            sendNotificationToPrincipal(savedSyllabus, currentUser);
+        }
+        
+        // When Principal approves (PENDING_PRINCIPAL → APPROVED), send notification to Admin
+        if (currentStatus == SyllabusStatus.PENDING_PRINCIPAL && nextStatus == SyllabusStatus.APPROVED) {
+            sendNotificationToAdmin(savedSyllabus, currentUser);
         }
         
         return mapToResponse(savedSyllabus);
@@ -351,10 +415,45 @@ public class SyllabusService {
     public SyllabusResponse rejectSyllabus(UUID id, SyllabusApprovalRequest request) {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
+        
+        User currentUser = getCurrentUser();
+        SyllabusStatus currentStatus = syllabus.getStatus();
+        String rejectionReason = request != null ? request.getComment() : null;
+        
+        if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+            throw new BadRequestException("Lý do từ chối không được để trống");
+        }
+        
         syllabus.setStatus(SyllabusStatus.REJECTED);
-        syllabus.setUnpublishReason(request.getComment());
-        syllabus.setUpdatedBy(getCurrentUser());
-        return mapToResponse(syllabusVersionRepository.save(syllabus));
+        syllabus.setUnpublishReason(rejectionReason);
+        syllabus.setUpdatedBy(currentUser);
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // Save approval history
+        ActorRoleType actorRole = determineActorRole(currentStatus);
+        ApprovalHistory approvalHistory = ApprovalHistory.builder()
+                .syllabusVersion(savedSyllabus)
+                .actor(currentUser)
+                .action(DecisionType.REJECTED)
+                .comment(rejectionReason)
+                .actorRole(actorRole)
+                .build();
+        approvalHistoryRepository.save(approvalHistory);
+        
+        // Send notification to primary lecturer
+        sendRejectionNotificationToLecturer(savedSyllabus, currentUser, rejectionReason, actorRole);
+        
+        // If AA rejects, also send notification to HOD
+        if (currentStatus == SyllabusStatus.PENDING_AA) {
+            sendRejectionNotificationToHOD(savedSyllabus, currentUser, rejectionReason);
+        }
+        
+        // If Principal rejects, send notification to Lecturer + HOD + AA
+        if (currentStatus == SyllabusStatus.PENDING_PRINCIPAL) {
+            sendRejectionNotificationToAA(savedSyllabus, currentUser, rejectionReason);
+        }
+        
+        return mapToResponse(savedSyllabus);
     }
 
     @Transactional(readOnly = true)
@@ -531,22 +630,31 @@ public class SyllabusService {
         response.setCreatedAt(syllabus.getCreatedAt());
         response.setUpdatedAt(syllabus.getUpdatedAt());
 
-        // Load CLOs
+        // Load CLOs from database tables
         List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabus.getId());
         Map<UUID, String> cloCodeMap = new HashMap<>();
-        response.setClos(clos.stream().map(clo -> {
-            cloCodeMap.put(clo.getId(), clo.getCode());
-            SyllabusResponse.CLOResponse cloResponse = new SyllabusResponse.CLOResponse();
-            cloResponse.setId(clo.getId());
-            cloResponse.setCode(clo.getCode());
-            cloResponse.setDescription(clo.getDescription());
-            cloResponse.setBloomLevel(clo.getBloomLevel());
-            cloResponse.setWeight(clo.getWeight());
-            return cloResponse;
-        }).collect(Collectors.toList()));
+        
+        // If no CLOs in database, try to extract from content JSONB (for newly created syllabi)
+        if (clos.isEmpty() && syllabus.getContent() != null && syllabus.getContent().containsKey("clos")) {
+            response.setClos(extractClosFromContent(syllabus.getContent()));
+        } else {
+            // Use CLOs from database tables
+            response.setClos(clos.stream().map(clo -> {
+                cloCodeMap.put(clo.getId(), clo.getCode());
+                SyllabusResponse.CLOResponse cloResponse = new SyllabusResponse.CLOResponse();
+                cloResponse.setId(clo.getId());
+                cloResponse.setCode(clo.getCode());
+                cloResponse.setDescription(clo.getDescription());
+                cloResponse.setBloomLevel(clo.getBloomLevel());
+                cloResponse.setWeight(clo.getWeight());
+                return cloResponse;
+            }).collect(Collectors.toList()));
+        }
 
-        // Load CLO-PLO Mappings
+        // Load CLO-PLO Mappings from database
         List<SyllabusResponse.CLOPLOMappingResponse> ploMappings = new ArrayList<>();
+        
+        // First try to load from database tables
         for (CLO clo : clos) {
             List<CloPlOMapping> mappings = cloPlOMappingRepository.findByCloId(clo.getId());
             for (CloPlOMapping mapping : mappings) {
@@ -559,48 +667,61 @@ public class SyllabusService {
                 ploMappings.add(mappingResponse);
             }
         }
+        
+        // If no mappings in database, try to extract from content JSONB (for newly created syllabi)
+        if (ploMappings.isEmpty() && syllabus.getContent() != null && syllabus.getContent().containsKey("ploMappings")) {
+            ploMappings = extractPloMappingsFromContent(syllabus.getContent());
+        }
+        
         response.setPloMappings(ploMappings);
 
-        // Load Assessment Schemes
+        // Load Assessment Schemes from database tables
         List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabus.getId());
-        response.setAssessmentMethods(assessments.stream().map(as -> {
-            SyllabusResponse.AssessmentResponse asResponse = new SyllabusResponse.AssessmentResponse();
-            asResponse.setId(as.getId());
-            asResponse.setName(as.getName());
-            asResponse.setWeight(as.getWeightPercent());
-            
-            String name = as.getName().toLowerCase();
-            if (name.contains("chuyên cần") || name.contains("điểm danh")) {
-                asResponse.setMethod("Đánh giá quá trình");
-                asResponse.setForm("Điểm danh + tham gia lớp học");
-                asResponse.setCriteria("Có mặt đầy đủ, tích cực tham gia thảo luận");
-            } else if (name.contains("bài tập") || name.contains("thực hành")) {
-                asResponse.setMethod("Đánh giá thường xuyên");
-                asResponse.setForm("Bài tập + Báo cáo thực hành");
-                asResponse.setCriteria("Hoàn thành bài tập đúng hạn, chất lượng tốt");
-            } else if (name.contains("giữa kỳ")) {
-                asResponse.setMethod("Kiểm tra giữa kỳ");
-                asResponse.setForm("Thi viết (60 phút)");
-                asResponse.setCriteria("Trả lời đúng các câu hỏi lý thuyết và bài tập");
-            } else if (name.contains("cuối kỳ") || name.contains("thi")) {
-                asResponse.setMethod("Thi cuối kỳ");
-                asResponse.setForm("Thi viết (90 phút)");
-                asResponse.setCriteria("Đánh giá toàn diện kiến thức và kỹ năng");
-            } else {
-                asResponse.setMethod(as.getName());
-                asResponse.setForm("Theo quy định");
-                asResponse.setCriteria("Theo rubric đánh giá");
-            }
-            
-            List<AssessmentCloMapping> acMappings = assessmentCloMappingRepository.findByAssessmentSchemeId(as.getId());
-            List<String> cloCodes = acMappings.stream()
-                .map(acm -> cloCodeMap.getOrDefault(acm.getClo().getId(), ""))
-                .filter(code -> !code.isEmpty())
-                .collect(Collectors.toList());
-            asResponse.setClos(cloCodes);
-            
-            return asResponse;
-        }).collect(Collectors.toList()));
+        
+        // If no assessments in database, try to extract from content JSONB (for newly created syllabi)
+        if (assessments.isEmpty() && syllabus.getContent() != null && syllabus.getContent().containsKey("assessmentMethods")) {
+            response.setAssessmentMethods(extractAssessmentMethodsFromContent(syllabus.getContent()));
+        } else {
+            // Use assessments from database tables
+            response.setAssessmentMethods(assessments.stream().map(as -> {
+                SyllabusResponse.AssessmentResponse asResponse = new SyllabusResponse.AssessmentResponse();
+                asResponse.setId(as.getId());
+                asResponse.setName(as.getName());
+                asResponse.setWeight(as.getWeightPercent());
+                
+                String name = as.getName().toLowerCase();
+                if (name.contains("chuyên cần") || name.contains("điểm danh")) {
+                    asResponse.setMethod("Đánh giá quá trình");
+                    asResponse.setForm("Điểm danh + tham gia lớp học");
+                    asResponse.setCriteria("Có mặt đầy đủ, tích cực tham gia thảo luận");
+                } else if (name.contains("bài tập") || name.contains("thực hành")) {
+                    asResponse.setMethod("Đánh giá thường xuyên");
+                    asResponse.setForm("Bài tập + Báo cáo thực hành");
+                    asResponse.setCriteria("Hoàn thành bài tập đúng hạn, chất lượng tốt");
+                } else if (name.contains("giữa kỳ")) {
+                    asResponse.setMethod("Kiểm tra giữa kỳ");
+                    asResponse.setForm("Thi viết (60 phút)");
+                    asResponse.setCriteria("Trả lời đúng các câu hỏi lý thuyết và bài tập");
+                } else if (name.contains("cuối kỳ") || name.contains("thi")) {
+                    asResponse.setMethod("Thi cuối kỳ");
+                    asResponse.setForm("Thi viết (90 phút)");
+                    asResponse.setCriteria("Đánh giá toàn diện kiến thức và kỹ năng");
+                } else {
+                    asResponse.setMethod(as.getName());
+                    asResponse.setForm("Theo quy định");
+                    asResponse.setCriteria("Theo rubric đánh giá");
+                }
+                
+                List<AssessmentCloMapping> acMappings = assessmentCloMappingRepository.findByAssessmentSchemeId(as.getId());
+                List<String> cloCodes = acMappings.stream()
+                    .map(acm -> cloCodeMap.getOrDefault(acm.getClo().getId(), ""))
+                    .filter(code -> !code.isEmpty())
+                    .collect(Collectors.toList());
+                asResponse.setClos(cloCodes);
+                
+                return asResponse;
+            }).collect(Collectors.toList()));
+        }
 
         if (syllabus.getContent() != null && syllabus.getContent().containsKey("objectives")) {
             Object objectives = syllabus.getContent().get("objectives");
@@ -898,6 +1019,130 @@ public class SyllabusService {
                 return;
             }
             
+            // Find teaching assignment by subject and term
+            Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
+                    .findBySubjectIdAndAcademicTermId(
+                            syllabus.getSubject().getId(),
+                            syllabus.getAcademicTerm().getId()
+                    );
+            
+            if (assignmentOpt.isPresent()) {
+                TeachingAssignment assignment = assignmentOpt.get();
+                assignment.setStatus(newStatus);
+                teachingAssignmentRepository.save(assignment);
+                log.info("Updated teaching assignment {} status to {}", assignment.getId(), newStatus);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update teaching assignment status: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Extract CLOs from content JSONB
+     */
+    @SuppressWarnings("unchecked")
+    private List<SyllabusResponse.CLOResponse> extractClosFromContent(Map<String, Object> content) {
+        List<SyllabusResponse.CLOResponse> closList = new ArrayList<>();
+        
+        try {
+            Object closObj = content.get("clos");
+            if (closObj instanceof List) {
+                List<Map<String, Object>> clos = (List<Map<String, Object>>) closObj;
+                
+                for (Map<String, Object> clo : clos) {
+                    SyllabusResponse.CLOResponse cloResponse = new SyllabusResponse.CLOResponse();
+                    cloResponse.setCode((String) clo.get("code"));
+                    cloResponse.setDescription((String) clo.get("description"));
+                    cloResponse.setBloomLevel((String) clo.get("bloomLevel"));
+                    
+                    // Handle weight as either Number or BigDecimal
+                    Object weightObj = clo.get("weight");
+                    if (weightObj instanceof Number) {
+                        cloResponse.setWeight(new BigDecimal(weightObj.toString()));
+                    }
+                    
+                    closList.add(cloResponse);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract CLOs from content: {}", e.getMessage());
+        }
+        
+        return closList;
+    }
+    
+    /**
+     * Extract PLO mappings from content JSONB
+     */
+    @SuppressWarnings("unchecked")
+    private List<SyllabusResponse.CLOPLOMappingResponse> extractPloMappingsFromContent(Map<String, Object> content) {
+        List<SyllabusResponse.CLOPLOMappingResponse> mappings = new ArrayList<>();
+        
+        try {
+            Object mappingsObj = content.get("ploMappings");
+            if (mappingsObj instanceof List) {
+                List<Map<String, Object>> ploMappings = (List<Map<String, Object>>) mappingsObj;
+                
+                for (Map<String, Object> mapping : ploMappings) {
+                    SyllabusResponse.CLOPLOMappingResponse mappingResponse = new SyllabusResponse.CLOPLOMappingResponse();
+                    mappingResponse.setCloCode((String) mapping.get("cloCode"));
+                    mappingResponse.setPloCode((String) mapping.get("ploCode"));
+                    mappingResponse.setContributionLevel((String) mapping.get("contributionLevel"));
+                    mappings.add(mappingResponse);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract PLO mappings from content: {}", e.getMessage());
+        }
+        
+        return mappings;
+    }
+    
+    /**
+     * Extract assessment methods from content JSONB
+     */
+    @SuppressWarnings("unchecked")
+    private List<SyllabusResponse.AssessmentResponse> extractAssessmentMethodsFromContent(Map<String, Object> content) {
+        List<SyllabusResponse.AssessmentResponse> assessments = new ArrayList<>();
+        
+        try {
+            Object assessmentsObj = content.get("assessmentMethods");
+            if (assessmentsObj instanceof List) {
+                List<Map<String, Object>> assessmentMethods = (List<Map<String, Object>>) assessmentsObj;
+                
+                for (Map<String, Object> assessment : assessmentMethods) {
+                    SyllabusResponse.AssessmentResponse assessmentResponse = new SyllabusResponse.AssessmentResponse();
+                    assessmentResponse.setMethod((String) assessment.get("method"));
+                    assessmentResponse.setForm((String) assessment.get("form"));
+                    assessmentResponse.setCriteria((String) assessment.get("criteria"));
+                    
+                    // Handle weight as either Number or BigDecimal
+                    Object weightObj = assessment.get("weight");
+                    if (weightObj instanceof Number) {
+                        assessmentResponse.setWeight(new BigDecimal(weightObj.toString()));
+                    }
+                    
+                    // Extract CLO codes
+                    Object closObj = assessment.get("clos");
+                    if (closObj instanceof List) {
+                        assessmentResponse.setClos((List<String>) closObj);
+                    }
+                    
+                    assessments.add(assessmentResponse);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract assessment methods from content: {}", e.getMessage());
+        }
+        
+        return assessments;
+    }
+    
+    // Helper method to find and update assignment status continues below...
+    
+    private void completeUpdateTeachingAssignmentStatusBySyllabus(SyllabusVersion syllabus, AssignmentStatus newStatus) {
+        try {
+            
             Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
                     .findBySubjectIdAndAcademicTermId(
                         syllabus.getSubject().getId(),
@@ -914,6 +1159,558 @@ public class SyllabusService {
         } catch (Exception e) {
             log.error("Failed to update teaching assignment status for syllabus {}: {}", 
                       syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Auto-suggest PLO mappings based on CLO descriptions and Bloom's levels
+     * Delegates to PloMappingService for intelligent keyword matching
+     */
+    public List<Map<String, Object>> suggestPloMappings(List<Map<String, Object>> clos) {
+        log.info("Suggesting PLO mappings for {} CLOs", clos.size());
+        return ploMappingService.suggestPloMappings(clos);
+    }
+    
+    /**
+     * Determine actor role based on current syllabus status
+     */
+    private ActorRoleType determineActorRole(SyllabusStatus status) {
+        return switch (status) {
+            case PENDING_HOD, PENDING_HOD_REVISION -> ActorRoleType.HOD;
+            case PENDING_AA -> ActorRoleType.AA;
+            case PENDING_PRINCIPAL -> ActorRoleType.PRINCIPAL;
+            case APPROVED, PUBLISHED -> ActorRoleType.ADMIN;
+            default -> ActorRoleType.LECTURER;
+        };
+    }
+    
+    /**
+     * Send rejection notification to primary lecturer
+     */
+    private void sendRejectionNotificationToLecturer(SyllabusVersion syllabus, User rejector, 
+                                                      String rejectionReason, ActorRoleType rejectorRole) {
+        try {
+            User primaryLecturer = syllabus.getCreatedBy();
+            
+            if (primaryLecturer == null) {
+                log.warn("Primary lecturer not found for syllabus {} - cannot send rejection notification", 
+                         syllabus.getId());
+                return;
+            }
+            
+            // Build notification title
+            String title = String.format("[Yêu cầu chỉnh sửa] Đề cương môn %s bị từ chối phê duyệt", 
+                syllabus.getSnapSubjectCode());
+            
+            // Build notification message
+            String rejectorTitle = rejectorRole != null ? rejectorRole.getDisplayName() : "Người phê duyệt";
+            String message = String.format(
+                "%s %s đã từ chối phê duyệt đề cương môn %s.\n\n" +
+                "Lý do: %s\n\n" +
+                "Vui lòng chỉnh sửa đề cương theo yêu cầu và gửi lại để phê duyệt.",
+                rejectorTitle,
+                rejector.getFullName(),
+                syllabus.getSnapSubjectNameVi(),
+                rejectionReason
+            );
+            
+            // Create payload with action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/lecturer/syllabi/edit/" + syllabus.getId());
+            payload.put("actionLabel", "Chỉnh sửa ngay");
+            payload.put("rejectionReason", rejectionReason);
+            payload.put("rejectorRole", rejectorRole != null ? rejectorRole.name() : null);
+            
+            Notification notification = Notification.builder()
+                    .user(primaryLecturer)
+                    .title(title)
+                    .message(message)
+                    .type("SYLLABUS_REJECTED")
+                    .payload(payload)
+                    .isRead(false)
+                    .build();
+            
+            notificationRepository.save(notification);
+            
+            log.info("Sent rejection notification to lecturer {} for syllabus {}", 
+                     primaryLecturer.getEmail(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send notification to Academic Affairs (AA) when HOD approves syllabus
+     */
+    private void sendNotificationToAA(SyllabusVersion syllabus, User hod) {
+        try {
+            // Find all users with AA role
+            List<User> aaUsers = userRepository.findAll().stream()
+                    .filter(user -> user.getUserRoles() != null && 
+                            user.getUserRoles().stream()
+                                .anyMatch(ur -> ur.getRole() != null && "AA".equals(ur.getRole().getCode())))
+                    .collect(Collectors.toList());
+            
+            if (aaUsers.isEmpty()) {
+                log.warn("No AA users found - cannot send notification for syllabus {}", syllabus.getId());
+                return;
+            }
+            
+            User primaryLecturer = syllabus.getCreatedBy();
+            String lecturerName = primaryLecturer != null ? primaryLecturer.getFullName() : "Không xác định";
+            
+            // Get department name
+            String departmentName = "Không xác định";
+            if (primaryLecturer != null && primaryLecturer.getDepartment() != null) {
+                departmentName = primaryLecturer.getDepartment().getName();
+            }
+            
+            // Build notification title
+            String title = String.format("[Chờ duyệt] Đề cương môn học đã được Bộ môn thông qua: %s", 
+                syllabus.getSnapSubjectCode());
+            
+            // Build notification message
+            String message = String.format(
+                "Chào bộ phận Phòng Đào tạo,\n\n" +
+                "Đề cương môn học sau đây đã được Trưởng bộ môn %s phê duyệt về mặt nội dung và gửi đến Phòng Đào tạo rà soát:\n\n" +
+                "Môn học: %s - %s\n" +
+                "Bộ môn: %s\n" +
+                "Giảng viên biên soạn: %s\n" +
+                "Thời gian HoD duyệt: %s\n\n" +
+                "Vui lòng thực hiện rà soát quy chuẩn và phê duyệt để phục vụ xuất bản đề cương.",
+                hod.getFullName(),
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi(),
+                departmentName,
+                lecturerName,
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").format(java.time.LocalDateTime.now())
+            );
+            
+            // Create payload with action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/admin/aa-syllabus-review");
+            payload.put("actionLabel", "Kiểm duyệt ngay");
+            payload.put("hodName", hod.getFullName());
+            payload.put("departmentName", departmentName);
+            
+            // Send notification to all AA users
+            for (User aaUser : aaUsers) {
+                Notification notification = Notification.builder()
+                        .user(aaUser)
+                        .title(title)
+                        .message(message)
+                        .type("SYLLABUS_AA_REVIEW")
+                        .payload(payload)
+                        .isRead(false)
+                        .build();
+                
+                notificationRepository.save(notification);
+            }
+            
+            log.info("Sent AA review notification to {} AA users for syllabus {}", 
+                     aaUsers.size(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send AA notification for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send notification to Principal when AA approves syllabus
+     */
+    private void sendNotificationToPrincipal(SyllabusVersion syllabus, User aaUser) {
+        try {
+            // Find all users with PRINCIPAL role
+            List<User> principalUsers = userRepository.findAll().stream()
+                    .filter(user -> user.getUserRoles() != null && 
+                            user.getUserRoles().stream()
+                                .anyMatch(ur -> ur.getRole() != null && "PRINCIPAL".equals(ur.getRole().getCode())))
+                    .collect(Collectors.toList());
+            
+            if (principalUsers.isEmpty()) {
+                log.warn("No PRINCIPAL users found - cannot send notification for syllabus {}", syllabus.getId());
+                return;
+            }
+            
+            User primaryLecturer = syllabus.getCreatedBy();
+            String lecturerName = primaryLecturer != null ? primaryLecturer.getFullName() : "Không xác định";
+            
+            // Get department name
+            String departmentName = "Không xác định";
+            if (primaryLecturer != null && primaryLecturer.getDepartment() != null) {
+                departmentName = primaryLecturer.getDepartment().getName();
+            }
+            
+            // Build notification title
+            String title = String.format("[Chờ duyệt] Đề cương môn học đã được Phòng Đào tạo thông qua: %s", 
+                syllabus.getSnapSubjectCode());
+            
+            // Build notification message
+            String message = String.format(
+                "Chào Hiệu trưởng,\n\n" +
+                "Đề cương môn học sau đây đã được Phòng Đào tạo phê duyệt và gửi đến Hiệu trưởng để phê duyệt cuối cùng:\n\n" +
+                "Môn học: %s - %s\n" +
+                "Bộ môn: %s\n" +
+                "Giảng viên biên soạn: %s\n" +
+                "Thời gian Phòng ĐT duyệt: %s\n\n" +
+                "Vui lòng xem xét và phê duyệt để đề cương có thể được xuất bản.",
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi(),
+                departmentName,
+                lecturerName,
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").format(java.time.LocalDateTime.now())
+            );
+            
+            // Create payload with action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/principal/syllabi/" + syllabus.getId());
+            payload.put("actionLabel", "Xem và duyệt");
+            payload.put("aaUserName", aaUser.getFullName());
+            payload.put("departmentName", departmentName);
+            
+            // Send notification to all Principal users
+            for (User principal : principalUsers) {
+                Notification notification = Notification.builder()
+                        .user(principal)
+                        .title(title)
+                        .message(message)
+                        .type("SYLLABUS_PRINCIPAL_REVIEW")
+                        .payload(payload)
+                        .isRead(false)
+                        .build();
+                
+                notificationRepository.save(notification);
+            }
+            
+            log.info("Sent Principal review notification to {} Principal users for syllabus {}", 
+                     principalUsers.size(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send Principal notification for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send rejection notification to HOD when AA rejects syllabus
+     */
+    private void sendRejectionNotificationToHOD(SyllabusVersion syllabus, User rejector, String rejectionReason) {
+        try {
+            // Find teaching assignment to get HOD
+            Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
+                    .findBySubjectIdAndAcademicTermId(
+                        syllabus.getSubject().getId(),
+                        syllabus.getAcademicTerm().getId()
+                    );
+            
+            if (assignmentOpt.isEmpty()) {
+                log.warn("No teaching assignment found for syllabus {} - cannot send HOD notification", 
+                         syllabus.getId());
+                return;
+            }
+            
+            TeachingAssignment assignment = assignmentOpt.get();
+            User hod = assignment.getAssignedBy(); // HOD is the one who assigned
+            
+            if (hod == null) {
+                log.warn("HOD not found for teaching assignment {} - cannot send notification", 
+                         assignment.getId());
+                return;
+            }
+            
+            User primaryLecturer = syllabus.getCreatedBy();
+            String lecturerName = primaryLecturer != null ? primaryLecturer.getFullName() : "Không xác định";
+            
+            // Build notification title
+            String title = String.format("[Thông báo] Đề cương môn %s bị Phòng Đào tạo từ chối", 
+                syllabus.getSnapSubjectCode());
+            
+            // Build notification message
+            String message = String.format(
+                "Kính gửi Trưởng bộ môn,\n\n" +
+                "Phòng Đào tạo đã từ chối phê duyệt đề cương môn %s do giảng viên %s biên soạn.\n\n" +
+                "Lý do: %s\n\n" +
+                "Đề cương sẽ được trả về cho giảng viên để chỉnh sửa. Vui lòng hỗ trợ giảng viên hoàn thiện đề cương.",
+                syllabus.getSnapSubjectNameVi(),
+                lecturerName,
+                rejectionReason
+            );
+            
+            // Create payload with action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("actionUrl", "/hod/syllabi/" + syllabus.getId());
+            payload.put("actionLabel", "Xem chi tiết");
+            payload.put("rejectionReason", rejectionReason);
+            payload.put("lecturerName", lecturerName);
+            
+            Notification notification = Notification.builder()
+                    .user(hod)
+                    .title(title)
+                    .message(message)
+                    .type("SYLLABUS_REJECTED_NOTIFICATION")
+                    .payload(payload)
+                    .isRead(false)
+                    .build();
+            
+            notificationRepository.save(notification);
+            
+            log.info("Sent rejection notification to HOD {} for syllabus {}", 
+                     hod.getEmail(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification to HOD for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send notification to Admin when Principal approves syllabus
+     */
+    private void sendNotificationToAdmin(SyllabusVersion syllabus, User principal) {
+        try {
+            // Find all users with ADMIN role
+            List<User> adminUsers = userRepository.findAll().stream()
+                    .filter(user -> user.getUserRoles() != null && 
+                            user.getUserRoles().stream()
+                                .anyMatch(ur -> ur.getRole() != null && "ADMIN".equals(ur.getRole().getCode())))
+                    .collect(Collectors.toList());
+            
+            if (adminUsers.isEmpty()) {
+                log.warn("No ADMIN users found - cannot send notification for syllabus {}", syllabus.getId());
+                return;
+            }
+            
+            User primaryLecturer = syllabus.getCreatedBy();
+            String lecturerName = primaryLecturer != null ? primaryLecturer.getFullName() : "Không xác định";
+            
+            // Get department name
+            String departmentName = "Không xác định";
+            if (primaryLecturer != null && primaryLecturer.getDepartment() != null) {
+                departmentName = primaryLecturer.getDepartment().getName();
+            }
+            
+            // Build notification title
+            String title = String.format("[Chờ xuất bản] Đề cương môn học đã được Hiệu trưởng phê duyệt: %s", 
+                syllabus.getSnapSubjectCode());
+            
+            // Build notification message
+            String message = String.format(
+                "Chào Admin,\n\n" +
+                "Đề cương môn học sau đây đã được Hiệu trưởng phê duyệt và sẵn sàng xuất bản:\n\n" +
+                "Môn học: %s - %s\n" +
+                "Bộ môn: %s\n" +
+                "Giảng viên biên soạn: %s\n" +
+                "Phiên bản: %s\n" +
+                "Thời gian phê duyệt: %s\n\n" +
+                "Vui lòng xuất bản đề cương để sinh viên có thể truy cập.",
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi(),
+                departmentName,
+                lecturerName,
+                syllabus.getVersionNo(),
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy").format(LocalDateTime.now())
+            );
+            
+            // Create payload with action URL
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("subjectCode", syllabus.getSnapSubjectCode());
+            payload.put("versionNo", syllabus.getVersionNo());
+            payload.put("actionUrl", "/admin/syllabi/" + syllabus.getId());
+            payload.put("actionLabel", "Xuất bản");
+            payload.put("principalName", principal.getFullName());
+            payload.put("departmentName", departmentName);
+            
+            // Send notification to all Admin users
+            for (User admin : adminUsers) {
+                Notification notification = Notification.builder()
+                        .user(admin)
+                        .title(title)
+                        .message(message)
+                        .type("SYLLABUS_ADMIN_PUBLISH")
+                        .payload(payload)
+                        .isRead(false)
+                        .build();
+                
+                notificationRepository.save(notification);
+            }
+            
+            log.info("Sent Admin publish notification to {} Admin users for syllabus {}", 
+                     adminUsers.size(), syllabus.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to send Admin notification for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send rejection notification to AA and HOD when Principal rejects syllabus
+     */
+    private void sendRejectionNotificationToAA(SyllabusVersion syllabus, User principal, String rejectionReason) {
+        try {
+            User primaryLecturer = syllabus.getCreatedBy();
+            String lecturerName = primaryLecturer != null ? primaryLecturer.getFullName() : "Không xác định";
+            
+            // 1. Find and notify all AA users
+            List<User> aaUsers = userRepository.findAll().stream()
+                    .filter(user -> user.getUserRoles() != null && 
+                            user.getUserRoles().stream()
+                                .anyMatch(ur -> ur.getRole() != null && "ACADEMIC_AFFAIR".equals(ur.getRole().getCode())))
+                    .collect(Collectors.toList());
+            
+            if (!aaUsers.isEmpty()) {
+                String aaTitle = String.format("[Thông báo] Đề cương môn %s bị Hiệu trưởng từ chối", 
+                    syllabus.getSnapSubjectCode());
+                
+                String aaMessage = String.format(
+                    "Kính gửi Phòng Đào tạo,\n\n" +
+                    "Hiệu trưởng đã từ chối phê duyệt đề cương môn %s do giảng viên %s biên soạn.\n\n" +
+                    "Lý do: %s\n\n" +
+                    "Đề cương sẽ được trả về cho giảng viên để chỉnh sửa.",
+                    syllabus.getSnapSubjectNameVi(),
+                    lecturerName,
+                    rejectionReason
+                );
+                
+                Map<String, Object> aaPayload = new HashMap<>();
+                aaPayload.put("syllabusId", syllabus.getId().toString());
+                aaPayload.put("subjectCode", syllabus.getSnapSubjectCode());
+                aaPayload.put("actionUrl", "/aa/syllabi/" + syllabus.getId());
+                aaPayload.put("actionLabel", "Xem chi tiết");
+                aaPayload.put("rejectionReason", rejectionReason);
+                aaPayload.put("lecturerName", lecturerName);
+                
+                for (User aaUser : aaUsers) {
+                    Notification notification = Notification.builder()
+                            .user(aaUser)
+                            .title(aaTitle)
+                            .message(aaMessage)
+                            .type("SYLLABUS_REJECTED_NOTIFICATION")
+                            .payload(aaPayload)
+                            .isRead(false)
+                            .build();
+                    
+                    notificationRepository.save(notification);
+                }
+                
+                log.info("Sent rejection notification to {} AA users for syllabus {}", 
+                         aaUsers.size(), syllabus.getId());
+            }
+            
+            // 2. Find and notify HOD
+            Optional<TeachingAssignment> assignmentOpt = teachingAssignmentRepository
+                    .findBySubjectIdAndAcademicTermId(
+                        syllabus.getSubject().getId(),
+                        syllabus.getAcademicTerm().getId()
+                    );
+            
+            if (assignmentOpt.isPresent()) {
+                TeachingAssignment assignment = assignmentOpt.get();
+                User hod = assignment.getAssignedBy();
+                
+                if (hod != null) {
+                    String hodTitle = String.format("[Thông báo] Đề cương môn %s bị Hiệu trưởng từ chối", 
+                        syllabus.getSnapSubjectCode());
+                    
+                    String hodMessage = String.format(
+                        "Kính gửi Trưởng bộ môn,\n\n" +
+                        "Hiệu trưởng đã từ chối phê duyệt đề cương môn %s do giảng viên %s biên soạn.\n\n" +
+                        "Lý do: %s\n\n" +
+                        "Đề cương sẽ được trả về cho giảng viên để chỉnh sửa. Vui lòng hỗ trợ giảng viên hoàn thiện đề cương.",
+                        syllabus.getSnapSubjectNameVi(),
+                        lecturerName,
+                        rejectionReason
+                    );
+                    
+                    Map<String, Object> hodPayload = new HashMap<>();
+                    hodPayload.put("syllabusId", syllabus.getId().toString());
+                    hodPayload.put("subjectCode", syllabus.getSnapSubjectCode());
+                    hodPayload.put("actionUrl", "/hod/syllabi/" + syllabus.getId());
+                    hodPayload.put("actionLabel", "Xem chi tiết");
+                    hodPayload.put("rejectionReason", rejectionReason);
+                    hodPayload.put("lecturerName", lecturerName);
+                    
+                    Notification hodNotification = Notification.builder()
+                            .user(hod)
+                            .title(hodTitle)
+                            .message(hodMessage)
+                            .type("SYLLABUS_REJECTED_NOTIFICATION")
+                            .payload(hodPayload)
+                            .isRead(false)
+                            .build();
+                    
+                    notificationRepository.save(hodNotification);
+                    
+                    log.info("Sent rejection notification to HOD {} for syllabus {}", 
+                             hod.getEmail(), syllabus.getId());
+                }
+            }
+            
+            // 3. Notification to Lecturer is already sent by sendRejectionNotificationToLecturer
+            
+        } catch (Exception e) {
+            log.error("Failed to send rejection notification to AA/HOD for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Create snapshot of current syllabus version before modification
+     * Implements Single Active Record pattern
+     */
+    private void createSnapshot(SyllabusVersion syllabus, String reason) {
+        try {
+            Integer versionNumber = syllabus.getVersionNumber() != null ? syllabus.getVersionNumber() : 1;
+            
+            SyllabusVersionHistory snapshot = SyllabusVersionHistory.builder()
+                    .syllabusVersion(syllabus)
+                    .versionNumber(versionNumber)
+                    .versionNo(syllabus.getVersionNo())
+                    .status(syllabus.getStatus())
+                    // Copy full content
+                    .content(syllabus.getContent())
+                    .keywords(syllabus.getKeywords())
+                    .description(syllabus.getDescription())
+                    .objectives(syllabus.getObjectives())
+                    .studentTasks(syllabus.getStudentTasks())
+                    .studentDuties(syllabus.getStudentDuties())
+                    // Copy snapshot metadata
+                    .snapSubjectCode(syllabus.getSnapSubjectCode())
+                    .snapSubjectNameVi(syllabus.getSnapSubjectNameVi())
+                    .snapSubjectNameEn(syllabus.getSnapSubjectNameEn())
+                    .snapCreditCount(syllabus.getSnapCreditCount())
+                    // Copy course details
+                    .courseType(syllabus.getCourseType())
+                    .componentType(syllabus.getComponentType())
+                    .theoryHours(syllabus.getTheoryHours())
+                    .practiceHours(syllabus.getPracticeHours())
+                    .selfStudyHours(syllabus.getSelfStudyHours())
+                    // Set audit fields
+                    .createdBy(getCurrentUser())
+                    .snapshotReason(reason)
+                    .build();
+            
+            syllabusVersionHistoryRepository.save(snapshot);
+            
+            log.info("Created snapshot for syllabus {} version {} with reason: {}", 
+                     syllabus.getId(), versionNumber, reason);
+            
+        } catch (Exception e) {
+            log.error("Failed to create snapshot for syllabus {}: {}", 
+                      syllabus.getId(), e.getMessage(), e);
+            // Don't throw exception - snapshot failure shouldn't block main operation
         }
     }
 }
