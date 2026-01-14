@@ -50,6 +50,13 @@ public class SyllabusController {
         }
     }
 
+    @Operation(summary = "Get syllabus statistics", description = "Get count of syllabi by status")
+    @GetMapping("/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
+        Map<String, Long> statistics = syllabusService.getStatistics();
+        return ResponseEntity.ok(ApiResponse.success(statistics));
+    }
+
     @Operation(summary = "Get syllabus by ID", description = "Get syllabus details by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SyllabusResponse>> getSyllabusById(@PathVariable UUID id) {
@@ -158,12 +165,5 @@ public class SyllabusController {
     public ResponseEntity<ApiResponse<byte[]>> exportSyllabusToPdf(@PathVariable UUID id) {
         byte[] pdfData = syllabusService.exportSyllabusToPdf(id);
         return ResponseEntity.ok(ApiResponse.success("PDF exported successfully", pdfData));
-    }
-
-    @Operation(summary = "Get syllabus statistics", description = "Get count of syllabi by status")
-    @GetMapping("/statistics")
-    public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
-        Map<String, Long> statistics = syllabusService.getStatistics();
-        return ResponseEntity.ok(ApiResponse.success(statistics));
     }
 }
