@@ -46,7 +46,7 @@ export const DashboardPage: React.FC = () => {
   const { data: principalPendingCount = 0 } = useQuery({
     queryKey: ['syllabi-principal-pending'],
     queryFn: () =>
-        syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
+      syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
     select: countUniqueSyllabi,
     enabled: user?.role === UserRole.AA,
   });
@@ -151,6 +151,8 @@ export const DashboardPage: React.FC = () => {
           [SyllabusStatus.PUBLISHED]: { color: 'cyan', text: 'Đã xuất bản' },
           [SyllabusStatus.DRAFT]: { color: 'default', text: 'Nháp' },
           [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
+          [SyllabusStatus.REVISION_IN_PROGRESS]: { color: 'volcano', text: 'Đang sửa' },
+          [SyllabusStatus.INACTIVE]: { color: 'default', text: 'Không hoạt động' },
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
         };
         const config = statusConfig[status];
@@ -176,7 +178,7 @@ export const DashboardPage: React.FC = () => {
   }));
 
   return (
-      <div>
+    <div>
         <Title level={2} style={{ marginBottom: 24 }}>
           Dashboard
           <Text type="secondary" style={{ fontSize: '1rem', fontWeight: 400, marginLeft: 16 }}>
@@ -189,40 +191,40 @@ export const DashboardPage: React.FC = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                  title="Tổng Đề cương"
-                  value={totalCount}
-                  prefix={<FileTextOutlined />}
-                  valueStyle={{ color: '#018486' }}
+                title="Tổng Đề cương"
+                value={totalCount}
+                prefix={<FileTextOutlined />}
+                valueStyle={{ color: '#018486' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                  title="Chờ Phê duyệt"
-                  value={pendingCount}
-                  prefix={<ClockCircleOutlined />}
-                  valueStyle={{ color: '#faad14' }}
+                title="Chờ Phê duyệt"
+                value={pendingCount}
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#faad14' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                  title={approvedTitle}
-                  value={approvedCount}
-                  prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
+                title={approvedTitle}
+                value={approvedCount}
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                  title="Đề cương cần chỉnh"
-                  value={needsEditCount}
-                  prefix={<EditOutlined />}
-                  valueStyle={{ color: '#ff4d4f' }}
+                title="Đề cương cần chỉnh"
+                value={needsEditCount}
+                prefix={<EditOutlined />}
+                valueStyle={{ color: '#ff4d4f' }}
               />
             </Card>
           </Col>
@@ -233,13 +235,13 @@ export const DashboardPage: React.FC = () => {
           {/* Pending Approvals Table */}
           <Col xs={24} xl={16}>
             <Card
-                title={
-                  <Space>
-                    <ClockCircleOutlined />
-                    <span>Đề cương Chờ Xét duyệt</span>
-                  </Space>
-                }
-                extra={<a href="/admin/syllabi">Xem tất cả</a>}
+              title={
+                <Space>
+                  <ClockCircleOutlined />
+                  <span>Đề cương Chờ Xét duyệt</span>
+                </Space>
+              }
+              extra={<a href="/admin/syllabi">Xem tất cả</a>}
             >
               <Table columns={columns} dataSource={tableData} loading={isLoading} pagination={false} size="middle" />
             </Card>
@@ -257,8 +259,8 @@ export const DashboardPage: React.FC = () => {
                       <Text strong>{approvedCount}</Text>
                     </div>
                     <Progress
-                        percent={totalCount ? Math.round((approvedCount / totalCount) * 100) : 0}
-                        strokeColor="#52c41a"
+                      percent={totalCount ? Math.round((approvedCount / totalCount) * 100) : 0}
+                      strokeColor="#52c41a"
                     />
                   </div>
 
@@ -268,8 +270,8 @@ export const DashboardPage: React.FC = () => {
                       <Text strong>{pendingCount}</Text>
                     </div>
                     <Progress
-                        percent={totalCount ? Math.round((pendingCount / totalCount) * 100) : 0}
-                        strokeColor="#faad14"
+                      percent={totalCount ? Math.round((pendingCount / totalCount) * 100) : 0}
+                      strokeColor="#faad14"
                     />
                   </div>
 
@@ -279,8 +281,8 @@ export const DashboardPage: React.FC = () => {
                       <Text strong>{needsEditCount}</Text>
                     </div>
                     <Progress
-                        percent={totalCount ? Math.round((needsEditCount / totalCount) * 100) : 0}
-                        strokeColor="#ff4d4f"
+                      percent={totalCount ? Math.round((needsEditCount / totalCount) * 100) : 0}
+                      strokeColor="#ff4d4f"
                     />
                   </div>
                 </Space>
