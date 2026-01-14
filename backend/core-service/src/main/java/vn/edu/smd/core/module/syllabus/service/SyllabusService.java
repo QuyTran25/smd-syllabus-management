@@ -494,6 +494,19 @@ public class SyllabusService {
         return new byte[0];
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Long> getStatistics() {
+        Map<String, Long> statistics = new HashMap<>();
+        
+        // Count syllabi by each status
+        for (SyllabusStatus status : SyllabusStatus.values()) {
+            long count = syllabusVersionRepository.countByStatusAndIsDeletedFalse(status);
+            statistics.put(status.name(), count);
+        }
+        
+        return statistics;
+    }
+
     @Transactional
     public SyllabusResponse cloneSyllabus(UUID id) {
         SyllabusVersion original = syllabusVersionRepository.findById(id)

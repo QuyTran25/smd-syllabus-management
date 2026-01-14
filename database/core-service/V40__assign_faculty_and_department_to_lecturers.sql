@@ -2,10 +2,10 @@
 -- Purpose: Fix empty lecturer dropdown and "You do not belong to any faculty" errors
 
 -- Update all lecturers to belong to "Khoa Công nghệ Thông tin" (IT Faculty) and departments
-UPDATE users
+UPDATE core_service.users
 SET 
-    faculty_id = (SELECT id FROM faculties WHERE code = 'FIT' LIMIT 1),
-    department_id = (SELECT id FROM departments WHERE code = 'KHMT' LIMIT 1)
+    faculty_id = (SELECT id FROM core_service.faculties WHERE code = 'FIT' LIMIT 1),
+    department_id = (SELECT id FROM core_service.departments WHERE code = 'KHMT' LIMIT 1)
 WHERE email IN (
     'gv.nguyen@smd.edu.vn',
     'gv.tran@smd.edu.vn',
@@ -16,13 +16,13 @@ WHERE email IN (
 );
 
 -- Update HODs with their departments
-UPDATE users
-SET faculty_id = (SELECT id FROM faculties WHERE code = 'FIT' LIMIT 1)
+UPDATE core_service.users
+SET faculty_id = (SELECT id FROM core_service.faculties WHERE code = 'FIT' LIMIT 1)
 WHERE email IN ('hod.khmt@smd.edu.vn', 'hod.ktpm@smd.edu.vn', 'hod.httt@smd.edu.vn');
 
 -- Update AA and Principal with faculty
-UPDATE users
-SET faculty_id = (SELECT id FROM faculties WHERE code = 'FIT' LIMIT 1)
+UPDATE core_service.users
+SET faculty_id = (SELECT id FROM core_service.faculties WHERE code = 'FIT' LIMIT 1)
 WHERE email IN ('aa@smd.edu.vn', 'principal@smd.edu.vn');
 
 -- Verify the update (only if users exist)
@@ -34,20 +34,20 @@ DECLARE
 BEGIN
     -- Count lecturers with faculty/department
     SELECT COUNT(*) INTO lecturer_count
-    FROM users
+    FROM core_service.users
     WHERE email LIKE 'gv.%@smd.edu.vn'
     AND faculty_id IS NOT NULL
     AND department_id IS NOT NULL;
     
     -- Count HODs with faculty
     SELECT COUNT(*) INTO hod_count
-    FROM users
+    FROM core_service.users
     WHERE email LIKE 'hod.%@smd.edu.vn'
     AND faculty_id IS NOT NULL;
     
     -- Count AA/Principal with faculty
     SELECT COUNT(*) INTO admin_count
-    FROM users
+    FROM core_service.users
     WHERE email IN ('aa@smd.edu.vn', 'principal@smd.edu.vn')
     AND faculty_id IS NOT NULL;
     

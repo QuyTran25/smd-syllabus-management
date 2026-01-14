@@ -46,7 +46,7 @@ export const DashboardPage: React.FC = () => {
   const { data: principalPendingCount = 0 } = useQuery({
     queryKey: ['syllabi-principal-pending'],
     queryFn: () =>
-      syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
+        syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
     select: countUniqueSyllabi,
     enabled: user?.role === UserRole.AA,
   });
@@ -62,10 +62,10 @@ export const DashboardPage: React.FC = () => {
   const { data: hodPendingCount = 0 } = useQuery({
     queryKey: ['syllabi-hod-pending'],
     queryFn: () =>
-      syllabusService.getSyllabi(
-        { status: [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION] },
-        { page: 1, pageSize: 1000 },
-      ),
+        syllabusService.getSyllabi(
+            { status: [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION] },
+            { page: 1, pageSize: 1000 },
+        ),
     select: countUniqueSyllabi,
     enabled: user?.role === UserRole.HOD,
   });
@@ -176,157 +176,157 @@ export const DashboardPage: React.FC = () => {
   }));
 
   return (
-    <div>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        Dashboard
-        <Text type="secondary" style={{ fontSize: '1rem', fontWeight: 400, marginLeft: 16 }}>
-          Chào mừng trở lại, {user?.fullName}
-        </Text>
-      </Title>
+      <div>
+        <Title level={2} style={{ marginBottom: 24 }}>
+          Dashboard
+          <Text type="secondary" style={{ fontSize: '1rem', fontWeight: 400, marginLeft: 16 }}>
+            Chào mừng trở lại, {user?.fullName}
+          </Text>
+        </Title>
 
-      {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Tổng Đề cương"
-              value={totalCount}
-              prefix={<FileTextOutlined />}
-              valueStyle={{ color: '#018486' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Chờ Phê duyệt"
-              value={pendingCount}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title={approvedTitle}
-              value={approvedCount}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Đề cương cần chỉnh"
-              value={needsEditCount}
-              prefix={<EditOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Main Content */}
-      <Row gutter={[16, 16]}>
-        {/* Pending Approvals Table */}
-        <Col xs={24} xl={16}>
-          <Card
-            title={
-              <Space>
-                <ClockCircleOutlined />
-                <span>Đề cương Chờ Xét duyệt</span>
-              </Space>
-            }
-            extra={<a href="/admin/syllabi">Xem tất cả</a>}
-          >
-            <Table columns={columns} dataSource={tableData} loading={isLoading} pagination={false} size="middle" />
-          </Card>
-        </Col>
-
-        {/* Right Sidebar */}
-        <Col xs={24} xl={8}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {/* Workflow Progress */}
-            <Card title="Tiến độ Quy trình" extra={<RiseOutlined style={{ color: '#52c41a' }} />}>
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Đã hoàn thành</Text>
-                    <Text strong>{approvedCount}</Text>
-                  </div>
-                  <Progress
-                    percent={totalCount ? Math.round((approvedCount / totalCount) * 100) : 0}
-                    strokeColor="#52c41a"
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Đang xử lý</Text>
-                    <Text strong>{pendingCount}</Text>
-                  </div>
-                  <Progress
-                    percent={totalCount ? Math.round((pendingCount / totalCount) * 100) : 0}
-                    strokeColor="#faad14"
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>Cần chỉnh sửa</Text>
-                    <Text strong>{needsEditCount}</Text>
-                  </div>
-                  <Progress
-                    percent={totalCount ? Math.round((needsEditCount / totalCount) * 100) : 0}
-                    strokeColor="#ff4d4f"
-                  />
-                </div>
-              </Space>
+        {/* Statistics Cards */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                  title="Tổng Đề cương"
+                  value={totalCount}
+                  prefix={<FileTextOutlined />}
+                  valueStyle={{ color: '#018486' }}
+              />
             </Card>
-
-            {/* Quick Actions */}
-            <Card title="Thông báo Gần đây">
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <div>
-                  <Text strong>Đề cương mới được gửi</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    SE301 - Công nghệ Phần mềm
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    5 phút trước
-                  </Text>
-                </div>
-                <div>
-                  <Text strong>Đề cương đã được phê duyệt</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    CS201 - Trí tuệ Nhân tạo
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    1 giờ trước
-                  </Text>
-                </div>
-                <div>
-                  <Text strong>Đề cương bị từ chối</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.9rem' }}>
-                    EE301 - Vi xử lý và Vi điều khiển
-                  </Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                    3 giờ trước
-                  </Text>
-                </div>
-              </Space>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                  title="Chờ Phê duyệt"
+                  value={pendingCount}
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ color: '#faad14' }}
+              />
             </Card>
-          </Space>
-        </Col>
-      </Row>
-    </div>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                  title={approvedTitle}
+                  value={approvedCount}
+                  prefix={<CheckCircleOutlined />}
+                  valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                  title="Đề cương cần chỉnh"
+                  value={needsEditCount}
+                  prefix={<EditOutlined />}
+                  valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Main Content */}
+        <Row gutter={[16, 16]}>
+          {/* Pending Approvals Table */}
+          <Col xs={24} xl={16}>
+            <Card
+                title={
+                  <Space>
+                    <ClockCircleOutlined />
+                    <span>Đề cương Chờ Xét duyệt</span>
+                  </Space>
+                }
+                extra={<a href="/admin/syllabi">Xem tất cả</a>}
+            >
+              <Table columns={columns} dataSource={tableData} loading={isLoading} pagination={false} size="middle" />
+            </Card>
+          </Col>
+
+          {/* Right Sidebar */}
+          <Col xs={24} xl={8}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {/* Workflow Progress */}
+              <Card title="Tiến độ Quy trình" extra={<RiseOutlined style={{ color: '#52c41a' }} />}>
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đã hoàn thành</Text>
+                      <Text strong>{approvedCount}</Text>
+                    </div>
+                    <Progress
+                        percent={totalCount ? Math.round((approvedCount / totalCount) * 100) : 0}
+                        strokeColor="#52c41a"
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Đang xử lý</Text>
+                      <Text strong>{pendingCount}</Text>
+                    </div>
+                    <Progress
+                        percent={totalCount ? Math.round((pendingCount / totalCount) * 100) : 0}
+                        strokeColor="#faad14"
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text>Cần chỉnh sửa</Text>
+                      <Text strong>{needsEditCount}</Text>
+                    </div>
+                    <Progress
+                        percent={totalCount ? Math.round((needsEditCount / totalCount) * 100) : 0}
+                        strokeColor="#ff4d4f"
+                    />
+                  </div>
+                </Space>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card title="Thông báo Gần đây">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Đề cương mới được gửi</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.9rem' }}>
+                      SE301 - Công nghệ Phần mềm
+                    </Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                      5 phút trước
+                    </Text>
+                  </div>
+                  <div>
+                    <Text strong>Đề cương đã được phê duyệt</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.9rem' }}>
+                      CS201 - Trí tuệ Nhân tạo
+                    </Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                      1 giờ trước
+                    </Text>
+                  </div>
+                  <div>
+                    <Text strong>Đề cương bị từ chối</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.9rem' }}>
+                      EE301 - Vi xử lý và Vi điều khiển
+                    </Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                      3 giờ trước
+                    </Text>
+                  </div>
+                </Space>
+              </Card>
+            </Space>
+          </Col>
+        </Row>
+      </div>
   );
 };

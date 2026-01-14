@@ -14,6 +14,7 @@ import vn.edu.smd.core.module.syllabus.dto.*;
 import vn.edu.smd.core.module.syllabus.service.SyllabusService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
@@ -157,5 +158,12 @@ public class SyllabusController {
     public ResponseEntity<ApiResponse<byte[]>> exportSyllabusToPdf(@PathVariable UUID id) {
         byte[] pdfData = syllabusService.exportSyllabusToPdf(id);
         return ResponseEntity.ok(ApiResponse.success("PDF exported successfully", pdfData));
+    }
+
+    @Operation(summary = "Get syllabus statistics", description = "Get count of syllabi by status")
+    @GetMapping("/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
+        Map<String, Long> statistics = syllabusService.getStatistics();
+        return ResponseEntity.ok(ApiResponse.success(statistics));
     }
 }
