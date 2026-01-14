@@ -29,10 +29,10 @@ public class PloController {
         return ResponseEntity.ok(ApiResponse.success(plos));
     }
 
-    @Operation(summary = "Get PLOs by curriculum", description = "Get list of PLOs for a curriculum")
-    @GetMapping("/curriculum/{curriculumId}")
-    public ResponseEntity<ApiResponse<List<PloResponse>>> getPlosByCurriculum(@PathVariable UUID curriculumId) {
-        List<PloResponse> plos = ploService.getClosByCurriculum(curriculumId);
+    @Operation(summary = "Get PLOs by subject", description = "Get list of PLOs for a subject")
+    @GetMapping("/subject/{subjectId}")
+    public ResponseEntity<ApiResponse<List<PloResponse>>> getPlosBySubject(@PathVariable UUID subjectId) {
+        List<PloResponse> plos = ploService.getPlosBySubject(subjectId);
         return ResponseEntity.ok(ApiResponse.success(plos));
     }
 

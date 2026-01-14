@@ -8,9 +8,9 @@ import {
   RiseOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../auth';
-import { UserRole, SyllabusStatus, FeedbackStatus } from '@/types';
+import { UserRole, SyllabusStatus } from '@/types';
 import { useQuery } from '@tanstack/react-query';
-import { syllabusService, feedbackService } from '@/services';
+import { syllabusService } from '@/services';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -24,70 +24,93 @@ interface SyllabusItem {
   updatedAt: string;
 }
 
+// Helper function to count unique syllabi
+const countUniqueSyllabi = (r: any) => {
+  const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
+  return ids.size;
+};
+
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
-  // Fetch lightweight counts from backend to match management data precisely
-  const { data: totalCount } = useQuery({
-    queryKey: ['syllabi-total'],
-    queryFn: () => syllabusService.getSyllabi({}, { page: 1, pageSize: 1000 }),
-    select: (r) => {
-      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
-      return ids.size;
-    },
+  // --- Data Fetching for Different Roles ---
+
+  // Fetch counts for AA (Phòng Đào tạo)
+  const { data: aaPendingCount = 0 } = useQuery({
+    queryKey: ['syllabi-aa-pending'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_AA] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.AA,
   });
 
-  // Fetch pending syllabi based on user role
-  const getPendingStatusByRole = () => {
-    switch (user?.role) {
-      case UserRole.HOD:
-        return [SyllabusStatus.PENDING_HOD];
-      case UserRole.AA:
-        return [SyllabusStatus.PENDING_AA];
-      case UserRole.PRINCIPAL:
-        return [SyllabusStatus.PENDING_PRINCIPAL];
-      case UserRole.ADMIN:
-        return [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_AA, SyllabusStatus.PENDING_PRINCIPAL];
-      default:
-        return [];
-    }
-  };
-
-  const { data: pendingCount } = useQuery({
-    queryKey: ['syllabi-pending', user?.role],
-    queryFn: () => syllabusService.getSyllabi({ status: getPendingStatusByRole() }, { page: 1, pageSize: 1000 }),
-    select: (r) => {
-      // dedupe by subjectId + academicTermId to match management counting
-      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
-      return ids.size;
-    },
+  const { data: principalPendingCount = 0 } = useQuery({
+    queryKey: ['syllabi-principal-pending'],
+    queryFn: () =>
+      syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.AA,
   });
 
-  const { data: publishedCount } = useQuery({
-    queryKey: ['syllabi-published'],
-    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.PUBLISHED] }, { page: 1, pageSize: 1000 }),
-    select: (r) => {
-      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
-      return ids.size;
-    },
+  const { data: aaRejectedCount = 0 } = useQuery({
+    queryKey: ['syllabi-aa-rejected'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.REJECTED] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.AA,
   });
 
-  const needsEditStatuses = [SyllabusStatus.REVISION_IN_PROGRESS, SyllabusStatus.PENDING_HOD_REVISION];
-  const { data: needsEditCount } = useQuery({
-    queryKey: ['syllabi-needs-edit'],
-    queryFn: () => syllabusService.getSyllabi({ status: needsEditStatuses }, { page: 1, pageSize: 1000 }),
-    select: (r) => {
-      // dedupe by subjectId + academicTermId
-      const ids = new Set((r.data || []).map((s: any) => `${s.subjectId}:${s.academicTermId}`));
-      return ids.size;
-    },
+  // Fetch counts for HOD (Trưởng bộ môn)
+  const { data: hodPendingCount = 0 } = useQuery({
+    queryKey: ['syllabi-hod-pending'],
+    queryFn: () =>
+      syllabusService.getSyllabi(
+        { status: [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION] },
+        { page: 1, pageSize: 1000 },
+      ),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.HOD,
   });
-  // Fetch pending syllabi for current user role
+
+  const { data: hodApprovedCount = 0 } = useQuery({
+    queryKey: ['syllabi-hod-approved'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_AA] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.HOD,
+  });
+
+  const { data: hodRejectedCount = 0 } = useQuery({
+    queryKey: ['syllabi-hod-rejected'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.REJECTED] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.HOD,
+  });
+
+  // --- Role-based Logic for Display ---
+
+  let totalCount = 0;
+  let pendingCount = 0;
+  let approvedCount = 0;
+  let needsEditCount = 0;
+  let approvedTitle = 'Đã duyệt';
+
+  if (user?.role === UserRole.AA) {
+    pendingCount = aaPendingCount;
+    approvedCount = principalPendingCount;
+    needsEditCount = aaRejectedCount;
+    totalCount = pendingCount + approvedCount + needsEditCount;
+    approvedTitle = 'Đã duyệt';
+  } else if (user?.role === UserRole.HOD) {
+    pendingCount = hodPendingCount;
+    approvedCount = hodApprovedCount;
+    needsEditCount = hodRejectedCount;
+    totalCount = pendingCount + approvedCount + needsEditCount;
+    approvedTitle = 'Đã duyệt';
+  }
+
+  // Fetch pending syllabi for the table view (this remains the same, specific to the user's role)
   const { data: pendingSyllabi, isLoading } = useQuery({
     queryKey: ['pending-syllabi', user?.role],
     queryFn: async () => {
       let statusFilter: SyllabusStatus[] = [];
-
       switch (user?.role) {
         case UserRole.HOD:
           statusFilter = [SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION];
@@ -102,34 +125,16 @@ export const DashboardPage: React.FC = () => {
           statusFilter = [SyllabusStatus.APPROVED];
           break;
       }
-
-      const response = await syllabusService.getSyllabi(
-        { status: statusFilter },
-        { page: 1, pageSize: 5 }
-      );
+      const response = await syllabusService.getSyllabi({ status: statusFilter }, { page: 1, pageSize: 5 });
       return response.data;
     },
   });
 
   // Table columns
   const columns: ColumnsType<SyllabusItem> = [
-    {
-      title: 'Mã môn',
-      dataIndex: 'subjectCode',
-      key: 'subjectCode',
-      width: 100,
-    },
-    {
-      title: 'Tên môn học',
-      dataIndex: 'subjectNameVi',
-      key: 'subjectNameVi',
-    },
-    {
-      title: 'Giảng viên',
-      dataIndex: 'owner',
-      key: 'owner',
-      width: 200,
-    },
+    { title: 'Mã môn', dataIndex: 'subjectCode', key: 'subjectCode', width: 100 },
+    { title: 'Tên môn học', dataIndex: 'subjectNameVi', key: 'subjectNameVi' },
+    { title: 'Giảng viên', dataIndex: 'owner', key: 'owner', width: 200 },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
@@ -148,9 +153,8 @@ export const DashboardPage: React.FC = () => {
           [SyllabusStatus.REJECTED]: { color: 'red', text: 'Từ chối' },
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Lưu trữ' },
         };
-
         const config = statusConfig[status];
-        return <Tag color={config.color}>{config.text}</Tag>;
+        return <Tag color={config?.color}>{config?.text}</Tag>;
       },
     },
     {
@@ -196,7 +200,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Chờ Phê duyệt"
-              value={pendingCount || 0}
+              value={pendingCount}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -205,8 +209,8 @@ export const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Đã Xuất bản"
-              value={publishedCount || 0}
+              title={approvedTitle}
+              value={approvedCount}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -216,7 +220,7 @@ export const DashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="Đề cương cần chỉnh"
-              value={needsEditCount || 0}
+              value={needsEditCount}
               prefix={<EditOutlined />}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -237,13 +241,7 @@ export const DashboardPage: React.FC = () => {
             }
             extra={<a href="/admin/syllabi">Xem tất cả</a>}
           >
-            <Table
-              columns={columns}
-              dataSource={tableData}
-              loading={isLoading}
-              pagination={false}
-              size="middle"
-            />
+            <Table columns={columns} dataSource={tableData} loading={isLoading} pagination={false} size="middle" />
           </Card>
         </Col>
 
@@ -251,22 +249,15 @@ export const DashboardPage: React.FC = () => {
         <Col xs={24} xl={8}>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {/* Workflow Progress */}
-            <Card
-              title="Tiến độ Quy trình"
-              extra={<RiseOutlined style={{ color: '#52c41a' }} />}
-            >
+            <Card title="Tiến độ Quy trình" extra={<RiseOutlined style={{ color: '#52c41a' }} />}>
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Đã hoàn thành</Text>
-                    <Text strong>{publishedCount || 0}</Text>
+                    <Text strong>{approvedCount}</Text>
                   </div>
                   <Progress
-                    percent={
-                      totalCount
-                        ? Math.round(((publishedCount || 0) / (totalCount || 1)) * 100)
-                        : 0
-                    }
+                    percent={totalCount ? Math.round((approvedCount / totalCount) * 100) : 0}
                     strokeColor="#52c41a"
                   />
                 </div>
@@ -274,14 +265,10 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Đang xử lý</Text>
-                    <Text strong>{pendingCount || 0}</Text>
+                    <Text strong>{pendingCount}</Text>
                   </div>
                   <Progress
-                    percent={
-                      totalCount
-                        ? Math.round(((pendingCount || 0) / (totalCount || 1)) * 100)
-                        : 0
-                    }
+                    percent={totalCount ? Math.round((pendingCount / totalCount) * 100) : 0}
                     strokeColor="#faad14"
                   />
                 </div>
@@ -289,14 +276,10 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>Cần chỉnh sửa</Text>
-                    <Text strong>{needsEditCount || 0}</Text>
+                    <Text strong>{needsEditCount}</Text>
                   </div>
                   <Progress
-                    percent={
-                      totalCount
-                        ? Math.round(((needsEditCount || 0) / (totalCount || 1)) * 100)
-                        : 0
-                    }
+                    percent={totalCount ? Math.round((needsEditCount / totalCount) * 100) : 0}
                     strokeColor="#ff4d4f"
                   />
                 </div>

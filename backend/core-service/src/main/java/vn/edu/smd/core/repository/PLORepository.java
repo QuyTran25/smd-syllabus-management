@@ -16,14 +16,14 @@ import java.util.UUID;
 @Repository
 public interface PLORepository extends JpaRepository<PLO, UUID> {
     
-    @EntityGraph(attributePaths = {"curriculum"})
+    @EntityGraph(attributePaths = {"subject"})
     @Query("SELECT p FROM PLO p")
     List<PLO> findAll();
     
-    @EntityGraph(attributePaths = {"curriculum"})
-    List<PLO> findByCurriculumId(UUID curriculumId);
+    @EntityGraph(attributePaths = {"subject"})
+    List<PLO> findBySubjectId(UUID subjectId);
     
-    Optional<PLO> findByCurriculumIdAndCode(UUID curriculumId, String code);
+    Optional<PLO> findBySubjectIdAndCode(UUID subjectId, String code);
     
-    boolean existsByCurriculumIdAndCode(UUID curriculumId, String code);
+    boolean existsBySubjectIdAndCode(UUID subjectId, String code);
 }

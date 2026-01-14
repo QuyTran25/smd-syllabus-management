@@ -66,6 +66,7 @@ public class SyllabusService {
             List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
             List<SyllabusResponse> responses = allResults.stream()
                     .map(this::mapToResponse)
+                    .filter(Objects::nonNull) // Filter out null responses from invalid data
                     .collect(Collectors.toList());
             
             // Manual pagination
@@ -335,10 +336,10 @@ public class SyllabusService {
                  savedSyllabus.getId(), savedSyllabus.getVersionNo());
                 // Update teaching assignment status to SUBMITTED
         updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.SUBMITTED);
-                // � Send notification to HOD
+                //  Send notification to HOD
         sendNotificationToHod(savedSyllabus);
         
-        // �🚀 Send message to RabbitMQ AI Queue for processing
+        // 🚀 Send message to RabbitMQ AI Queue for processing
         try {
             String messageId = aiTaskService.requestCloPloMapping(
                 savedSyllabus.getId(),
@@ -510,6 +511,10 @@ public class SyllabusService {
 
     // --- HELPERS (⭐ DÙNG LOGIC CHI TIẾT TỪ MAIN) ---
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
+        if (syllabus.getSubject() == null) {
+            log.error("Syllabus with ID {} has a null subject. Skipping.", syllabus.getId());
+            return null;
+        }
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
         response.setSubjectId(syllabus.getSubject().getId());

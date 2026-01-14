@@ -1,27 +1,36 @@
 import { apiClient } from '@/config/api-config';
 
+// This interface should match the PloResponse DTO from the backend
 export interface PLO {
   id: string;
   code: string;
   description: string;
   category: 'KNOWLEDGE' | 'SKILLS' | 'COMPETENCE' | 'ATTITUDE';
-  curriculumId: string;
-  curriculumCode: string;
-  curriculumName: string;
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface PLOResponse {
+// This interface is for the list response
+export interface PLOListResponse {
   success: boolean;
   message: string;
   data: PLO[];
 }
 
+// This interface is for a single PLO response (create/update)
+export interface PLOSingleResponse {
+  success: boolean;
+  message: string;
+  data: PLO;
+}
+
 export const ploService = {
   async getAllPLOs(): Promise<PLO[]> {
     try {
-      const response = await apiClient.get<PLOResponse>('/api/plos');
+      const response = await apiClient.get<PLOListResponse>('/api/plos');
       return response.data.data || [];
     } catch (error) {
       console.error('Error fetching PLOs:', error);
@@ -31,9 +40,7 @@ export const ploService = {
 
   async getPLOById(id: string): Promise<PLO | null> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: PLO }>(
-        `/api/plos/${id}`
-      );
+      const response = await apiClient.get<PLOSingleResponse>(`/api/plos/${id}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching PLO:', error);
@@ -41,16 +48,28 @@ export const ploService = {
     }
   },
 
-  async getPLOsByCurriculum(curriculumId: string): Promise<PLO[]> {
+  async getPLOsBySubject(subjectId: string): Promise<PLO[]> {
     try {
-      const response = await apiClient.get<PLOResponse>(
-        `/api/plos/curriculum/${curriculumId}`
-      );
+      const response = await apiClient.get<PLOListResponse>(`/api/plos/subject/${subjectId}`);
       return response.data.data || [];
     } catch (error) {
-      console.error('Error fetching PLOs by curriculum:', error);
+      console.error('Error fetching PLOs by subject:', error);
       return [];
     }
+  },
+
+  async createPLO(data: Partial<PLO>): Promise<PLO> {
+    const response = await apiClient.post<PLOSingleResponse>('/api/plos', data);
+    return response.data.data;
+  },
+
+  async updatePLO(id: string, data: Partial<PLO>): Promise<PLO> {
+    const response = await apiClient.put<PLOSingleResponse>(`/api/plos/${id}`, data);
+    return response.data.data;
+  },
+
+  async deletePLO(id: string): Promise<void> {
+    await apiClient.delete(`/api/plos/${id}`);
   },
 
   // Map category to Vietnamese display name
@@ -64,5 +83,3 @@ export const ploService = {
     return categoryMap[category] || category;
   },
 };
-
-export default ploService;
