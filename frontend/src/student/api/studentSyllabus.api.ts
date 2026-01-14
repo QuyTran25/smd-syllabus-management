@@ -52,10 +52,12 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
 
       assessmentMatrix: d.assessmentMatrix || [],
       clos: d.clos || [],
+      ploList: d.ploList || [],
+      cloPloMap: d.cloPloMap || {},
       timeAllocation: {
-        theory: d.theoryHours || 30,
-        practice: d.practiceHours || 30,
-        selfStudy: d.selfStudyHours || 90,
+        theory: d.timeAllocation?.theory || d.theoryHours || 30,
+        practice: d.timeAllocation?.practice || d.practiceHours || 30,
+        selfStudy: d.timeAllocation?.selfStudy || d.selfStudyHours || 90,
       },
       objectives: d.objectives || [],
       studentTasks: d.studentTasks || [],

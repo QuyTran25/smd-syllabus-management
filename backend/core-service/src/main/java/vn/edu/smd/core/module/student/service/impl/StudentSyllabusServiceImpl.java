@@ -153,7 +153,12 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
         
         String facultyName = (subject.getDepartment() != null && subject.getDepartment().getFaculty() != null) ? 
                               subject.getDepartment().getFaculty().getName() : "";
-        List<String> ploCodeList = ploRepository.findAll().stream().map(PLO::getCode).distinct().sorted().collect(Collectors.toList());
+        // ✅ FIX: Lấy PLO của Subject này thay vì tất cả PLO
+        List<String> ploCodeList = ploRepository.findBySubjectId(subject.getId()).stream()
+                .map(PLO::getCode)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
 
         return StudentSyllabusDetailDto.builder()
                 .id(subject.getId())
