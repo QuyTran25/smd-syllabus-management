@@ -75,6 +75,7 @@ public class SyllabusService {
             List<SyllabusResponse> responses = allResults.stream()
                     .filter(sv -> matchesSearchCriteria(sv, search, faculties, departments))
                     .map(this::mapToResponse)
+                    .filter(Objects::nonNull) // Filter out null responses from invalid data
                     .collect(Collectors.toList());
             
             int start = (int) pageable.getOffset();
@@ -872,6 +873,10 @@ public class SyllabusService {
     }
 
     private SyllabusResponse mapToResponse(SyllabusVersion syllabus) {
+        if (syllabus.getSubject() == null) {
+            log.error("Syllabus with ID {} has a null subject. Skipping.", syllabus.getId());
+            return null;
+        }
         SyllabusResponse response = new SyllabusResponse();
         response.setId(syllabus.getId());
         response.setSubjectId(syllabus.getSubject().getId());
@@ -1164,6 +1169,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REVIEW")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1478,6 +1485,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REJECTED")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1556,6 +1565,8 @@ public class SyllabusService {
                         .type("SYLLABUS_AA_REVIEW")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);
@@ -1634,6 +1645,8 @@ public class SyllabusService {
                         .type("SYLLABUS_PRINCIPAL_REVIEW")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);
@@ -1709,6 +1722,8 @@ public class SyllabusService {
                     .type("SYLLABUS_REJECTED_NOTIFICATION")
                     .payload(payload)
                     .isRead(false)
+                    .relatedEntityType("SYLLABUS")
+                    .relatedEntityId(syllabus.getId())
                     .build();
             
             notificationRepository.save(notification);
@@ -1789,6 +1804,8 @@ public class SyllabusService {
                         .type("SYLLABUS_ADMIN_PUBLISH")
                         .payload(payload)
                         .isRead(false)
+                        .relatedEntityType("SYLLABUS")
+                        .relatedEntityId(syllabus.getId())
                         .build();
                 
                 notificationRepository.save(notification);

@@ -14,7 +14,7 @@ import java.util.UUID;
 @Repository
 public interface CloPlOMappingRepository extends JpaRepository<CloPlOMapping, UUID> {
     
-    @EntityGraph(attributePaths = {"plo", "plo.curriculum"})
+    @EntityGraph(attributePaths = {"plo", "plo.subject"})
     List<CloPlOMapping> findByCloId(UUID cloId);
     
     List<CloPlOMapping> findByPloId(UUID ploId);

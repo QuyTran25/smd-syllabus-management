@@ -14,6 +14,7 @@ import vn.edu.smd.core.module.syllabus.dto.*;
 import vn.edu.smd.core.module.syllabus.service.SyllabusService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Syllabus Management", description = "Syllabus version management APIs")
@@ -36,6 +37,13 @@ public class SyllabusController {
         Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status, search, faculty, department);
         
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
+    }
+
+    @Operation(summary = "Get syllabus statistics", description = "Get count of syllabi by status")
+    @GetMapping("/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getStatistics() {
+        Map<String, Long> statistics = syllabusService.getStatistics();
+        return ResponseEntity.ok(ApiResponse.success(statistics));
     }
 
     @Operation(summary = "Get syllabus by ID", description = "Get syllabus details by ID")

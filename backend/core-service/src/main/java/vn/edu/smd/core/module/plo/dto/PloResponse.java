@@ -9,9 +9,9 @@ import java.util.UUID;
 @Data
 public class PloResponse {
     private UUID id;
-    private UUID curriculumId;
-    private String curriculumCode;
-    private String curriculumName;
+    private UUID subjectId;
+    private String subjectCode;
+    private String subjectName;
     private String code;
     private String description;
     private PloCategory category;

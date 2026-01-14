@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Card, Table, Space, Select, Tag, Alert, Button, Modal, Form, Input, message, Popconfirm } from 'antd';
+import { Card, Table, Space, Select, Tag, Alert, Button, Modal, Form, Input, App, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
 import { ploService, PLO } from '../../services/plo.service';
+import { subjectService } from '../../services/subject.service';
+import { AxiosError } from 'axios';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -14,9 +16,9 @@ interface PLODisplay {
   code: string;
   description: string;
   category: 'Knowledge' | 'Skills' | 'Competence' | 'Attitude';
-  curriculumId: string;
-  curriculumCode: string;
-  curriculumName: string;
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
 }
 
 // Map API category to display category
@@ -31,17 +33,34 @@ const mapCategory = (apiCategory: PLO['category']): PLODisplay['category'] => {
 };
 
 export const PLOManagementPage: React.FC = () => {
-  const [curriculumFilter, setCurriculumFilter] = useState<string | undefined>(undefined);
+  const [subjectFilter, setSubjectFilter] = useState<string | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPLO, setEditingPLO] = useState<PLODisplay | null>(null);
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   // Fetch PLOs from API
-  const { data: plosRaw, isLoading, error } = useQuery({
+  const { data: plosRaw, isLoading: isLoadingPlos, error: errorPlos } = useQuery({
     queryKey: ['plos'],
     queryFn: () => ploService.getAllPLOs(),
   });
+
+  // Fetch Subjects from API
+  const { data: subjects, isLoading: isLoadingSubjects, error: errorSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => subjectService.getAllSubjects(),
+  });
+
+  const handleApiError = (error: unknown, defaultMessage: string) => {
+    console.error(defaultMessage, error);
+    if (error instanceof AxiosError) {
+      const backendMessage = error.response?.data?.message;
+      message.error(backendMessage || defaultMessage);
+    } else {
+      message.error(defaultMessage);
+    }
+  };
 
   // Create PLO mutation
   const createPLOMutation = useMutation({
@@ -52,8 +71,8 @@ export const PLOManagementPage: React.FC = () => {
       setIsModalOpen(false);
       form.resetFields();
     },
-    onError: () => {
-      message.error('Thêm PLO thất bại');
+    onError: (error) => {
+      handleApiError(error, 'Thêm PLO thất bại');
     },
   });
 
@@ -67,8 +86,8 @@ export const PLOManagementPage: React.FC = () => {
       setEditingPLO(null);
       form.resetFields();
     },
-    onError: () => {
-      message.error('Cập nhật PLO thất bại');
+    onError: (error) => {
+      handleApiError(error, 'Cập nhật PLO thất bại');
     },
   });
 
@@ -79,8 +98,8 @@ export const PLOManagementPage: React.FC = () => {
       message.success('Xóa PLO thành công');
       queryClient.invalidateQueries({ queryKey: ['plos'] });
     },
-    onError: () => {
-      message.error('Xóa PLO thất bại');
+    onError: (error) => {
+      handleApiError(error, 'Xóa PLO thất bại');
     },
   });
 
@@ -92,36 +111,21 @@ export const PLOManagementPage: React.FC = () => {
       code: p.code,
       description: p.description,
       category: mapCategory(p.category),
-      curriculumId: p.curriculumId,
-      curriculumCode: p.curriculumCode,
-      curriculumName: p.curriculumName,
+      subjectId: p.subjectId,
+      subjectCode: p.subjectCode,
+      subjectName: p.subjectName,
     }));
   }, [plosRaw]);
 
-  // Extract unique curriculums for filter
-  const curriculums = useMemo(() => {
-    const unique = new Map<string, { id: string; code: string; name: string }>();
-    plos.forEach((p) => {
-      if (!unique.has(p.curriculumId)) {
-        unique.set(p.curriculumId, {
-          id: p.curriculumId,
-          code: p.curriculumCode,
-          name: p.curriculumName,
-        });
-      }
-    });
-    return Array.from(unique.values());
-  }, [plos]);
-
   const ploColumns: ColumnsType<PLODisplay> = [
     {
-      title: 'Chương trình đào tạo',
-      key: 'curriculum',
+      title: 'Môn học',
+      key: 'subject',
       width: 250,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
-          <span style={{ fontWeight: 500 }}>{record.curriculumCode}</span>
-          <span style={{ fontSize: '12px', color: '#666' }}>{record.curriculumName}</span>
+          <span style={{ fontWeight: 500 }}>{record.subjectCode}</span>
+          <span style={{ fontSize: '12px', color: '#666' }}>{record.subjectName}</span>
         </Space>
       ),
     },
@@ -167,7 +171,7 @@ export const PLOManagementPage: React.FC = () => {
             onClick={() => {
               setEditingPLO(record);
               form.setFieldsValue({
-                curriculumId: record.curriculumId,
+                subjectId: record.subjectId,
                 code: record.code,
                 description: record.description,
                 category: record.category.toUpperCase(),
@@ -192,18 +196,18 @@ export const PLOManagementPage: React.FC = () => {
     },
   ];
 
-  // Filter PLOs by curriculum
-  const filteredPLOs = curriculumFilter
-    ? plos?.filter((p) => p.curriculumId === curriculumFilter)
+  // Filter PLOs by subject
+  const filteredPLOs = subjectFilter
+    ? plos?.filter((p) => p.subjectId === subjectFilter)
     : plos;
 
-  if (error) {
+  if (errorPlos || errorSubjects) {
     return (
       <div style={{ padding: 24 }}>
         <Alert
           type="error"
           message="Lỗi tải dữ liệu"
-          description="Không thể tải danh sách PLO. Vui lòng thử lại sau."
+          description="Không thể tải danh sách PLO hoặc môn học. Vui lòng thử lại sau."
         />
       </div>
     );
@@ -221,22 +225,23 @@ export const PLOManagementPage: React.FC = () => {
       <Card>
         <div style={{ marginBottom: 16 }}>
           <Select
-            placeholder="Lọc theo chương trình đào tạo"
+            placeholder="Lọc theo môn học"
             style={{ width: 350 }}
             allowClear
-            value={curriculumFilter}
-            onChange={(value) => setCurriculumFilter(value)}
+            value={subjectFilter}
+            onChange={(value) => setSubjectFilter(value)}
+            loading={isLoadingSubjects}
           >
-            {curriculums.map((c) => (
-              <Option key={c.id} value={c.id}>
-                {c.code} - {c.name}
+            {subjects?.map((s) => (
+              <Option key={s.id} value={s.id}>
+                {s.code} - {s.currentNameVi}
               </Option>
             ))}
           </Select>
           <span style={{ marginLeft: 16, color: '#666' }}>
             Tổng: <strong>{filteredPLOs?.length || 0}</strong> PLO
-            {curriculumFilter && (
-              <> (của CTĐT <strong>{curriculums.find(c => c.id === curriculumFilter)?.code}</strong>)</>
+            {subjectFilter && (
+              <> (của môn <strong>{subjects?.find(s => s.id === subjectFilter)?.code}</strong>)</>
             )}
           </span>
         </div>
@@ -245,7 +250,7 @@ export const PLOManagementPage: React.FC = () => {
           columns={ploColumns}
           dataSource={filteredPLOs || []}
           rowKey="id"
-          loading={isLoading}
+          loading={isLoadingPlos}
           scroll={{ x: 900 }}
           pagination={{
             pageSize: 20,
@@ -281,13 +286,13 @@ export const PLOManagementPage: React.FC = () => {
         >
           <Form.Item
             label="Môn học"
-            name="curriculumId"
-            rules={[{ required: true, message: 'Vui lòng chọn chương trình đào tạo' }]}
+            name="subjectId"
+            rules={[{ required: true, message: 'Vui lòng chọn môn học' }]}
           >
-            <Select placeholder="Chọn chương trình đào tạo">
-              {curriculums.map((c) => (
-                <Option key={c.id} value={c.id}>
-                  {c.code} - {c.name}
+            <Select placeholder="Chọn môn học" loading={isLoadingSubjects}>
+              {subjects?.map((s) => (
+                <Option key={s.id} value={s.id}>
+                  {s.code} - {s.currentNameVi}
                 </Option>
               ))}
             </Select>
