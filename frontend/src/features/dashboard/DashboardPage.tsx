@@ -48,7 +48,7 @@ export const DashboardPage: React.FC = () => {
     queryFn: () =>
       syllabusService.getSyllabi({ status: [SyllabusStatus.PENDING_PRINCIPAL] }, { page: 1, pageSize: 1000 }),
     select: countUniqueSyllabi,
-    enabled: user?.role === UserRole.AA,
+    enabled: user?.role === UserRole.AA || user?.role === UserRole.PRINCIPAL,
   });
 
   const { data: aaRejectedCount = 0 } = useQuery({
@@ -56,6 +56,21 @@ export const DashboardPage: React.FC = () => {
     queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.REJECTED] }, { page: 1, pageSize: 1000 }),
     select: countUniqueSyllabi,
     enabled: user?.role === UserRole.AA,
+  });
+
+  // Fetch counts for Principal (Hiệu trưởng)
+  const { data: principalApprovedCount = 0 } = useQuery({
+    queryKey: ['syllabi-principal-approved'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.APPROVED] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.PRINCIPAL,
+  });
+
+  const { data: principalRejectedCount = 0 } = useQuery({
+    queryKey: ['syllabi-principal-rejected'],
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.REJECTED] }, { page: 1, pageSize: 1000 }),
+    select: countUniqueSyllabi,
+    enabled: user?.role === UserRole.PRINCIPAL,
   });
 
   // Fetch counts for HOD (Trưởng bộ môn)
@@ -104,6 +119,12 @@ export const DashboardPage: React.FC = () => {
     needsEditCount = hodRejectedCount;
     totalCount = pendingCount + approvedCount + needsEditCount;
     approvedTitle = 'Đã duyệt';
+  } else if (user?.role === UserRole.PRINCIPAL) {
+    pendingCount = principalPendingCount;
+    approvedCount = principalApprovedCount;
+    needsEditCount = principalRejectedCount;
+    totalCount = pendingCount + approvedCount + needsEditCount;
+    approvedTitle = 'Đã phê duyệt';
   }
 
   // Fetch pending syllabi for the table view (this remains the same, specific to the user's role)
