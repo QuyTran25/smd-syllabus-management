@@ -94,11 +94,8 @@ export const SyllabusListPage: React.FC = () => {
   // Publish mutation
   const publishMutation = useMutation({
     mutationFn: ({ id, effectiveDate }: { id: string; effectiveDate: string }) =>
-      syllabusService.approveSyllabus({
-        syllabusId: id,
-        action: 'APPROVE',
-        reason: `Xuất hành với ngày hiệu lực: ${effectiveDate}`,
-      }),
+      // 🔥 FIX: Gọi publishSyllabus thay vì approveSyllabus
+      syllabusService.publishSyllabus(id, effectiveDate, `Xuất hành với ngày hiệu lực: ${effectiveDate}`),
     onSuccess: () => {
       message.success('Xuất hành đề cương thành công');
       queryClient.invalidateQueries({ queryKey: ['syllabi'] });
@@ -106,8 +103,9 @@ export const SyllabusListPage: React.FC = () => {
       setSelectedSyllabus(null);
       publishForm.resetFields();
     },
-    onError: () => {
-      message.error('Xuất hành đề cương thất bại');
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.message || 'Xuất hành đề cương thất bại';
+      message.error(errorMsg);
     },
   });
 

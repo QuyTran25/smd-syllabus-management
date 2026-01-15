@@ -21,7 +21,12 @@ public class AdminSyllabusController {
             @PathVariable UUID id,
             @RequestBody PublishSyllabusRequest request) {
         
-        adminSyllabusService.publishSyllabus(id, request.getComment());
+        // 🔥 FIX: Sử dụng overload method với effectiveDate
+        if (request.getEffectiveDate() != null && !request.getEffectiveDate().isEmpty()) {
+            adminSyllabusService.publishSyllabus(id, request.getComment(), request.getEffectiveDate());
+        } else {
+            adminSyllabusService.publishSyllabus(id, request.getComment());
+        }
         return ResponseEntity.ok(Map.of("success", true, "message", "Đã xuất hành đề cương thành công"));
     }
 

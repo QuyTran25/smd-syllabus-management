@@ -30,13 +30,16 @@ public class AdminSyllabusServiceImpl implements AdminSyllabusService {
 
         log.info("📌 [PublishSyllabus] Tìm thấy syllabus: {} (Status: {})", id, syllabus.getStatus());
 
-        // Chỉ cho phép xuất bản nếu trạng thái đang là APPROVED (đã được Hiệu trưởng duyệt)
-        if (syllabus.getStatus() != SyllabusStatus.APPROVED) {
+        // 🔥 FIX: Cho phép publish từ APPROVED hoặc đã là PUBLISHED (re-publish)
+        if (syllabus.getStatus() != SyllabusStatus.APPROVED && syllabus.getStatus() != SyllabusStatus.PUBLISHED) {
             throw new RuntimeException("Đề cương chưa được phê duyệt, không thể xuất hành! (Status: " + syllabus.getStatus() + ")");
         }
 
         syllabus.setStatus(SyllabusStatus.PUBLISHED);
-        syllabus.setPublishedAt(LocalDateTime.now());
+        // 🔥 FIX: Chỉ set publishedAt lần đầu, không ghi đè nếu đã publish rồi
+        if (syllabus.getPublishedAt() == null) {
+            syllabus.setPublishedAt(LocalDateTime.now());
+        }
         // Nếu muốn lưu comment vào log thì xử lý thêm ở đây
         
         SyllabusVersion savedSyllabus = syllabusRepository.save(syllabus);
@@ -53,6 +56,24 @@ public class AdminSyllabusServiceImpl implements AdminSyllabusService {
         }
         
         log.info("✅ Đã xuất hành đề cương {} với comment: {}", id, comment);
+    }
+
+    @Override
+    @Transactional
+    public void publishSyllabus(UUID id, String comment, String effectiveDate) {
+        // Call main method first
+        publishSyllabus(id, comment);
+        
+        // Then set effective date if provided
+        if (effectiveDate != null && !effectiveDate.isEmpty()) {
+            try {
+                updateEffectiveDate(id, effectiveDate);
+                log.info("📌 [PublishSyllabus] Set effective date: {}", effectiveDate);
+            } catch (Exception e) {
+                log.warn("⚠️ [PublishSyllabus] Failed to set effective date: {}", e.getMessage());
+                // Don't fail the whole publish if effective date is invalid
+            }
+        }
     }
 
     @Override
@@ -77,6 +98,10 @@ public class AdminSyllabusServiceImpl implements AdminSyllabusService {
     @Override
     @Transactional
     public void updateEffectiveDate(UUID id, String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            throw new RuntimeException("Ngày hiệu lực không được để trống");
+        }
+        
         SyllabusVersion syllabus = syllabusRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Syllabus not found"));
         
@@ -84,8 +109,10 @@ public class AdminSyllabusServiceImpl implements AdminSyllabusService {
             LocalDate date = LocalDate.parse(dateStr);
             syllabus.setEffectiveDate(date);
             syllabusRepository.save(syllabus);
+            log.info("✅ Updated effective date for syllabus {} to {}", id, dateStr);
         } catch (Exception e) {
-            throw new RuntimeException("Định dạng ngày không hợp lệ (YYYY-MM-DD)");
+            log.error("❌ Failed to parse date: {}", dateStr, e);
+            throw new RuntimeException("Định dạng ngày không hợp lệ (YYYY-MM-DD): " + e.getMessage());
         }
     }
 }

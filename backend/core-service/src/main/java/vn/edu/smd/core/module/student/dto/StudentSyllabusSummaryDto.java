@@ -16,4 +16,6 @@ public class StudentSyllabusSummaryDto {
     private String majorShort;
     private Integer progress;
     private boolean tracked;
+    private String status;  // ✅ Frontend expects this
+    private String publishedAt;  // ✅ YYYY-MM-DD format
 }
