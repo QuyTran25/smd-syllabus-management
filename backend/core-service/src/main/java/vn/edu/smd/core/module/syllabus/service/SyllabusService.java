@@ -71,7 +71,12 @@ public class SyllabusService {
                     .map(SyllabusStatus::valueOf)
                     .collect(Collectors.toList());
             
-            List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statuses);
+            // Convert to String array for native query
+            String[] statusArray = statuses.stream()
+                    .map(Enum::name)
+                    .toArray(String[]::new);
+            
+            List<SyllabusVersion> allResults = syllabusVersionRepository.findByStatusInAndIsDeletedFalse(statusArray);
             List<SyllabusResponse> responses = allResults.stream()
                     .filter(sv -> matchesSearchCriteria(sv, search, faculties, departments))
                     .map(this::mapToResponse)
@@ -300,6 +305,8 @@ public class SyllabusService {
                 .theoryHours(subject.getDefaultTheoryHours())
                 .practiceHours(subject.getDefaultPracticeHours())
                 .selfStudyHours(subject.getDefaultSelfStudyHours())
+                .courseType(mapSubjectTypeToCourseType(subject.getSubjectType()))
+                .componentType(mapSubjectComponentToComponentType(subject.getComponent()))
                 .createdBy(currentUser)
                 .updatedBy(currentUser)
                 .isDeleted(false)
@@ -1977,5 +1984,29 @@ public class SyllabusService {
                       syllabus.getId(), e.getMessage(), e);
             // Don't throw exception - snapshot failure shouldn't block main operation
         }
+    }
+    
+    // Helper methods to map Subject enums to Syllabus enums
+    private vn.edu.smd.shared.enums.CourseType mapSubjectTypeToCourseType(vn.edu.smd.shared.enums.SubjectType subjectType) {
+        if (subjectType == null) {
+            return vn.edu.smd.shared.enums.CourseType.REQUIRED;
+        }
+        return switch (subjectType) {
+            case REQUIRED -> vn.edu.smd.shared.enums.CourseType.REQUIRED;
+            case ELECTIVE -> vn.edu.smd.shared.enums.CourseType.ELECTIVE;
+            default -> vn.edu.smd.shared.enums.CourseType.REQUIRED;
+        };
+    }
+    
+    private vn.edu.smd.shared.enums.ComponentType mapSubjectComponentToComponentType(vn.edu.smd.shared.enums.SubjectComponent component) {
+        if (component == null) {
+            return vn.edu.smd.shared.enums.ComponentType.MAJOR;
+        }
+        return switch (component) {
+            case THEORY -> vn.edu.smd.shared.enums.ComponentType.MAJOR;
+            case PRACTICE -> vn.edu.smd.shared.enums.ComponentType.MAJOR;
+            case BOTH -> vn.edu.smd.shared.enums.ComponentType.MAJOR;
+            default -> vn.edu.smd.shared.enums.ComponentType.MAJOR;
+        };
     }
 }

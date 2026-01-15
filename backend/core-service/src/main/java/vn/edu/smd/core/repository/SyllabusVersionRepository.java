@@ -22,8 +22,8 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
     // Use custom query to avoid PostgreSQL enum casting issues
-    @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
-    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
+    @Query(value = "SELECT * FROM core_service.syllabus_versions WHERE CAST(status AS TEXT) = ANY(CAST(:statuses AS TEXT[])) AND is_deleted = false", nativeQuery = true)
+    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") String[] statuses);
 
     List<SyllabusVersion> findByCreatedById(UUID createdById);
 
