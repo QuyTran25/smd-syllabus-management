@@ -18,6 +18,7 @@ import {
   Statistic,
   Progress,
   Empty,
+  Checkbox,
 } from 'antd';
 import {
   MessageOutlined,
@@ -89,8 +90,8 @@ export const StudentFeedbackPage: React.FC = () => {
 
   // Respond mutation
   const respondMutation = useMutation({
-    mutationFn: ({ id, response }: { id: string; response: string }) =>
-      feedbackService.respondToFeedback(id, response, 'Admin User'),
+    mutationFn: ({ id, response, enableEdit }: { id: string; response: string; enableEdit: boolean }) =>
+      feedbackService.respondToFeedback(id, response, enableEdit, 'Admin User'),
     onSuccess: () => {
       message.success('Đã gửi phản hồi');
       queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
@@ -166,6 +167,22 @@ export const StudentFeedbackPage: React.FC = () => {
     respondMutation.mutate({
       id: selectedFeedback.id,
       response: values.response,
+      enableEdit: values.enableEdit || false,
+    });
+  };
+
+  const handleRejectFeedback = () => {
+    const response = form.getFieldValue('response');
+    if (!response) {
+      message.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    if (!selectedFeedback) return;
+
+    respondMutation.mutate({
+      id: selectedFeedback.id,
+      response: response,
+      enableEdit: false,
     });
   };
 
@@ -200,13 +217,13 @@ export const StudentFeedbackPage: React.FC = () => {
       align: 'center',
       ellipsis: { showTitle: false },
     },
-    {
-      title: 'Phần',
-      dataIndex: 'section',
-      key: 'section',
-      width: 150,
-      render: (section) => <Tag>{section}</Tag>,
-    },
+    // {
+    //   title: 'Phần',
+    //   dataIndex: 'sectionDisplay',
+    //   key: 'section',
+    //   width: 150,
+    //   render: (sectionDisplay, record) => <Tag>{sectionDisplay || record.section}</Tag>,
+    // },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
@@ -265,9 +282,10 @@ export const StudentFeedbackPage: React.FC = () => {
     {
       title: 'Hành động',
       key: 'actions',
-      width: 250,
+      width: 320,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
+        <Space size="small" wrap>
           <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
@@ -423,11 +441,19 @@ export const StudentFeedbackPage: React.FC = () => {
                 {selectedFeedback.syllabusCode}
               </Descriptions.Item>
               <Descriptions.Item label="Phần" span={1}>
-                <Tag>{selectedFeedback.section}</Tag>
+                <Tag>{selectedFeedback.sectionDisplay || selectedFeedback.section}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần" span={2}>
                 {selectedFeedback.syllabusName}
               </Descriptions.Item>
+              {selectedFeedback.lecturerName && (
+                <Descriptions.Item label="Giảng viên tạo" span={2}>
+                  <Tag color="blue">{selectedFeedback.lecturerName}</Tag>
+                  {selectedFeedback.lecturerEmail && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>({selectedFeedback.lecturerEmail})</Text>
+                  )}
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Sinh viên" span={2}>
                 {selectedFeedback.studentName} ({selectedFeedback.studentEmail})
               </Descriptions.Item>
@@ -504,6 +530,16 @@ export const StudentFeedbackPage: React.FC = () => {
         {selectedFeedback && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="Mã HP">{selectedFeedback.syllabusCode}</Descriptions.Item>
+              <Descriptions.Item label="Tên HP">{selectedFeedback.syllabusName}</Descriptions.Item>
+              {selectedFeedback.lecturerName && (
+                <Descriptions.Item label="Giảng viên đã tạo">
+                  <Tag color="blue">{selectedFeedback.lecturerName}</Tag>
+                  {selectedFeedback.lecturerEmail && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>({selectedFeedback.lecturerEmail})</Text>
+                  )}
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Tiêu đề">{selectedFeedback.title}</Descriptions.Item>
               <Descriptions.Item label="Mô tả">{selectedFeedback.description}</Descriptions.Item>
             </Descriptions>
@@ -516,10 +552,32 @@ export const StudentFeedbackPage: React.FC = () => {
               >
                 <TextArea rows={4} placeholder="Nhập nội dung phản hồi cho sinh viên..." />
               </Form.Item>
+              
+              <Form.Item
+                name="enableEdit"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Checkbox>
+                  <Text strong>Bật quyền chỉnh sửa cho giảng viên</Text>
+                  {selectedFeedback.lecturerName && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                      (Giảng viên {selectedFeedback.lecturerName} sẽ được thông báo)
+                    </Text>
+                  )}
+                </Checkbox>
+              </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
                   <Button onClick={() => setResponseModalVisible(false)}>Hủy</Button>
+                  <Button
+                    danger
+                    loading={respondMutation.isPending}
+                    onClick={handleRejectFeedback}
+                  >
+                    Từ chối (không cần sửa)
+                  </Button>
                   <Button
                     type="primary"
                     htmlType="submit"
