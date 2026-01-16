@@ -9,14 +9,14 @@ const { Text, Title, Paragraph } = Typography;
 
 export interface Notification {
   id: string;
-  type: 'SUBMISSION' | 'APPROVAL' | 'REJECTION' | 'COMMENT' | 'DEADLINE' | 'ASSIGNMENT' | 'SYSTEM';
+  type: 'SUBMISSION' | 'APPROVAL' | 'REJECTION' | 'COMMENT' | 'DEADLINE' | 'ASSIGNMENT' | 'SYSTEM' | 'ERROR_REPORT';
   title: string;
   content: string;
   createdAt: string;
   isRead: boolean;
   readAt?: string;
   relatedEntityId?: string;
-  relatedEntityType?: 'SYLLABUS' | 'REVIEW' | 'SUBJECT' | 'TEACHING_ASSIGNMENT';
+  relatedEntityType?: 'SYLLABUS' | 'REVIEW' | 'SUBJECT' | 'TEACHING_ASSIGNMENT' | 'SYLLABUS_VERSION';
   payload?: Record<string, any>;
 }
 
@@ -28,6 +28,7 @@ const typeColors: Record<Notification['type'], string> = {
   DEADLINE: 'warning',
   ASSIGNMENT: 'cyan',
   SYSTEM: 'default',
+  ERROR_REPORT: 'orange',
 };
 
 const NotificationBell: React.FC = () => {
@@ -85,6 +86,8 @@ const NotificationBell: React.FC = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    console.log('Notification clicked:', notification);
+    console.log('Notification payload:', notification.payload);
     setSelectedNotification(notification);
     setDetailModalOpen(true);
     setDropdownOpen(false);
@@ -122,6 +125,7 @@ const NotificationBell: React.FC = () => {
       DEADLINE: 'Hạn chót',
       ASSIGNMENT: 'Phân công',
       SYSTEM: 'Hệ thống',
+      ERROR_REPORT: 'Yêu cầu chỉnh sửa',
     };
     return labels[type] || type;
   };
@@ -284,6 +288,57 @@ const NotificationBell: React.FC = () => {
         </Paragraph>
       </div>
 
+      {/* Feedbacks List (if exists in payload) */}
+      {(() => {
+        console.log('Checking feedbacks in payload:', selectedNotification.payload);
+        console.log('Feedbacks array:', selectedNotification.payload?.feedbacks);
+        return selectedNotification.payload?.feedbacks && selectedNotification.payload.feedbacks.length > 0;
+      })() && (
+        <div>
+          <Divider style={{ margin: '12px 0' }}>
+            <Text strong style={{ fontSize: '14px' }}>
+              Chi tiết các lỗi cần sửa ({selectedNotification.payload.feedbacks.length})
+            </Text>
+          </Divider>
+          <List
+            size="small"
+            dataSource={selectedNotification.payload.feedbacks}
+            renderItem={(fb: any, index: number) => (
+              <List.Item style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <List.Item.Meta
+                  avatar={
+                    <Tag color="red" style={{ fontSize: '14px', padding: '4px 8px' }}>
+                      #{index + 1}
+                    </Tag>
+                  }
+                  title={
+                    <Space>
+                      <Tag color="orange">{fb.type}</Tag>
+                      <Text strong>{fb.title}</Text>
+                    </Space>
+                  }
+                  description={
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>Phần: </Text>
+                        <Tag>{fb.section}</Tag>
+                      </div>
+                      <div style={{ marginBottom: 4, padding: '8px 12px', backgroundColor: '#fafafa', borderRadius: 4 }}>
+                        <Text>{fb.description}</Text>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>
+                        <Text type="secondary">Phản hồi từ sinh viên: </Text>
+                        <Text>{fb.studentName || 'Không rõ'}</Text>
+                      </div>
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </div>
+      )}
+
       {/* Metadata */}
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label={<Space><ClockCircleOutlined /> Thời gian</Space>}>
@@ -303,6 +358,15 @@ const NotificationBell: React.FC = () => {
 
       {/* Actions */}
       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+        {/* Action button for ERROR_REPORT type */}
+        {selectedNotification.type === 'ERROR_REPORT' && selectedNotification.payload?.actionUrl && (
+          <Button
+            type="primary"
+            onClick={() => handleNavigateToAction(selectedNotification)}
+          >
+            {selectedNotification.payload?.actionLabel || 'Chỉnh sửa ngay'}
+          </Button>
+        )}
         {selectedNotification.type === 'ASSIGNMENT' && selectedNotification.payload?.actionUrl && (
           <Button
             type="primary"

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.smd.core.common.dto.ApiResponse;
 import vn.edu.smd.core.module.revision.dto.*;
 import vn.edu.smd.core.module.revision.service.RevisionService;
+import vn.edu.smd.core.repository.UserRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class RevisionController {
 
     private final RevisionService revisionService;
+    private final UserRepository userRepository;
 
     @Operation(summary = "Start revision session", description = "Admin starts a revision session to fix published syllabus")
     @PostMapping("/start")
@@ -76,8 +78,19 @@ public class RevisionController {
         return ResponseEntity.ok(ApiResponse.success(sessions));
     }
 
+    @Operation(summary = "Get active revision session by syllabus", description = "Get active revision session for a syllabus version")
+    @GetMapping("/syllabus/{syllabusId}/active")
+    public ResponseEntity<ApiResponse<RevisionSessionResponse>> getActiveRevisionSession(
+            @PathVariable UUID syllabusId) {
+        RevisionSessionResponse session = revisionService.getActiveRevisionSession(syllabusId);
+        return ResponseEntity.ok(ApiResponse.success(session));
+    }
+
     private UUID getCurrentUserId() {
-        // TODO: Get user ID from authentication
-        return UUID.randomUUID(); // Placeholder
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(principal)
+                .or(() -> userRepository.findByEmail(principal))
+                .map(user -> user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found in token"));
     }
 }

@@ -31,7 +31,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { feedbackService } from '@/services';
+import { feedbackService, revisionService } from '@/services';
 import { StudentFeedback, FeedbackStatus, FeedbackType } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -74,6 +74,7 @@ export const StudentFeedbackPage: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [responseModalVisible, setResponseModalVisible] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<StudentFeedback | null>(null);
+  const [selectedFeedbackIds, setSelectedFeedbackIds] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus[]>([]);
   const [typeFilter, setTypeFilter] = useState<FeedbackType[]>([]);
@@ -126,6 +127,24 @@ export const StudentFeedbackPage: React.FC = () => {
     },
     onError: () => {
       message.error('Cập nhật trạng thái thất bại');
+    },
+  });
+
+  // Start batch revision mutation
+  const startRevisionMutation = useMutation({
+    mutationFn: ({ feedbackIds, syllabusId }: { feedbackIds: string[]; syllabusId: string }) =>
+      revisionService.startRevision({
+        syllabusVersionId: syllabusId,
+        feedbackIds,
+        description: `Gộp ${feedbackIds.length} phản hồi để chỉnh sửa`,
+      }),
+    onSuccess: () => {
+      message.success('Đã mở Revision Session! Giảng viên sẽ nhận được thông báo.');
+      queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
+      setSelectedFeedbackIds([]);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Mở Revision Session thất bại');
     },
   });
 
@@ -186,7 +205,77 @@ export const StudentFeedbackPage: React.FC = () => {
     });
   };
 
+  const handleStartBatchRevision = () => {
+    if (selectedFeedbackIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất 1 phản hồi');
+      return;
+    }
+
+    // Check if all selected feedbacks are from the same syllabus
+    const selectedFeedbacks = feedbacks?.filter(f => selectedFeedbackIds.includes(f.id)) || [];
+    const uniqueSyllabusIds = new Set(selectedFeedbacks.map(f => f.syllabusId));
+    
+    if (uniqueSyllabusIds.size > 1) {
+      message.error('Chỉ có thể gộp các phản hồi từ cùng 1 đề cương');
+      return;
+    }
+
+    const syllabusId = selectedFeedbacks[0].syllabusId;
+    const syllabusCode = selectedFeedbacks[0].syllabusCode;
+
+    Modal.confirm({
+      title: 'Mở Revision Session',
+      content: (
+        <Space direction="vertical">
+          <Text>Bạn có chắc muốn mở revision session cho:</Text>
+          <Text strong>{syllabusCode} - {selectedFeedbacks[0].syllabusName}</Text>
+          <Text type="secondary">Gộp {selectedFeedbackIds.length} phản hồi</Text>
+          <Text type="warning">Giảng viên sẽ nhận thông báo và có thể chỉnh sửa đề cương.</Text>
+        </Space>
+      ),
+      okText: 'Mở Session',
+      cancelText: 'Hủy',
+      onOk: () => {
+        startRevisionMutation.mutate({
+          feedbackIds: selectedFeedbackIds,
+          syllabusId,
+        });
+      },
+    });
+  };
+
   const columns: ColumnsType<StudentFeedback> = [
+    {
+      title: (
+        <Checkbox
+          checked={selectedFeedbackIds.length > 0 && selectedFeedbackIds.length === feedbacks?.length}
+          indeterminate={selectedFeedbackIds.length > 0 && selectedFeedbackIds.length < (feedbacks?.length || 0)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedFeedbackIds(feedbacks?.map(f => f.id) || []);
+            } else {
+              setSelectedFeedbackIds([]);
+            }
+          }}
+        />
+      ),
+      key: 'select',
+      width: 50,
+      align: 'center',
+      fixed: 'left',
+      render: (_, record) => (
+        <Checkbox
+          checked={selectedFeedbackIds.includes(record.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedFeedbackIds([...selectedFeedbackIds, record.id]);
+            } else {
+              setSelectedFeedbackIds(selectedFeedbackIds.filter(id => id !== record.id));
+            }
+          }}
+        />
+      ),
+    },
     {
       title: 'Loại',
       dataIndex: 'type',
@@ -348,43 +437,61 @@ export const StudentFeedbackPage: React.FC = () => {
     <div style={{ padding: '24px' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Card>
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Title level={4} style={{ margin: 0 }}>
-              <MessageOutlined /> Quản lý Phản hồi từ Sinh viên
-              {pendingCount > 0 && (
-                <Badge count={pendingCount} style={{ marginLeft: 16 }} showZero />
-              )}
-            </Title>
-            <Space>
-              <Select
-                mode="multiple"
-                placeholder="Lọc theo loại"
-                style={{ minWidth: 200 }}
-                value={typeFilter}
-                onChange={setTypeFilter}
-                allowClear
-              >
-                {Object.values(FeedbackType).map((type) => (
-                  <Option key={type} value={type}>
-                    {FEEDBACK_TYPE_LABELS[type]}
-                  </Option>
-                ))}
-              </Select>
-              <Select
-                mode="multiple"
-                placeholder="Lọc theo trạng thái"
-                style={{ minWidth: 200 }}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                allowClear
-              >
-                {Object.values(FeedbackStatus).map((status) => (
-                  <Option key={status} value={status}>
-                    {FEEDBACK_STATUS_LABELS[status]}
-                  </Option>
-                ))}
-              </Select>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Title level={4} style={{ margin: 0 }}>
+                <MessageOutlined /> Quản lý Phản hồi từ Sinh viên
+                {pendingCount > 0 && (
+                  <Badge count={pendingCount} style={{ marginLeft: 16 }} showZero />
+                )}
+              </Title>
+              <Space>
+                <Select
+                  mode="multiple"
+                  placeholder="Lọc theo loại"
+                  style={{ minWidth: 200 }}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  allowClear
+                >
+                  {Object.values(FeedbackType).map((type) => (
+                    <Option key={type} value={type}>
+                      {FEEDBACK_TYPE_LABELS[type]}
+                    </Option>
+                  ))}
+                </Select>
+                <Select
+                  mode="multiple"
+                  placeholder="Lọc theo trạng thái"
+                  style={{ minWidth: 200 }}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  allowClear
+                >
+                  {Object.values(FeedbackStatus).map((status) => (
+                    <Option key={status} value={status}>
+                      {FEEDBACK_STATUS_LABELS[status]}
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
             </Space>
+            {selectedFeedbackIds.length > 0 && (
+              <Space>
+                <Text strong>Đã chọn {selectedFeedbackIds.length} phản hồi</Text>
+                <Button
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={handleStartBatchRevision}
+                  loading={startRevisionMutation.isPending}
+                >
+                  Mở Revision Session
+                </Button>
+                <Button onClick={() => setSelectedFeedbackIds([])}>
+                  Bỏ chọn
+                </Button>
+              </Space>
+            )}
           </Space>
         </Card>
 

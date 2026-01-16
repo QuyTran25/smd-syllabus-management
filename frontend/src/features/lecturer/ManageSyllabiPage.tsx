@@ -11,6 +11,7 @@ import {
   Modal,
   message,
   Typography,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -31,6 +32,7 @@ import VersionComparisonModal from './VersionComparisonModal';
 import RejectionReasonModal from './dashboard/components/RejectionReasonModal';
 import { useAuth } from '@/features/auth/AuthContext';
 import { syllabusService } from '@/services/syllabus.service';
+import { revisionService } from '@/services';
 import { SyllabusStatus } from '@/types';
 
 const { Search } = Input;
@@ -200,15 +202,40 @@ const ManageSyllabiPage: React.FC = () => {
   };
 
   const handleSubmit = (id: string) => {
+    const syllabus = syllabi.find(s => s.id === id);
+    if (!syllabus) return;
+
+    // Check if this is a revision submission
+    const isRevision = syllabus.status === 'REVISION_IN_PROGRESS';
+
     Modal.confirm({
-      title: 'Gửi đề cương phê duyệt',
-      content: 'Bạn có chắc muốn gửi đề cương này cho Trưởng Bộ môn phê duyệt?',
+      title: isRevision ? 'Gửi revision cho TBM duyệt' : 'Gửi đề cương phê duyệt',
+      content: isRevision
+        ? 'Bạn có chắc muốn gửi đề cương đã chỉnh sửa cho Trưởng Bộ môn duyệt?'
+        : 'Bạn có chắc muốn gửi đề cương này cho Trưởng Bộ môn phê duyệt?',
       onOk: async () => {
         try {
           setLoading(true);
-          await syllabusService.submitForApproval(id);
+          
+          if (isRevision) {
+            // Get active revision session
+            const session = await revisionService.getActiveRevisionSession(id);
+            if (session) {
+              await revisionService.submitRevision({
+                revisionSessionId: session.id,
+                summary: 'Đã hoàn thành chỉnh sửa theo phản hồi',
+              });
+              message.success('Đã gửi revision cho TBM duyệt!');
+            } else {
+              message.error('Không tìm thấy revision session');
+            }
+          } else {
+            // Normal approval workflow
+            await syllabusService.submitForApproval(id);
+            message.success('Đã gửi đề cương thành công!');
+          }
+          
           await fetchSyllabi();
-          message.success('Đã gửi đề cương thành công!');
         } catch (error: any) {
           message.error('Không thể gửi đề cương: ' + (error.message || 'Lỗi không xác định'));
         } finally {
@@ -347,7 +374,8 @@ const ManageSyllabiPage: React.FC = () => {
             disabled={
               record.status !== 'DRAFT' &&
               record.status !== 'HOD_REJECTED' &&
-              record.status !== 'PUBLISHED'
+              record.status !== 'PUBLISHED' &&
+              record.status !== 'REVISION_IN_PROGRESS'
             }
           >
             Sửa
@@ -366,7 +394,10 @@ const ManageSyllabiPage: React.FC = () => {
                   key: 'submit',
                   label: 'Gửi phê duyệt',
                   icon: <SendOutlined />,
-                  disabled: record.status !== 'DRAFT' && record.status !== 'HOD_REJECTED',
+                  disabled: 
+                    record.status !== 'DRAFT' && 
+                    record.status !== 'HOD_REJECTED' && 
+                    record.status !== 'REVISION_IN_PROGRESS',
                   onClick: () => handleSubmit(record.id),
                 },
                 {
@@ -417,6 +448,24 @@ const ManageSyllabiPage: React.FC = () => {
           Tạo đề cương mới
         </Button>
       </div>
+      
+      {/* Revision Alert */}
+      {syllabi.filter(s => s.status === 'REVISION_IN_PROGRESS').length > 0 && (
+        <Alert
+          message={`Bạn có ${syllabi.filter(s => s.status === 'REVISION_IN_PROGRESS').length} đề cương cần chỉnh sửa`}
+          description={
+            <div>
+              Admin đã yêu cầu bạn chỉnh sửa một số đề cương dựa trên phản hồi từ sinh viên. 
+              Vui lòng kiểm tra <strong>Thông báo</strong> để xem chi tiết các lỗi cần sửa.
+            </div>
+          }
+          type="warning"
+          showIcon
+          closable
+          style={{ margin: '0 24px 24px' }}
+        />
+      )}
+      
       <Card
       >
         <Space style={{ marginBottom: 16, width: '100%' }} size="middle">

@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -79,7 +80,7 @@ public class RevisionService {
         
         // Create revision session
         long sessionCount = revisionSessionRepository.countBySyllabusVersionId(syllabus.getId());
-        RevisionSession session = RevisionSession.builder()
+        RevisionSession sessionEntity = RevisionSession.builder()
                 .syllabusVersion(syllabus)
                 .sessionNumber((int) (sessionCount + 1))
                 .status(RevisionSessionStatus.OPEN)
@@ -90,7 +91,7 @@ public class RevisionService {
                 .startedAt(LocalDateTime.now())
                 .build();
         
-        session = revisionSessionRepository.save(session);
+        final RevisionSession session = revisionSessionRepository.save(sessionEntity);
         
         // Update feedbacks status and link to session
         for (SyllabusErrorReport feedback : feedbacks) {
@@ -105,7 +106,18 @@ public class RevisionService {
         syllabusVersionRepository.save(syllabus);
         
         // Send notification to lecturer
-        notificationService.notifyLecturerRevisionRequested(session, lecturer, feedbacks.size());
+        notificationService.notifyLecturerRevisionRequested(session, lecturer, feedbacks);
+        
+        // Send notification to HoD (from lecturer's department)
+        if (lecturer.getDepartment() != null) {
+            userRepository.findHodByDepartmentId(lecturer.getDepartment().getId())
+                .ifPresent(hod -> {
+                    notificationService.notifyHodRevisionRequested(session, hod, lecturer, feedbacks.size());
+                    log.info("Sent revision request notification to HoD: {}", hod.getFullName());
+                });
+        } else {
+            log.warn("Lecturer {} has no department, cannot notify HoD", lecturer.getId());
+        }
         
         log.info("Revision session {} started successfully with {} feedbacks", session.getId(), feedbacks.size());
         
@@ -319,6 +331,27 @@ public class RevisionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get active revision session for a syllabus version
+     */
+    @Transactional(readOnly = true)
+    public RevisionSessionResponse getActiveRevisionSession(UUID syllabusVersionId) {
+        log.info("Getting active revision session for syllabus {}", syllabusVersionId);
+        
+        Optional<RevisionSession> sessionOpt = revisionSessionRepository.findActiveSessionBySyllabusVersionId(syllabusVersionId);
+        
+        if (sessionOpt.isEmpty()) {
+            throw new ResourceNotFoundException("Active revision session not found for syllabus", "syllabusId", syllabusVersionId);
+        }
+        
+        RevisionSession session = sessionOpt.get();
+        List<SyllabusErrorReport> feedbacks = feedbackRepository.findByRevisionSessionId(session.getId());
+        
+        log.info("Found active revision session {} with {} feedbacks", session.getId(), feedbacks.size());
+        
+        return mapToResponse(session, feedbacks);
+    }
+
     // Helper methods
     
     private void createHistorySnapshot(SyllabusVersion syllabus, User user, String reason) {
@@ -398,6 +431,17 @@ public class RevisionService {
                 .republishedAt(session.getRepublishedAt())
                 .feedbackCount(feedbacks.size())
                 .feedbackIds(feedbacks.stream().map(SyllabusErrorReport::getId).collect(Collectors.toList()))
+                .feedbacks(feedbacks.stream()
+                        .map(fb -> RevisionSessionResponse.FeedbackSimpleDto.builder()
+                                .id(fb.getId())
+                                .type(fb.getType() != null ? fb.getType().name() : "ERROR")
+                                .section(fb.getSection() != null ? fb.getSection().name() : "OTHER")
+                                .title(fb.getTitle())
+                                .description(fb.getDescription())
+                                .status(fb.getStatus())
+                                .studentName(fb.getUser() != null ? fb.getUser().getFullName() : "Unknown")
+                                .build())
+                        .collect(Collectors.toList()))
                 .createdAt(session.getCreatedAt())
                 .updatedAt(session.getUpdatedAt())
                 .build();

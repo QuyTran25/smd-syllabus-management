@@ -30,7 +30,7 @@ public class RevisionNotificationService {
     public void notifyLecturerRevisionRequested(
             RevisionSession session,
             User lecturer,
-            int feedbackCount
+            List<SyllabusErrorReport> feedbacks
     ) {
         SyllabusVersion syllabus = session.getSyllabusVersion();
         
@@ -41,17 +41,32 @@ public class RevisionNotificationService {
         String message = String.format(
                 "Admin đã phát hiện %d lỗi cần chỉnh sửa trong đề cương của bạn. " +
                 "Vui lòng xem chi tiết và cập nhật.",
-                feedbackCount
+                feedbacks.size()
         );
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("syllabusId", syllabus.getId().toString());
         payload.put("syllabusCode", syllabus.getSnapSubjectCode());
         payload.put("revisionSessionId", session.getId().toString());
-        payload.put("feedbackCount", feedbackCount);
-        payload.put("actionUrl", "/lecturer/syllabi/" + syllabus.getId() + "/edit");
+        payload.put("feedbackCount", feedbacks.size());
+        payload.put("actionUrl", "/lecturer/syllabi/edit/" + syllabus.getId());
         payload.put("actionLabel", "Chỉnh sửa ngay");
         payload.put("priority", "HIGH");
+        
+        // Include feedback details
+        List<Map<String, String>> feedbackDetails = feedbacks.stream()
+            .map(fb -> {
+                Map<String, String> detail = new HashMap<>();
+                detail.put("id", fb.getId().toString());
+                detail.put("section", fb.getSection() != null ? fb.getSection().name() : "OTHER");
+                detail.put("title", fb.getTitle());
+                detail.put("description", fb.getDescription());
+                detail.put("type", fb.getType() != null ? fb.getType().name() : "ERROR");
+                detail.put("studentName", fb.getUser() != null ? fb.getUser().getFullName() : "Unknown");
+                return detail;
+            })
+            .collect(java.util.stream.Collectors.toList());
+        payload.put("feedbacks", feedbackDetails);
         
         Notification notification = Notification.builder()
                 .user(lecturer)
@@ -67,6 +82,56 @@ public class RevisionNotificationService {
         notificationRepository.save(notification);
         log.info("Sent revision request notification to lecturer: {} for syllabus: {}",
                 lecturer.getFullName(), syllabus.getSnapSubjectCode());
+    }
+
+    /**
+     * Send notification to HoD when admin enables edit for revision
+     */
+    @Transactional
+    public void notifyHodRevisionRequested(
+            RevisionSession session,
+            User hod,
+            User lecturer,
+            int feedbackCount
+    ) {
+        SyllabusVersion syllabus = session.getSyllabusVersion();
+        
+        String title = String.format("[Yêu cầu chỉnh sửa] Đề cương %s - %s",
+                syllabus.getSnapSubjectCode(),
+                syllabus.getSnapSubjectNameVi());
+        
+        String message = String.format(
+                "Admin đã yêu cầu giảng viên %s chỉnh sửa %d lỗi trong đề cương. " +
+                "Vui lòng theo dõi quá trình chỉnh sửa.",
+                lecturer.getFullName(),
+                feedbackCount
+        );
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("syllabusId", syllabus.getId().toString());
+        payload.put("syllabusCode", syllabus.getSnapSubjectCode());
+        payload.put("revisionSessionId", session.getId().toString());
+        payload.put("lecturerId", lecturer.getId().toString());
+        payload.put("lecturerName", lecturer.getFullName());
+        payload.put("feedbackCount", feedbackCount);
+        payload.put("actionUrl", "/hod/syllabi/" + syllabus.getId());
+        payload.put("actionLabel", "Xem chi tiết");
+        payload.put("priority", "MEDIUM");
+        
+        Notification notification = Notification.builder()
+                .user(hod)
+                .title(title)
+                .message(message)
+                .type(NotificationType.ERROR_REPORT.name())
+                .payload(payload)
+                .isRead(false)
+                .relatedEntityType("SYLLABUS_VERSION")
+                .relatedEntityId(syllabus.getId())
+                .build();
+        
+        notificationRepository.save(notification);
+        log.info("Sent revision request notification to HoD: {} for syllabus: {}",
+                hod.getFullName(), syllabus.getSnapSubjectCode());
     }
 
     /**

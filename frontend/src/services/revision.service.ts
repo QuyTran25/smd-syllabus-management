@@ -69,4 +69,22 @@ export const revisionService = {
     );
     return response.data.data;
   },
+
+  /**
+   * Get active revision session for a syllabus
+   */
+  getActiveRevisionSession: async (syllabusId: string): Promise<RevisionSession | null> => {
+    try {
+      const response = await api.get<{ data: RevisionSession }>(
+        `/api/revisions/syllabus/${syllabusId}/active`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      // If no active session found (404), return null instead of throwing
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
 };

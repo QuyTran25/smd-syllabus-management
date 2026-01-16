@@ -1,6 +1,7 @@
 package vn.edu.smd.core.module.studentfeedback.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,8 @@ import vn.edu.smd.core.entity.Notification;
 import vn.edu.smd.core.entity.SyllabusErrorReport;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.entity.User;
+import vn.edu.smd.core.module.revision.dto.StartRevisionRequest;
+import vn.edu.smd.core.module.revision.service.RevisionService;
 import vn.edu.smd.core.module.studentfeedback.dto.AdminResponseRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackResponse;
@@ -20,18 +23,21 @@ import vn.edu.smd.core.repository.UserRepository;
 import vn.edu.smd.shared.enums.NotificationType;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudentFeedbackService {
 
     private final SyllabusErrorReportRepository feedbackRepository;
     private final SyllabusVersionRepository syllabusVersionRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final RevisionService revisionService;
 
     @Transactional(readOnly = true)
     public Page<StudentFeedbackResponse> getAllFeedbacks(Pageable pageable) {
@@ -83,6 +89,8 @@ public class StudentFeedbackService {
 
     @Transactional
     public StudentFeedbackResponse respondToFeedback(UUID id, AdminResponseRequest request, UUID adminId) {
+        log.info("Admin {} responding to feedback {}", adminId, id);
+        
         SyllabusErrorReport feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("StudentFeedback", "id", id));
         
@@ -94,6 +102,9 @@ public class StudentFeedbackService {
         feedback.setRespondedAt(LocalDateTime.now());
         
         if (Boolean.TRUE.equals(request.getEnableEdit())) {
+            log.info("Admin enabled edit for feedback {}", id);
+            
+            // Just mark for revision, actual session will be started separately
             feedback.setEditEnabled(true);
             feedback.setStatus("AWAITING_REVISION");
         } else {
@@ -106,7 +117,35 @@ public class StudentFeedbackService {
         // Send notification to student
         sendResponseNotificationToStudent(feedback, admin);
         
+        // If enableEdit is true, start revision session in a separate transaction
+        if (Boolean.TRUE.equals(request.getEnableEdit())) {
+            try {
+                startRevisionSessionForFeedback(id, feedback.getSyllabusVersion().getId(), adminId);
+            } catch (Exception e) {
+                log.error("Failed to start revision session for feedback {}: {}", id, e.getMessage());
+                // Continue anyway, feedback is already saved
+            }
+        }
+        
         return mapToResponse(feedback);
+    }
+    
+    /**
+     * Start revision session for a single feedback (separate transaction to avoid circular dependency)
+     */
+    private void startRevisionSessionForFeedback(UUID feedbackId, UUID syllabusId, UUID adminId) {
+        try {
+            StartRevisionRequest revisionRequest = new StartRevisionRequest();
+            revisionRequest.setSyllabusVersionId(syllabusId);
+            revisionRequest.setFeedbackIds(Collections.singletonList(feedbackId));
+            revisionRequest.setDescription("Chỉnh sửa đề cương dựa trên phản hồi sinh viên");
+            
+            revisionService.startRevisionSession(revisionRequest, adminId);
+            log.info("Revision session started successfully for feedback {}", feedbackId);
+        } catch (Exception e) {
+            log.error("Error starting revision session: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Transactional

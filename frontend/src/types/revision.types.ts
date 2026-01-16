@@ -42,8 +42,21 @@ export interface RevisionSession {
   feedbackCount: number;
   feedbackIds: string[];
   
+  // Feedback details
+  feedbacks?: FeedbackSimpleDto[];
+  
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FeedbackSimpleDto {
+  id: string;
+  type: string;
+  section: string;
+  title: string;
+  description: string;
+  status: string;
+  studentName: string;
 }
 
 export interface StartRevisionRequest {

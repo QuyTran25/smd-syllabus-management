@@ -51,6 +51,26 @@ public class RevisionSessionResponse {
     private Integer feedbackCount;
     private List<UUID> feedbackIds;
     
+    // Feedback details for convenience
+    private List<FeedbackSimpleDto> feedbacks;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    /**
+     * Simple DTO for feedback details in revision session
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeedbackSimpleDto {
+        private UUID id;
+        private String type;
+        private String section;
+        private String title;
+        private String description;
+        private String status;
+        private String studentName;
+    }
 }
