@@ -152,3 +152,7 @@ docs/**/*.pdf
 # Nested / accidental repositories
 # ============================================
 /smd-syllabus-management/
+
+# Debug and helper files
+check-notifications.sql
+database/core-service/V47__revision_sessions.sql
