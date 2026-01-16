@@ -97,12 +97,19 @@ export const StudentNotificationBell: React.FC = () => {
     setDetailModalOpen(false);
     setDropdownOpen(false);
 
-    // Điều hướng riêng cho sinh viên
+    // Navigate to student portal syllabi list
     if (notification.payload?.actionUrl) {
-      // Nếu backend trả về URL admin, ta có thể replace sang URL student nếu cần
-      // Ví dụ: /admin/syllabus/123 -> /student/syllabus/123
-      const url = notification.payload.actionUrl.replace('/admin/', '/student/');
-      navigate(url);
+      const url = notification.payload.actionUrl;
+      // If it's a student portal URL, navigate directly
+      if (url.startsWith('/syllabi') || url.startsWith('/student')) {
+        navigate(url);
+      } else {
+        // For other URLs, go to syllabi list as default
+        navigate('/syllabi');
+      }
+    } else {
+      // Default to syllabi list
+      navigate('/syllabi');
     }
   };
 
