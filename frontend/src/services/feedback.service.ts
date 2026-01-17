@@ -11,11 +11,15 @@ export interface StudentFeedbackResponse {
   syllabusId: string;
   syllabusCode: string;
   syllabusName: string;
+  lecturerId?: string;
+  lecturerName?: string;
+  lecturerEmail?: string;
   studentId: string;
   studentName: string;
   studentEmail: string;
   type: FeedbackType;
   section: string;
+  sectionDisplay?: string;
   title: string;
   description: string;
   status: string;
@@ -39,11 +43,15 @@ const mapToStudentFeedback = (response: StudentFeedbackResponse): StudentFeedbac
   syllabusId: response.syllabusId,
   syllabusCode: response.syllabusCode || '',
   syllabusName: response.syllabusName || '',
+  lecturerId: response.lecturerId,
+  lecturerName: response.lecturerName,
+  lecturerEmail: response.lecturerEmail,
   studentId: response.studentId,
   studentName: response.studentName || '',
   studentEmail: response.studentEmail || '',
   type: response.type,
   section: response.section,
+  sectionDisplay: response.sectionDisplay,
   title: response.title || '',
   description: response.description,
   status: response.status as FeedbackStatus,
@@ -120,11 +128,12 @@ export const feedbackService = {
   respondToFeedback: async (
     id: string,
     response: string,
-    _respondedBy: string
+    enableEdit: boolean = false,
+    _respondedBy?: string
   ): Promise<StudentFeedback> => {
     const apiResponse = await api.post<{ data: StudentFeedbackResponse }>(
       `/api/student-feedbacks/${id}/respond`,
-      { response, enableEdit: false }
+      { response, enableEdit }
     );
     return mapToStudentFeedback(apiResponse.data.data);
   },

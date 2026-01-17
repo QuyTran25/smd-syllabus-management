@@ -11,6 +11,7 @@ import java.util.UUID;
 @Builder
 public class StudentSyllabusDetailDto {
     private UUID id;
+    private UUID versionId;
     private String code;
     private String nameVi;
     private String nameEn;
@@ -26,6 +27,8 @@ public class StudentSyllabusDetailDto {
     private String publishedAt;
     private String summaryInline; // Nội dung Tóm tắt AI
 
+
+    private boolean isTracked;
     private TimeAllocationDto timeAllocation;
     private List<String> objectives;
     private List<String> studentTasks;

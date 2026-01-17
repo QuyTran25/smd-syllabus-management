@@ -29,13 +29,14 @@ export const ReportIssueModal: React.FC<Props> = ({ open, onClose, onSubmit, sub
           <Select
             placeholder="VD: CLO3, Mục tiêu, Tài liệu tham khảo..."
             options={[
-              { value: 'Thông tin học phần', label: 'Thông tin học phần' },
-              { value: 'Mục tiêu học phần', label: 'Mục tiêu học phần' },
-              { value: 'Ma trận đánh giá', label: 'Ma trận đánh giá' },
-              { value: 'CLO', label: 'Chuẩn đầu ra (CLO)' },
-              { value: 'CLO-PLO', label: 'Ma trận CLO-PLO' },
-              { value: 'Giáo trình & Tài liệu', label: 'Giáo trình & Tài liệu' },
-              { value: 'Khác', label: 'Khác' },
+              { value: 'SUBJECT_INFO', label: 'Thông tin môn học' },
+              { value: 'OBJECTIVES', label: 'Mục tiêu học phần' },
+              { value: 'ASSESSMENT_MATRIX', label: 'Ma trận đánh giá' },
+              { value: 'CLO', label: 'Chuẩn đầu ra học phần (CLO)' },
+              { value: 'CLO_PLO_MATRIX', label: 'Ma trận CLO-PLO' },
+              { value: 'TEXTBOOK', label: 'Giáo trình' },
+              { value: 'REFERENCE', label: 'Tài liệu tham khảo' },
+              { value: 'OTHER', label: 'Khác' },
             ]}
           />
         </Form.Item>

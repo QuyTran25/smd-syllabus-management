@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.smd.core.common.dto.ApiResponse;
 import vn.edu.smd.core.common.dto.PageResponse;
@@ -14,6 +15,7 @@ import vn.edu.smd.core.module.studentfeedback.dto.AdminResponseRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackResponse;
 import vn.edu.smd.core.module.studentfeedback.service.StudentFeedbackService;
+import vn.edu.smd.core.repository.UserRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class StudentFeedbackController {
 
     private final StudentFeedbackService feedbackService;
+    private final UserRepository userRepository;
 
     @Operation(summary = "Get all feedbacks", description = "Get list of all student feedbacks with pagination")
     @GetMapping
@@ -60,12 +63,8 @@ public class StudentFeedbackController {
     @Operation(summary = "Create feedback", description = "Student creates a new feedback")
     @PostMapping
     public ResponseEntity<ApiResponse<StudentFeedbackResponse>> createFeedback(
-            @Valid @RequestBody StudentFeedbackRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) UUID studentId) {
-        // TODO: Get studentId from authentication context
-        if (studentId == null) {
-            studentId = UUID.randomUUID(); // Temporary fallback
-        }
+            @Valid @RequestBody StudentFeedbackRequest request) {
+        UUID studentId = getCurrentUserId();
         StudentFeedbackResponse feedback = feedbackService.createFeedback(request, studentId);
         return ResponseEntity.ok(ApiResponse.success("Feedback created successfully", feedback));
     }
@@ -74,12 +73,8 @@ public class StudentFeedbackController {
     @PostMapping("/{id}/respond")
     public ResponseEntity<ApiResponse<StudentFeedbackResponse>> respondToFeedback(
             @PathVariable UUID id,
-            @RequestBody AdminResponseRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) UUID adminId) {
-        // TODO: Get adminId from authentication context
-        if (adminId == null) {
-            adminId = UUID.randomUUID(); // Temporary fallback
-        }
+            @RequestBody AdminResponseRequest request) {
+        UUID adminId = getCurrentUserId();
         StudentFeedbackResponse feedback = feedbackService.respondToFeedback(id, request, adminId);
         return ResponseEntity.ok(ApiResponse.success("Response sent successfully", feedback));
     }
@@ -87,11 +82,8 @@ public class StudentFeedbackController {
     @Operation(summary = "Enable edit for lecturer", description = "Admin enables editing for lecturer to fix the syllabus")
     @PostMapping("/{id}/enable-edit")
     public ResponseEntity<ApiResponse<StudentFeedbackResponse>> enableEditForLecturer(
-            @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", required = false) UUID adminId) {
-        if (adminId == null) {
-            adminId = UUID.randomUUID();
-        }
+            @PathVariable UUID id) {
+        UUID adminId = getCurrentUserId();
         StudentFeedbackResponse feedback = feedbackService.enableEditForLecturer(id, adminId);
         return ResponseEntity.ok(ApiResponse.success("Edit enabled for lecturer", feedback));
     }
@@ -104,4 +96,11 @@ public class StudentFeedbackController {
         StudentFeedbackResponse feedback = feedbackService.updateStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Status updated successfully", feedback));
     }
-}
+
+    private UUID getCurrentUserId() {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(principal)
+                .or(() -> userRepository.findByEmail(principal))
+                .map(user -> user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found in token"));
+    }}

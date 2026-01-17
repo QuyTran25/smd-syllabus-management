@@ -5,69 +5,83 @@
 
 import { SyllabusStatus } from '../types/syllabus.types';
 
-export const ROLE_STATUS_MAP: Record<string, SyllabusStatus[]> = {
-  // Admin: 7 trạng thái
+/**
+ * Supported user roles
+ */
+export type UserRole = 'ADMIN' | 'PRINCIPAL' | 'AA' | 'HOD' | 'LECTURER';
+
+/**
+ * Mapping between user roles and allowed syllabus statuses
+ */
+export const ROLE_STATUS_MAP: Record<UserRole, SyllabusStatus[]> = {
+  // =========================
+  // Admin: 7 statuses
+  // =========================
   ADMIN: [
-    'APPROVED',
-    'PUBLISHED',
-    'REJECTED',
-    'REVISION_IN_PROGRESS',
-    'PENDING_ADMIN_REPUBLISH',
-    'INACTIVE',
-    'ARCHIVED'
+    SyllabusStatus.APPROVED,
+    SyllabusStatus.PUBLISHED,
+    SyllabusStatus.REJECTED,
+    SyllabusStatus.REVISION_IN_PROGRESS,
+    SyllabusStatus.PENDING_ADMIN_REPUBLISH,
+    SyllabusStatus.INACTIVE,
+    SyllabusStatus.ARCHIVED,
   ],
-  
-  // Hiệu trưởng: 2 trạng thái
-  PRINCIPAL: [
-    'PENDING_PRINCIPAL',
-    'APPROVED'
-  ],
-  
-  // Phòng đào tạo: 3 trạng thái
-  AA: [
-    'PENDING_AA',
-    'PENDING_PRINCIPAL',
-    'REJECTED'
-  ],
-  
-  // Trưởng bộ môn: 5 trạng thái
+
+  // =========================
+  // Principal: 2 statuses
+  // =========================
+  PRINCIPAL: [SyllabusStatus.PENDING_PRINCIPAL, SyllabusStatus.APPROVED],
+
+  // =========================
+  // Academic Affairs: 3 statuses
+  // =========================
+  AA: [SyllabusStatus.PENDING_AA, SyllabusStatus.PENDING_PRINCIPAL, SyllabusStatus.REJECTED],
+
+  // =========================
+  // Head of Department: 5 statuses
+  // =========================
   HOD: [
-    'PENDING_HOD',
-    'PENDING_AA',
-    'REJECTED',
-    'PENDING_HOD_REVISION',
-    'PENDING_ADMIN_REPUBLISH'
+    SyllabusStatus.PENDING_HOD,
+    SyllabusStatus.PENDING_AA,
+    SyllabusStatus.REJECTED,
+    SyllabusStatus.PENDING_HOD_REVISION,
+    SyllabusStatus.PENDING_ADMIN_REPUBLISH,
   ],
-  
-  // Giảng viên: Có thể xem draft của mình
+
+  // =========================
+  // Lecturer: own drafts & revisions
+  // =========================
   LECTURER: [
-    'DRAFT',
-    'PENDING_HOD',
-    'REJECTED',
-    'REVISION_IN_PROGRESS'
-  ]
+    SyllabusStatus.DRAFT,
+    SyllabusStatus.PENDING_HOD,
+    SyllabusStatus.REJECTED,
+    SyllabusStatus.REVISION_IN_PROGRESS,
+  ],
 };
 
+/**
+ * Display names for syllabus statuses (Vietnamese)
+ */
 export const STATUS_DISPLAY_NAMES: Record<SyllabusStatus, string> = {
-  DRAFT: 'Bản nháp',
-  PENDING_HOD: 'Chờ Trưởng BM',
-  PENDING_AA: 'Chờ Phòng ĐT',
-  PENDING_PRINCIPAL: 'Chờ Hiệu trưởng duyệt',
-  APPROVED: 'Đã phê duyệt',
-  PUBLISHED: 'Đã xuất bản',
-  REJECTED: 'Bị từ chối',
-  REVISION_IN_PROGRESS: 'Đang chỉnh sửa',
-  PENDING_HOD_REVISION: 'Chờ TBM duyệt lại',
-  PENDING_ADMIN_REPUBLISH: 'Chờ xuất bản lại',
-  INACTIVE: 'Không hoạt động',
-  ARCHIVED: 'Đã lưu trữ'
+  [SyllabusStatus.DRAFT]: 'Bản nháp',
+  [SyllabusStatus.PENDING_HOD]: 'Chờ Trưởng BM',
+  [SyllabusStatus.PENDING_AA]: 'Chờ Phòng ĐT',
+  [SyllabusStatus.PENDING_PRINCIPAL]: 'Chờ Hiệu trưởng duyệt',
+  [SyllabusStatus.APPROVED]: 'Đã phê duyệt',
+  [SyllabusStatus.PUBLISHED]: 'Đã xuất bản',
+  [SyllabusStatus.REJECTED]: 'Bị từ chối',
+  [SyllabusStatus.REVISION_IN_PROGRESS]: 'Đang chỉnh sửa',
+  [SyllabusStatus.PENDING_HOD_REVISION]: 'Chờ TBM duyệt lại',
+  [SyllabusStatus.PENDING_ADMIN_REPUBLISH]: 'Chờ xuất bản lại',
+  [SyllabusStatus.INACTIVE]: 'Không hoạt động',
+  [SyllabusStatus.ARCHIVED]: 'Đã lưu trữ',
 };
 
 /**
  * Get allowed statuses for a specific role
  */
 export function getAllowedStatuses(role: string): SyllabusStatus[] {
-  const normalizedRole = role.toUpperCase();
+  const normalizedRole = role.toUpperCase() as UserRole;
   return ROLE_STATUS_MAP[normalizedRole] || [];
 }
 
@@ -75,19 +89,18 @@ export function getAllowedStatuses(role: string): SyllabusStatus[] {
  * Check if a role can view a specific status
  */
 export function canViewStatus(role: string, status: SyllabusStatus): boolean {
-  const allowedStatuses = getAllowedStatuses(role);
-  return allowedStatuses.includes(status);
+  return getAllowedStatuses(role).includes(status);
 }
 
 /**
- * Get status tabs configuration for a role
+ * Get status tabs configuration for UI
  */
 export function getStatusTabs(role: string) {
   const allowedStatuses = getAllowedStatuses(role);
-  
-  return allowedStatuses.map(status => ({
+
+  return allowedStatuses.map((status) => ({
     key: status,
     label: STATUS_DISPLAY_NAMES[status],
-    value: status
+    value: status,
   }));
 }

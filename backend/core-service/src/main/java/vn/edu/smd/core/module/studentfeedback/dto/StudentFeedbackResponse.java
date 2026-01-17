@@ -16,6 +16,11 @@ public class StudentFeedbackResponse {
     private String syllabusCode;
     private String syllabusName;
     
+    // Lecturer info
+    private UUID lecturerId;
+    private String lecturerName;
+    private String lecturerEmail;
+    
     // Student info
     private UUID studentId;
     private String studentName;
@@ -24,6 +29,7 @@ public class StudentFeedbackResponse {
     // Feedback details
     private FeedbackType type;
     private ErrorReportSection section;
+    private String sectionDisplay; // Display name in Vietnamese
     private String title;
     private String description;
     private String status;

@@ -18,4 +18,6 @@ public interface AssessmentSchemeRepository extends JpaRepository<AssessmentSche
     List<AssessmentScheme> findByParentId(UUID parentId);
     
     List<AssessmentScheme> findBySyllabusVersionIdAndParentIsNull(UUID syllabusVersionId);
+
+    List<AssessmentScheme> findBySyllabusVersionIdOrderByCreatedAtAsc(UUID syllabusVersionId);
 }

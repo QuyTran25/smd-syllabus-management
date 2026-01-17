@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -13,21 +13,26 @@ import {
   Descriptions,
   Badge,
   Select,
+  Row,
+  Col,
+  Statistic,
+  Progress,
+  Empty,
+  Checkbox,
 } from 'antd';
 import {
   MessageOutlined,
   CheckCircleOutlined,
   EditOutlined,
   EyeOutlined,
+  FileExcelOutlined,
+  FilterOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { feedbackService } from '@/services';
-import {
-  StudentFeedback,
-  FeedbackStatus,
-  FeedbackType,
-} from '@/types';
+import { feedbackService, revisionService } from '@/services';
+import { StudentFeedback, FeedbackStatus, FeedbackType } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 
@@ -69,6 +74,7 @@ export const StudentFeedbackPage: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [responseModalVisible, setResponseModalVisible] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<StudentFeedback | null>(null);
+  const [selectedFeedbackIds, setSelectedFeedbackIds] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus[]>([]);
   const [typeFilter, setTypeFilter] = useState<FeedbackType[]>([]);
@@ -85,8 +91,8 @@ export const StudentFeedbackPage: React.FC = () => {
 
   // Respond mutation
   const respondMutation = useMutation({
-    mutationFn: ({ id, response }: { id: string; response: string }) =>
-      feedbackService.respondToFeedback(id, response, 'Admin User'),
+    mutationFn: ({ id, response, enableEdit }: { id: string; response: string; enableEdit: boolean }) =>
+      feedbackService.respondToFeedback(id, response, enableEdit, 'Admin User'),
     onSuccess: () => {
       message.success('Đã gửi phản hồi');
       queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
@@ -101,8 +107,7 @@ export const StudentFeedbackPage: React.FC = () => {
 
   // Enable edit mutation
   const enableEditMutation = useMutation({
-    mutationFn: (id: string) =>
-      feedbackService.enableEditForLecturer(id, 'Admin User'),
+    mutationFn: (id: string) => feedbackService.enableEditForLecturer(id, 'Admin User'),
     onSuccess: () => {
       message.success('Đã bật quyền chỉnh sửa cho giảng viên');
       queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
@@ -122,6 +127,24 @@ export const StudentFeedbackPage: React.FC = () => {
     },
     onError: () => {
       message.error('Cập nhật trạng thái thất bại');
+    },
+  });
+
+  // Start batch revision mutation
+  const startRevisionMutation = useMutation({
+    mutationFn: ({ feedbackIds, syllabusId }: { feedbackIds: string[]; syllabusId: string }) =>
+      revisionService.startRevision({
+        syllabusVersionId: syllabusId,
+        feedbackIds,
+        description: `Gộp ${feedbackIds.length} phản hồi để chỉnh sửa`,
+      }),
+    onSuccess: () => {
+      message.success('Đã mở Revision Session! Giảng viên sẽ nhận được thông báo.');
+      queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
+      setSelectedFeedbackIds([]);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Mở Revision Session thất bại');
     },
   });
 
@@ -163,10 +186,96 @@ export const StudentFeedbackPage: React.FC = () => {
     respondMutation.mutate({
       id: selectedFeedback.id,
       response: values.response,
+      enableEdit: values.enableEdit || false,
+    });
+  };
+
+  const handleRejectFeedback = () => {
+    const response = form.getFieldValue('response');
+    if (!response) {
+      message.error('Vui lòng nhập nội dung phản hồi');
+      return;
+    }
+    if (!selectedFeedback) return;
+
+    respondMutation.mutate({
+      id: selectedFeedback.id,
+      response: response,
+      enableEdit: false,
+    });
+  };
+
+  const handleStartBatchRevision = () => {
+    if (selectedFeedbackIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất 1 phản hồi');
+      return;
+    }
+
+    // Check if all selected feedbacks are from the same syllabus
+    const selectedFeedbacks = feedbacks?.filter(f => selectedFeedbackIds.includes(f.id)) || [];
+    const uniqueSyllabusIds = new Set(selectedFeedbacks.map(f => f.syllabusId));
+    
+    if (uniqueSyllabusIds.size > 1) {
+      message.error('Chỉ có thể gộp các phản hồi từ cùng 1 đề cương');
+      return;
+    }
+
+    const syllabusId = selectedFeedbacks[0].syllabusId;
+    const syllabusCode = selectedFeedbacks[0].syllabusCode;
+
+    Modal.confirm({
+      title: 'Mở Revision Session',
+      content: (
+        <Space direction="vertical">
+          <Text>Bạn có chắc muốn mở revision session cho:</Text>
+          <Text strong>{syllabusCode} - {selectedFeedbacks[0].syllabusName}</Text>
+          <Text type="secondary">Gộp {selectedFeedbackIds.length} phản hồi</Text>
+          <Text type="warning">Giảng viên sẽ nhận thông báo và có thể chỉnh sửa đề cương.</Text>
+        </Space>
+      ),
+      okText: 'Mở Session',
+      cancelText: 'Hủy',
+      onOk: () => {
+        startRevisionMutation.mutate({
+          feedbackIds: selectedFeedbackIds,
+          syllabusId,
+        });
+      },
     });
   };
 
   const columns: ColumnsType<StudentFeedback> = [
+    {
+      title: (
+        <Checkbox
+          checked={selectedFeedbackIds.length > 0 && selectedFeedbackIds.length === feedbacks?.length}
+          indeterminate={selectedFeedbackIds.length > 0 && selectedFeedbackIds.length < (feedbacks?.length || 0)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedFeedbackIds(feedbacks?.map(f => f.id) || []);
+            } else {
+              setSelectedFeedbackIds([]);
+            }
+          }}
+        />
+      ),
+      key: 'select',
+      width: 50,
+      align: 'center',
+      fixed: 'left',
+      render: (_, record) => (
+        <Checkbox
+          checked={selectedFeedbackIds.includes(record.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedFeedbackIds([...selectedFeedbackIds, record.id]);
+            } else {
+              setSelectedFeedbackIds(selectedFeedbackIds.filter(id => id !== record.id));
+            }
+          }}
+        />
+      ),
+    },
     {
       title: 'Loại',
       dataIndex: 'type',
@@ -179,9 +288,7 @@ export const StudentFeedbackPage: React.FC = () => {
       })),
       onFilter: (value, record) => record.type === value,
       render: (type: FeedbackType) => (
-        <Tag color={FEEDBACK_TYPE_COLORS[type]}>
-          {FEEDBACK_TYPE_LABELS[type]}
-        </Tag>
+        <Tag color={FEEDBACK_TYPE_COLORS[type]}>{FEEDBACK_TYPE_LABELS[type]}</Tag>
       ),
     },
     {
@@ -199,13 +306,13 @@ export const StudentFeedbackPage: React.FC = () => {
       align: 'center',
       ellipsis: { showTitle: false },
     },
-    {
-      title: 'Phần',
-      dataIndex: 'section',
-      key: 'section',
-      width: 150,
-      render: (section) => <Tag>{section}</Tag>,
-    },
+    // {
+    //   title: 'Phần',
+    //   dataIndex: 'sectionDisplay',
+    //   key: 'section',
+    //   width: 150,
+    //   render: (sectionDisplay, record) => <Tag>{sectionDisplay || record.section}</Tag>,
+    // },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
@@ -233,9 +340,7 @@ export const StudentFeedbackPage: React.FC = () => {
       })),
       onFilter: (value, record) => record.status === value,
       render: (status: FeedbackStatus) => (
-        <Tag color={FEEDBACK_STATUS_COLORS[status]}>
-          {FEEDBACK_STATUS_LABELS[status]}
-        </Tag>
+        <Tag color={FEEDBACK_STATUS_COLORS[status]}>{FEEDBACK_STATUS_LABELS[status]}</Tag>
       ),
     },
     {
@@ -259,22 +364,18 @@ export const StudentFeedbackPage: React.FC = () => {
       key: 'createdAt',
       width: 100,
       align: 'center',
-      sorter: (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend',
       render: (date) => dayjs(date).format('DD/MM'),
     },
     {
       title: 'Hành động',
       key: 'actions',
-      width: 250,
+      width: 320,
+      fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
+        <Space size="small" wrap>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
           <Button
@@ -315,55 +416,82 @@ export const StudentFeedbackPage: React.FC = () => {
     },
   ];
 
-  const pendingCount = feedbacks?.filter(
-    (f) => f.status === FeedbackStatus.PENDING
-  ).length || 0;
+  const pendingCount = feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).length || 0;
+
+  const stats = useMemo(() => {
+    if (!feedbacks) return null;
+    return {
+      total: feedbacks.length,
+      pending: feedbacks.filter((f) => f.status === FeedbackStatus.PENDING).length,
+      inReview: feedbacks.filter((f) => f.status === FeedbackStatus.IN_REVIEW).length,
+      resolved: feedbacks.filter((f) => f.status === FeedbackStatus.RESOLVED).length,
+      rejected: feedbacks.filter((f) => f.status === FeedbackStatus.REJECTED).length,
+      errors: feedbacks.filter((f) => f.type === FeedbackType.ERROR).length,
+      suggestions: feedbacks.filter((f) => f.type === FeedbackType.SUGGESTION).length,
+      questions: feedbacks.filter((f) => f.type === FeedbackType.QUESTION).length,
+      otherTypes: feedbacks.filter((f) => f.type === FeedbackType.OTHER).length,
+    };
+  }, [feedbacks]);
 
   return (
     <div style={{ padding: '24px' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Card>
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Title level={4} style={{ margin: 0 }}>
-              <MessageOutlined /> Quản lý Phản hồi từ Sinh viên
-              {pendingCount > 0 && (
-                <Badge
-                  count={pendingCount}
-                  style={{ marginLeft: 16 }}
-                  showZero
-                />
-              )}
-            </Title>
-            <Space>
-              <Select
-                mode="multiple"
-                placeholder="Lọc theo loại"
-                style={{ minWidth: 200 }}
-                value={typeFilter}
-                onChange={setTypeFilter}
-                allowClear
-              >
-                {Object.values(FeedbackType).map((type) => (
-                  <Option key={type} value={type}>
-                    {FEEDBACK_TYPE_LABELS[type]}
-                  </Option>
-                ))}
-              </Select>
-              <Select
-                mode="multiple"
-                placeholder="Lọc theo trạng thái"
-                style={{ minWidth: 200 }}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                allowClear
-              >
-                {Object.values(FeedbackStatus).map((status) => (
-                  <Option key={status} value={status}>
-                    {FEEDBACK_STATUS_LABELS[status]}
-                  </Option>
-                ))}
-              </Select>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Title level={4} style={{ margin: 0 }}>
+                <MessageOutlined /> Quản lý Phản hồi từ Sinh viên
+                {pendingCount > 0 && (
+                  <Badge count={pendingCount} style={{ marginLeft: 16 }} showZero />
+                )}
+              </Title>
+              <Space>
+                <Select
+                  mode="multiple"
+                  placeholder="Lọc theo loại"
+                  style={{ minWidth: 200 }}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  allowClear
+                >
+                  {Object.values(FeedbackType).map((type) => (
+                    <Option key={type} value={type}>
+                      {FEEDBACK_TYPE_LABELS[type]}
+                    </Option>
+                  ))}
+                </Select>
+                <Select
+                  mode="multiple"
+                  placeholder="Lọc theo trạng thái"
+                  style={{ minWidth: 200 }}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  allowClear
+                >
+                  {Object.values(FeedbackStatus).map((status) => (
+                    <Option key={status} value={status}>
+                      {FEEDBACK_STATUS_LABELS[status]}
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
             </Space>
+            {selectedFeedbackIds.length > 0 && (
+              <Space>
+                <Text strong>Đã chọn {selectedFeedbackIds.length} phản hồi</Text>
+                <Button
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={handleStartBatchRevision}
+                  loading={startRevisionMutation.isPending}
+                >
+                  Mở Revision Session
+                </Button>
+                <Button onClick={() => setSelectedFeedbackIds([])}>
+                  Bỏ chọn
+                </Button>
+              </Space>
+            )}
           </Space>
         </Card>
 
@@ -397,10 +525,7 @@ export const StudentFeedbackPage: React.FC = () => {
           setSelectedFeedback(null);
         }}
         footer={[
-          <Button
-            key="close"
-            onClick={() => setDetailModalVisible(false)}
-          >
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
             Đóng
           </Button>,
         ]}
@@ -423,11 +548,19 @@ export const StudentFeedbackPage: React.FC = () => {
                 {selectedFeedback.syllabusCode}
               </Descriptions.Item>
               <Descriptions.Item label="Phần" span={1}>
-                <Tag>{selectedFeedback.section}</Tag>
+                <Tag>{selectedFeedback.sectionDisplay || selectedFeedback.section}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Tên học phần" span={2}>
                 {selectedFeedback.syllabusName}
               </Descriptions.Item>
+              {selectedFeedback.lecturerName && (
+                <Descriptions.Item label="Giảng viên tạo" span={2}>
+                  <Tag color="blue">{selectedFeedback.lecturerName}</Tag>
+                  {selectedFeedback.lecturerEmail && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>({selectedFeedback.lecturerEmail})</Text>
+                  )}
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Sinh viên" span={2}>
                 {selectedFeedback.studentName} ({selectedFeedback.studentEmail})
               </Descriptions.Item>
@@ -447,9 +580,7 @@ export const StudentFeedbackPage: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày phản hồi" span={1}>
                     {selectedFeedback.respondedAt
-                      ? dayjs(selectedFeedback.respondedAt).format(
-                          'DD/MM/YYYY HH:mm'
-                        )
+                      ? dayjs(selectedFeedback.respondedAt).format('DD/MM/YYYY HH:mm')
                       : '-'}
                   </Descriptions.Item>
                 </>
@@ -461,9 +592,7 @@ export const StudentFeedbackPage: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày bật sửa" span={1}>
                     {selectedFeedback.editEnabledAt
-                      ? dayjs(selectedFeedback.editEnabledAt).format(
-                          'DD/MM/YYYY HH:mm'
-                        )
+                      ? dayjs(selectedFeedback.editEnabledAt).format('DD/MM/YYYY HH:mm')
                       : '-'}
                   </Descriptions.Item>
                 </>
@@ -479,9 +608,7 @@ export const StudentFeedbackPage: React.FC = () => {
             <Space>
               <Button
                 icon={<EyeOutlined />}
-                onClick={() =>
-                  navigate(`/syllabi/${selectedFeedback.syllabusId}`)
-                }
+                onClick={() => navigate(`/admin/syllabi/${selectedFeedback.syllabusId}`)}
               >
                 Xem đề cương
               </Button>
@@ -510,12 +637,18 @@ export const StudentFeedbackPage: React.FC = () => {
         {selectedFeedback && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={1} size="small">
-              <Descriptions.Item label="Tiêu đề">
-                {selectedFeedback.title}
-              </Descriptions.Item>
-              <Descriptions.Item label="Mô tả">
-                {selectedFeedback.description}
-              </Descriptions.Item>
+              <Descriptions.Item label="Mã HP">{selectedFeedback.syllabusCode}</Descriptions.Item>
+              <Descriptions.Item label="Tên HP">{selectedFeedback.syllabusName}</Descriptions.Item>
+              {selectedFeedback.lecturerName && (
+                <Descriptions.Item label="Giảng viên đã tạo">
+                  <Tag color="blue">{selectedFeedback.lecturerName}</Tag>
+                  {selectedFeedback.lecturerEmail && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>({selectedFeedback.lecturerEmail})</Text>
+                  )}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Tiêu đề">{selectedFeedback.title}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả">{selectedFeedback.description}</Descriptions.Item>
             </Descriptions>
 
             <Form form={form} layout="vertical" onFinish={handleSubmitResponse}>
@@ -524,18 +657,33 @@ export const StudentFeedbackPage: React.FC = () => {
                 name="response"
                 rules={[{ required: true, message: 'Nhập nội dung phản hồi' }]}
               >
-                <TextArea
-                  rows={4}
-                  placeholder="Nhập nội dung phản hồi cho sinh viên..."
-                />
+                <TextArea rows={4} placeholder="Nhập nội dung phản hồi cho sinh viên..." />
+              </Form.Item>
+              
+              <Form.Item
+                name="enableEdit"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Checkbox>
+                  <Text strong>Bật quyền chỉnh sửa cho giảng viên</Text>
+                  {selectedFeedback.lecturerName && (
+                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                      (Giảng viên {selectedFeedback.lecturerName} sẽ được thông báo)
+                    </Text>
+                  )}
+                </Checkbox>
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                  <Button onClick={() => setResponseModalVisible(false)}>Hủy</Button>
                   <Button
-                    onClick={() => setResponseModalVisible(false)}
+                    danger
+                    loading={respondMutation.isPending}
+                    onClick={handleRejectFeedback}
                   >
-                    Hủy
+                    Từ chối (không cần sửa)
                   </Button>
                   <Button
                     type="primary"
@@ -553,4 +701,53 @@ export const StudentFeedbackPage: React.FC = () => {
       </Modal>
     </div>
   );
+};
+
+const convertToCSV = (feedbacks: StudentFeedback[]): string => {
+  const headers = [
+    'ID',
+    'Mã HP',
+    'Tên HP',
+    'Sinh viên',
+    'Email',
+    'Loại',
+    'Tiêu đề',
+    'Mô tả',
+    'Trạng thái',
+    'Phản hồi',
+    'Ngày tạo',
+  ];
+
+  const rows = feedbacks.map((fb) => [
+    fb.id,
+    fb.syllabusCode,
+    fb.syllabusName,
+    fb.studentName,
+    fb.studentEmail,
+    fb.type,
+    fb.title,
+    fb.description.replace(/,/g, ';'),
+    fb.status,
+    (fb.adminResponse || '').replace(/,/g, ';'),
+    dayjs(fb.createdAt).format('DD/MM/YYYY HH:mm'),
+  ]);
+
+  const csv = [
+    headers.join(','),
+    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+  ].join('\n');
+
+  return csv;
+};
+
+const downloadCSV = (csv: string) => {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `feedback-${dayjs().format('YYYYMMDD-HHmmss')}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

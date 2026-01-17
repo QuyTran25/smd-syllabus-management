@@ -69,6 +69,7 @@ public class SyllabusResponse {
     private String aaApprovedByName;
     private LocalDateTime principalApprovedAt;
     private String principalApprovedByName;
+    private LocalDateTime publishedAt;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -40,8 +40,7 @@ export const PublishQueuePage: React.FC = () => {
   // Fetch syllabi with APPROVED status (waiting to be published)
   const { data: approvedSyllabi, isLoading } = useQuery({
     queryKey: ['syllabi', SyllabusStatus.APPROVED],
-    queryFn: () =>
-      syllabusService.getSyllabi({ status: [SyllabusStatus.APPROVED] }),
+    queryFn: () => syllabusService.getSyllabi({ status: [SyllabusStatus.APPROVED] }),
     select: (response) => response.data,
   });
 
@@ -149,17 +148,20 @@ export const PublishQueuePage: React.FC = () => {
         <Space direction="vertical" size={2}>
           {record.hodApprovedAt && (
             <Text style={{ fontSize: '11px' }}>
-              <CheckCircleOutlined style={{ color: '#52c41a' }} /> TBM: {dayjs(record.hodApprovedAt).format('DD/MM')}
+              <CheckCircleOutlined style={{ color: '#52c41a' }} /> TBM:{' '}
+              {dayjs(record.hodApprovedAt).format('DD/MM')}
             </Text>
           )}
           {record.aaApprovedAt && (
             <Text style={{ fontSize: '11px' }}>
-              <CheckCircleOutlined style={{ color: '#1890ff' }} /> PĐT: {dayjs(record.aaApprovedAt).format('DD/MM')}
+              <CheckCircleOutlined style={{ color: '#1890ff' }} /> PĐT:{' '}
+              {dayjs(record.aaApprovedAt).format('DD/MM')}
             </Text>
           )}
           {record.principalApprovedAt && (
             <Text style={{ fontSize: '11px' }}>
-              <CheckCircleOutlined style={{ color: '#722ed1' }} /> HT: {dayjs(record.principalApprovedAt).format('DD/MM')}
+              <CheckCircleOutlined style={{ color: '#722ed1' }} /> HT:{' '}
+              {dayjs(record.principalApprovedAt).format('DD/MM')}
             </Text>
           )}
         </Space>
@@ -280,28 +282,16 @@ export const PublishQueuePage: React.FC = () => {
                 rules={[{ required: true, message: 'Chọn ngày hiệu lực' }]}
                 extra="Đề cương sẽ có hiệu lực từ ngày này"
               >
-                <DatePicker
-                  format="DD/MM/YYYY"
-                  style={{ width: '100%' }}
-                  placeholder="Chọn ngày"
-                />
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày" />
               </Form.Item>
 
-              <Form.Item
-                label="Ghi chú (tùy chọn)"
-                name="note"
-              >
-                <TextArea
-                  rows={3}
-                  placeholder="Ghi chú về lần xuất hành này..."
-                />
+              <Form.Item label="Ghi chú (tùy chọn)" name="note">
+                <TextArea rows={3} placeholder="Ghi chú về lần xuất hành này..." />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setPublishModalVisible(false)}>
-                    Hủy
-                  </Button>
+                  <Button onClick={() => setPublishModalVisible(false)}>Hủy</Button>
                   <Button
                     type="primary"
                     htmlType="submit"

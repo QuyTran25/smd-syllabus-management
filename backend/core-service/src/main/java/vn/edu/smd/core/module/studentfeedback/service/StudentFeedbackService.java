@@ -1,33 +1,43 @@
 package vn.edu.smd.core.module.studentfeedback.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
+import vn.edu.smd.core.entity.Notification;
 import vn.edu.smd.core.entity.SyllabusErrorReport;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.entity.User;
+import vn.edu.smd.core.module.revision.dto.StartRevisionRequest;
+import vn.edu.smd.core.module.revision.service.RevisionService;
 import vn.edu.smd.core.module.studentfeedback.dto.AdminResponseRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackRequest;
 import vn.edu.smd.core.module.studentfeedback.dto.StudentFeedbackResponse;
+import vn.edu.smd.core.repository.NotificationRepository;
 import vn.edu.smd.core.repository.SyllabusErrorReportRepository;
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.core.repository.UserRepository;
+import vn.edu.smd.shared.enums.NotificationType;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudentFeedbackService {
 
     private final SyllabusErrorReportRepository feedbackRepository;
     private final SyllabusVersionRepository syllabusVersionRepository;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
+    private final RevisionService revisionService;
 
     @Transactional(readOnly = true)
     public Page<StudentFeedbackResponse> getAllFeedbacks(Pageable pageable) {
@@ -79,6 +89,8 @@ public class StudentFeedbackService {
 
     @Transactional
     public StudentFeedbackResponse respondToFeedback(UUID id, AdminResponseRequest request, UUID adminId) {
+        log.info("Admin {} responding to feedback {}", adminId, id);
+        
         SyllabusErrorReport feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("StudentFeedback", "id", id));
         
@@ -88,15 +100,52 @@ public class StudentFeedbackService {
         feedback.setAdminResponse(request.getResponse());
         feedback.setRespondedBy(admin);
         feedback.setRespondedAt(LocalDateTime.now());
-        feedback.setStatus("IN_REVIEW");
         
         if (Boolean.TRUE.equals(request.getEnableEdit())) {
+            log.info("Admin enabled edit for feedback {}", id);
+            
+            // Just mark for revision, actual session will be started separately
             feedback.setEditEnabled(true);
-            // Note: editEnabledBy and editEnabledAt might need separate fields
+            feedback.setStatus("AWAITING_REVISION");
+        } else {
+            // If not enabling edit, mark as REJECTED (no fix needed)
+            feedback.setStatus("REJECTED");
         }
         
         feedback = feedbackRepository.save(feedback);
+        
+        // Send notification to student
+        sendResponseNotificationToStudent(feedback, admin);
+        
+        // If enableEdit is true, start revision session in a separate transaction
+        if (Boolean.TRUE.equals(request.getEnableEdit())) {
+            try {
+                startRevisionSessionForFeedback(id, feedback.getSyllabusVersion().getId(), adminId);
+            } catch (Exception e) {
+                log.error("Failed to start revision session for feedback {}: {}", id, e.getMessage());
+                // Continue anyway, feedback is already saved
+            }
+        }
+        
         return mapToResponse(feedback);
+    }
+    
+    /**
+     * Start revision session for a single feedback (separate transaction to avoid circular dependency)
+     */
+    private void startRevisionSessionForFeedback(UUID feedbackId, UUID syllabusId, UUID adminId) {
+        try {
+            StartRevisionRequest revisionRequest = new StartRevisionRequest();
+            revisionRequest.setSyllabusVersionId(syllabusId);
+            revisionRequest.setFeedbackIds(Collections.singletonList(feedbackId));
+            revisionRequest.setDescription("Chỉnh sửa đề cương dựa trên phản hồi sinh viên");
+            
+            revisionService.startRevisionSession(revisionRequest, adminId);
+            log.info("Revision session started successfully for feedback {}", feedbackId);
+        } catch (Exception e) {
+            log.error("Error starting revision session: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Transactional
@@ -135,6 +184,14 @@ public class StudentFeedbackService {
                 response.setSyllabusId(feedback.getSyllabusVersion().getId());
                 response.setSyllabusCode(feedback.getSyllabusVersion().getSnapSubjectCode());
                 response.setSyllabusName(feedback.getSyllabusVersion().getSnapSubjectNameVi());
+                
+                // Lecturer info
+                if (feedback.getSyllabusVersion().getCreatedBy() != null) {
+                    User lecturer = feedback.getSyllabusVersion().getCreatedBy();
+                    response.setLecturerId(lecturer.getId());
+                    response.setLecturerName(lecturer.getFullName());
+                    response.setLecturerEmail(lecturer.getEmail());
+                }
             }
         } catch (Exception e) {
             // Handle lazy loading exception
@@ -154,6 +211,7 @@ public class StudentFeedbackService {
         // Feedback details
         response.setType(feedback.getType());
         response.setSection(feedback.getSection());
+        response.setSectionDisplay(feedback.getSection() != null ? feedback.getSection().getDisplayName() : null);
         response.setTitle(feedback.getTitle());
         response.setDescription(feedback.getDescription());
         response.setStatus(feedback.getStatus());
@@ -189,5 +247,46 @@ public class StudentFeedbackService {
         response.setUpdatedAt(feedback.getUpdatedAt());
         
         return response;
+    }
+    
+    /**
+     * Send notification to student when admin responds to their feedback
+     */
+    private void sendResponseNotificationToStudent(SyllabusErrorReport feedback, User admin) {
+        User student = feedback.getUser();
+        SyllabusVersion syllabus = feedback.getSyllabusVersion();
+        
+        String title = String.format("[Phản hồi] Báo lỗi của bạn về đề cương %s",
+                syllabus.getSnapSubjectCode());
+        
+        // Include admin response in message
+        String message = String.format(
+                "Admin %s đã phản hồi báo lỗi '%s' của bạn:\n\n📝 %s",
+                admin.getFullName(),
+                feedback.getTitle(),
+                feedback.getAdminResponse());
+        
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("feedbackId", feedback.getId().toString());
+        payload.put("syllabusId", syllabus.getId().toString());
+        payload.put("syllabusCode", syllabus.getSnapSubjectCode());
+        payload.put("adminResponse", feedback.getAdminResponse());
+        payload.put("status", feedback.getStatus());
+        payload.put("actionUrl", "/syllabi");
+        payload.put("actionLabel", "Xem đề cương");
+        payload.put("priority", "MEDIUM");
+        
+        Notification notification = Notification.builder()
+                .user(student)
+                .title(title)
+                .message(message)
+                .type(NotificationType.COMMENT.name())
+                .payload(payload)
+                .isRead(false)
+                .relatedEntityType("FEEDBACK")
+                .relatedEntityId(feedback.getId())
+                .build();
+        
+        notificationRepository.save(notification);
     }
 }

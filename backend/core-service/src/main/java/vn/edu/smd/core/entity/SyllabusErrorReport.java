@@ -77,6 +77,18 @@ public class SyllabusErrorReport {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    // Revision session tracking
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "revision_session_id")
+    private RevisionSession revisionSession;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_in_version_id")
+    private SyllabusVersion resolvedInVersion;
+
+    @Column(name = "resolved_in_version_no", length = 20)
+    private String resolvedInVersionNo;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -5,6 +5,9 @@ export enum FeedbackStatus {
   IN_REVIEW = 'IN_REVIEW',
   RESOLVED = 'RESOLVED',
   REJECTED = 'REJECTED',
+  CLOSED = 'CLOSED',
+  AWAITING_REVISION = 'AWAITING_REVISION',
+  IN_REVISION = 'IN_REVISION',
 }
 
 export enum FeedbackType {
@@ -20,6 +23,11 @@ export interface StudentFeedback {
   syllabusCode: string;
   syllabusName: string;
   
+  // Lecturer info
+  lecturerId?: string;
+  lecturerName?: string;
+  lecturerEmail?: string;
+  
   // Student info
   studentId: string;
   studentName: string;
@@ -27,7 +35,8 @@ export interface StudentFeedback {
   
   // Feedback content
   type: FeedbackType;
-  section: string; // CLO, PLO Mapping, Assessment, etc.
+  section: string; // CLO, PLO Mapping, Assessment, etc. (enum value)
+  sectionDisplay?: string; // Display name in Vietnamese
   title: string;
   description: string;
   

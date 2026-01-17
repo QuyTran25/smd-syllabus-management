@@ -29,4 +29,8 @@ public interface SyllabusErrorReportRepository extends JpaRepository<SyllabusErr
     List<SyllabusErrorReport> findByStatus(String status);
     
     List<SyllabusErrorReport> findBySyllabusVersionIdAndStatus(UUID syllabusVersionId, String status);
+
+    List<SyllabusErrorReport> findByStatusOrderByCreatedAtDesc(String status);
+    
+    List<SyllabusErrorReport> findByRevisionSessionId(UUID revisionSessionId);
 }

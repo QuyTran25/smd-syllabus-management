@@ -29,25 +29,14 @@ public class SyllabusController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SyllabusResponse>>> getAllSyllabi(
             Pageable pageable,
-            @RequestParam(required = false) List<String> status) {
-        try {
-            System.out.println("=== GET ALL SYLLABI ===");
-            System.out.println("Status filter: " + status);
-            System.out.println("Pageable: " + pageable);
-            
-            Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status);
-            
-            System.out.println("Total elements: " + syllabi.getTotalElements());
-            System.out.println("Success!");
-            
-            return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
-        } catch (Exception e) {
-            System.err.println("=== ERROR IN GET ALL SYLLABI ===");
-            System.err.println("Error type: " + e.getClass().getName());
-            System.err.println("Message: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        }
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<String> status,
+            @RequestParam(required = false) List<String> faculty,
+            @RequestParam(required = false) List<String> department
+    ) {
+        Page<SyllabusResponse> syllabi = syllabusService.getAllSyllabi(pageable, status, search, faculty, department);
+        
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(syllabi)));
     }
 
     @Operation(summary = "Get syllabus statistics", description = "Get count of syllabi by status")
@@ -103,6 +92,11 @@ public class SyllabusController {
         return ResponseEntity.ok(ApiResponse.success("Syllabus submitted for approval", syllabus));
     }
 
+    // --- ĐÃ XÓA HÀM publishSyllabus ĐỂ TRÁNH XUNG ĐỘT VỚI ADMIN CONTROLLER ---
+    // Frontend gọi vào /api/syllabi/{id}/publish sẽ được Spring tự động chuyển 
+    // đến AdminSyllabusController (nơi đã có sẵn API này).
+    // --------------------------------------------------------------------------
+
     @Operation(summary = "Approve syllabus", description = "Approve syllabus (moves to next approval stage)")
     @PatchMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<SyllabusResponse>> approveSyllabus(
@@ -149,15 +143,6 @@ public class SyllabusController {
     public ResponseEntity<ApiResponse<List<SyllabusResponse>>> getSyllabiBySubject(@PathVariable UUID subjectId) {
         List<SyllabusResponse> syllabi = syllabusService.getSyllabiBySubject(subjectId);
         return ResponseEntity.ok(ApiResponse.success(syllabi));
-    }
-
-    @Operation(summary = "Auto-suggest PLO mappings for CLOs", 
-               description = "Intelligently suggest PLO mappings based on CLO descriptions and Bloom's levels")
-    @PostMapping("/suggest-plo-mappings")
-    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> suggestPloMappings(
-            @RequestBody List<java.util.Map<String, Object>> clos) {
-        List<java.util.Map<String, Object>> mappings = syllabusService.suggestPloMappings(clos);
-        return ResponseEntity.ok(ApiResponse.success("PLO mappings suggested", mappings));
     }
 
     @Operation(summary = "Export syllabus to PDF", description = "Export syllabus to PDF format")

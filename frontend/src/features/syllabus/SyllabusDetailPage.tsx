@@ -27,7 +27,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { syllabusService, aiService } from '@/services';
+import { syllabusService, aiService, revisionService } from '@/services';
 import { SyllabusStatus, UserRole, ApprovalAction } from '@/types';
 import { useAuth } from '../auth';
 import type { ColumnsType } from 'antd/es/table';
@@ -82,6 +82,21 @@ export const SyllabusDetailPage: React.FC = () => {
     },
     onError: () => {
       message.error('Phê duyệt thất bại');
+    },
+  });
+
+  // Review revision mutation (for HOD reviewing revision)
+  const reviewRevisionMutation = useMutation({
+    mutationFn: ({ revisionSessionId, decision, comment }: { revisionSessionId: string; decision: string; comment?: string }) => 
+      revisionService.reviewRevision({ revisionSessionId, decision, comment }),
+    onSuccess: () => {
+      message.success('Đánh giá revision thành công');
+      queryClient.invalidateQueries({ queryKey: ['syllabus', id] });
+      queryClient.invalidateQueries({ queryKey: ['syllabi'] });
+      queryClient.invalidateQueries({ queryKey: ['active-revision-session', id] });
+    },
+    onError: () => {
+      message.error('Đánh giá revision thất bại');
     },
   });
 
@@ -159,12 +174,33 @@ export const SyllabusDetailPage: React.FC = () => {
     return syllabus.status === roleStatusMap[user.role as keyof typeof roleStatusMap];
   };
 
-  const handleApprove = () => {
-    if (!id) return;
-    approveMutation.mutate({
-      syllabusId: id,
-      action: 'APPROVE',
-    });
+  const handleApprove = async () => {
+    if (!id || !syllabus) return;
+    
+    // Check if this is a revision approval
+    if (syllabus.status === SyllabusStatus.PENDING_HOD_REVISION) {
+      // Need to get active revision session
+      try {
+        const activeSession = await revisionService.getActiveRevisionSession(id);
+        if (activeSession) {
+          reviewRevisionMutation.mutate({
+            revisionSessionId: activeSession.id,
+            decision: 'APPROVED',
+            comment: 'Đã kiểm tra, phiên bản chỉnh sửa đạt yêu cầu',
+          });
+        } else {
+          message.error('Không tìm thấy revision session');
+        }
+      } catch (error) {
+        message.error('Lỗi khi lấy thông tin revision session');
+      }
+    } else {
+      // Normal approval flow
+      approveMutation.mutate({
+        syllabusId: id,
+        action: 'APPROVE',
+      });
+    }
   };
 
   const handleReject = () => {
@@ -347,6 +383,52 @@ export const SyllabusDetailPage: React.FC = () => {
                   Lưu trữ
                 </Button>
               </Popconfirm>
+            </Space>
+          )}
+
+          {/* Admin Republish Section - for revised syllabi */}
+          {user?.role === UserRole.ADMIN && syllabus.status === SyllabusStatus.PENDING_ADMIN_REPUBLISH && (
+            <Space>
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={async () => {
+                  Modal.confirm({
+                    title: 'Xác nhận xuất bản lại',
+                    content: (
+                      <Space direction="vertical">
+                        <Text>Bạn có chắc muốn xuất bản lại đề cương này?</Text>
+                        <Text strong>{syllabus.subjectCode} - {syllabus.subjectNameVi}</Text>
+                        <Text type="secondary">
+                          Đề cương đã được chỉnh sửa và được Trưởng Bộ môn phê duyệt. 
+                          Xuất bản lại sẽ cập nhật phiên bản mới cho sinh viên.
+                        </Text>
+                      </Space>
+                    ),
+                    okText: 'Xuất bản lại',
+                    cancelText: 'Hủy',
+                    onOk: async () => {
+                      try {
+                        // Get completed revision session (not active, since status is COMPLETED)
+                        const completedSession = await revisionService.getCompletedRevisionSession(id!);
+                        if (completedSession) {
+                          await revisionService.republishSyllabus(completedSession.id);
+                          message.success('Đã xuất bản lại đề cương thành công!');
+                          queryClient.invalidateQueries({ queryKey: ['syllabus', id] });
+                          queryClient.invalidateQueries({ queryKey: ['syllabi'] });
+                        } else {
+                          message.error('Không tìm thấy revision session đã hoàn thành');
+                        }
+                      } catch (error) {
+                        message.error('Xuất bản lại thất bại');
+                        console.error('Republish error:', error);
+                      }
+                    },
+                  });
+                }}
+              >
+                Xuất bản lại
+              </Button>
             </Space>
           )}
 
