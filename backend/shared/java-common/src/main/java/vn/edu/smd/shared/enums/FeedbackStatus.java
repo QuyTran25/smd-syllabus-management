@@ -28,7 +28,17 @@ public enum FeedbackStatus {
     /**
      * Feedback closed without action
      */
-    CLOSED;
+    CLOSED,
+
+    /**
+     * Feedback approved, waiting for lecturer to start revision
+     */
+    AWAITING_REVISION,
+
+    /**
+     * Feedback is being fixed in current revision session
+     */
+    IN_REVISION;
 
     /**
      * Get display name in Vietnamese
@@ -40,6 +50,8 @@ public enum FeedbackStatus {
             case RESOLVED -> "Đã giải quyết";
             case REJECTED -> "Từ chối";
             case CLOSED -> "Đã đóng";
+            case AWAITING_REVISION -> "Chờ chỉnh sửa";
+            case IN_REVISION -> "Đang chỉnh sửa";
         };
     }
 
@@ -47,7 +59,7 @@ public enum FeedbackStatus {
      * Check if feedback is still open
      */
     public boolean isOpen() {
-        return this == PENDING || this == IN_REVIEW;
+        return this == PENDING || this == IN_REVIEW || this == AWAITING_REVISION || this == IN_REVISION;
     }
 
     /**

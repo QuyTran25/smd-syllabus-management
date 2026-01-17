@@ -22,3 +22,21 @@ http.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+// Response interceptor to handle 401 errors
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // If 401 Unauthorized, clear token and redirect to login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('student_token');
+      localStorage.removeItem('access_token');
+      
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);

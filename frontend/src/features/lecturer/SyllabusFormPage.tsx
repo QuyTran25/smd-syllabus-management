@@ -17,6 +17,7 @@ import {
   List,
   Avatar,
   Typography,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,7 +30,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { syllabusService } from '@/services';
+import { syllabusService, revisionService } from '@/services';
 import { SyllabusStatus } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -128,6 +129,13 @@ const SyllabusFormPage: React.FC = () => {
     enabled: !!id && !isCreateMode,
   });
 
+  // Fetch active revision session (if any)
+  const { data: activeRevisionSession } = useQuery({
+    queryKey: ['active-revision-session', id],
+    queryFn: () => revisionService.getActiveRevisionSession(id!),
+    enabled: !!id && !isCreateMode,
+  });
+
   // Fetch comments (view/edit mode)
   const { data: comments = [], isLoading: isCommentsLoading } = useQuery({
     queryKey: ['syllabus-comments', id],
@@ -173,7 +181,7 @@ const SyllabusFormPage: React.FC = () => {
     },
   });
 
-  // Submit for approval mutation
+  // Submit for approval mutation (for DRAFT/REJECTED status)
   const submitMutation = useMutation({
     mutationFn: (syllabusId: string) => syllabusService.submitForApproval(syllabusId),
     onSuccess: () => {
@@ -183,6 +191,24 @@ const SyllabusFormPage: React.FC = () => {
     },
     onError: () => {
       message.error('Gửi phê duyệt thất bại');
+    },
+  });
+
+  // Submit revision mutation (for REVISION_IN_PROGRESS status)
+  const submitRevisionMutation = useMutation({
+    mutationFn: ({ sessionId, summary }: { sessionId: string; summary?: string }) =>
+      revisionService.submitRevision({
+        revisionSessionId: sessionId,
+        summary,
+      }),
+    onSuccess: () => {
+      message.success('Đã gửi revision cho Trưởng Bộ môn duyệt');
+      queryClient.invalidateQueries({ queryKey: ['syllabus', id] });
+      queryClient.invalidateQueries({ queryKey: ['active-revision-session', id] });
+      navigate('/lecturer/syllabi');
+    },
+    onError: () => {
+      message.error('Gửi revision thất bại');
     },
   });
 
@@ -421,15 +447,29 @@ const SyllabusFormPage: React.FC = () => {
         teachingAssignmentId: assignmentId || undefined, // Link to teaching assignment if from notification
       };
 
+      // Handle different scenarios based on create/edit mode and revision status
       if (isCreateMode) {
+        // Create new syllabus
         const response = await createMutation.mutateAsync(payload);
         if (shouldSubmit && response.id) {
           await submitMutation.mutateAsync(response.id);
         }
       } else if (id) {
+        // Update existing syllabus
         await updateMutation.mutateAsync({ id, data: payload });
+        
+        // If shouldSubmit, check if this is a revision or normal submit
         if (shouldSubmit) {
-          await submitMutation.mutateAsync(id);
+          if (activeRevisionSession) {
+            // Submit revision to HOD for re-approval
+            await submitRevisionMutation.mutateAsync({
+              sessionId: activeRevisionSession.id,
+              summary: 'Đã hoàn thành chỉnh sửa theo phản hồi',
+            });
+          } else {
+            // Normal submit for approval (DRAFT → PENDING_HOD)
+            await submitMutation.mutateAsync(id);
+          }
         }
       }
     } catch (error) {
@@ -627,6 +667,51 @@ const SyllabusFormPage: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/lecturer/syllabi')}>
           Quay lại
         </Button>
+
+        {/* Show feedbacks if in revision mode */}
+        {activeRevisionSession && activeRevisionSession.feedbacks && activeRevisionSession.feedbacks.length > 0 && (
+          <Alert
+            message={`Có ${activeRevisionSession.feedbacks.length} lỗi cần chỉnh sửa`}
+            description={
+              <div>
+                <p style={{ marginBottom: 12 }}>
+                  Admin đã yêu cầu chỉnh sửa đề cương dựa trên phản hồi từ sinh viên:
+                </p>
+                <List
+                  size="small"
+                  dataSource={activeRevisionSession.feedbacks}
+                  renderItem={(fb: any, index: number) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={
+                          <Tag color="red">{index + 1}</Tag>
+                        }
+                        title={
+                          <Space>
+                            <Tag color="orange">{fb.type}</Tag>
+                            <strong>{fb.title}</strong>
+                          </Space>
+                        }
+                        description={
+                          <div>
+                            <div><strong>Phần:</strong> {fb.section}</div>
+                            <div><strong>Mô tả:</strong> {fb.description}</div>
+                            <div style={{ color: '#888', fontSize: 12 }}>
+                              <strong>Từ sinh viên:</strong> {fb.studentName}
+                            </div>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              </div>
+            }
+            type="warning"
+            showIcon
+            closable={false}
+          />
+        )}
 
         <Card
           title={
