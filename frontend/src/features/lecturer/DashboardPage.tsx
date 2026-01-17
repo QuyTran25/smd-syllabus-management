@@ -327,15 +327,37 @@ const DashboardPage: React.FC = () => {
     { label: 'Yêu cầu cập nhật', value: 'FEEDBACK' },
   ];
 
+  // Calculate stats based on new requirements
+  // Đang soạn (Draft): Bản nháp (DRAFT + IN_PROGRESS) + Đang chỉnh sửa (FEEDBACK)
+  const draftTaskCount = allTasks.filter(t => 
+    (t.type === 'DRAFT' && t.status === 'IN_PROGRESS') || 
+    t.type === 'FEEDBACK'
+  ).length;
+
+  // Chờ phê duyệt (Pending Approval): Chờ TBM duyệt (DRAFT + PENDING)
+  const pendingApprovalCount = allTasks.filter(t => 
+    t.type === 'DRAFT' && t.status === 'PENDING'
+  ).length;
+
+  // Đang review: Review tasks
+  const reviewTaskCount = allTasks.filter(t => t.type === 'REVIEW').length;
+
+  // Từ chối (Rejected) - used for Total calculation
+  const rejectedTaskCount = allTasks.filter(t => t.type === 'REJECTED').length;
+
+  // Tổng nhiệm vụ: Bản nháp + Đang chỉnh sửa + Chờ TBM duyệt + Từ chối
+  // Note: Docs request excludes 'REVIEW' from this total sum formula
+  const totalTaskCount = draftTaskCount + pendingApprovalCount + rejectedTaskCount;
+
+  // Original pending count logic for Badge (matches statuses that are 'PENDING')
   const pendingCount = allTasks.filter((t) => t.status === 'PENDING').length;
 
-  // Calculate stats
   const stats = {
-    total: allTasks.length,
-    draft: allTasks.filter((t) => t.type === 'DRAFT' && t.status === 'IN_PROGRESS').length,
-    pending: allTasks.filter((t) => t.status === 'PENDING').length, // Chờ duyệt
-    review: allTasks.filter((t) => t.type === 'REVIEW').length,
-    rejected: allTasks.filter((t) => t.type === 'REJECTED').length + allTasks.filter((t) => t.type === 'FEEDBACK').length, // Cần sửa
+    total: totalTaskCount,
+    draft: draftTaskCount,
+    pending: pendingApprovalCount,
+    review: reviewTaskCount,
+    rejected: rejectedTaskCount,
   };
 
   return (
