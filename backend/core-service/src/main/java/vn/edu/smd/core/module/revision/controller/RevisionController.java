@@ -83,6 +83,20 @@ public class RevisionController {
     public ResponseEntity<ApiResponse<RevisionSessionResponse>> getActiveRevisionSession(
             @PathVariable UUID syllabusId) {
         RevisionSessionResponse session = revisionService.getActiveRevisionSession(syllabusId);
+        if (session == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("No active revision session found"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(session));
+    }
+
+    @Operation(summary = "Get completed revision session for republishing", description = "Get completed revision session waiting for admin to republish")
+    @GetMapping("/syllabus/{syllabusId}/completed")
+    public ResponseEntity<ApiResponse<RevisionSessionResponse>> getCompletedRevisionSession(
+            @PathVariable UUID syllabusId) {
+        RevisionSessionResponse session = revisionService.getCompletedRevisionSession(syllabusId);
+        if (session == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("No completed revision session found"));
+        }
         return ResponseEntity.ok(ApiResponse.success(session));
     }
 

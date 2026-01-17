@@ -32,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { syllabusService } from '@/services';
+import { syllabusService, revisionService } from '@/services';
 import facultyService from '@/services/faculty.service';
 import { Syllabus, SyllabusStatus } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
@@ -179,6 +179,25 @@ export const PublishedSyllabiPage: React.FC = () => {
     onError: () => message.error('Xuất file thất bại'),
   });
 
+  // 4. Republish (Xuất bản lại sau khi revision)
+  const republishMutation = useMutation({
+    mutationFn: async (syllabusId: string) => {
+      // Get completed revision session for this syllabus (not active, since status is COMPLETED)
+      const completedSession = await revisionService.getCompletedRevisionSession(syllabusId);
+      if (!completedSession) {
+        throw new Error('Không tìm thấy revision session đã hoàn thành');
+      }
+      return revisionService.republishSyllabus(completedSession.id);
+    },
+    onSuccess: () => {
+      message.success('Đã xuất bản lại đề cương thành công!');
+      queryClient.invalidateQueries({ queryKey: ['syllabi'] });
+    },
+    onError: (error: any) => {
+      message.error(error.message || 'Xuất bản lại thất bại');
+    },
+  });
+
   // --- Handlers ---
 
   const handleUnpublishClick = (syllabus: any) => {
@@ -292,6 +311,28 @@ export const PublishedSyllabiPage: React.FC = () => {
               onClick={() => handleViewHistory(record)}
             />
           </Tooltip>
+
+          {/* Nút Xuất bản lại - chỉ hiện khi đang chờ republish */}
+          {record.status === 'PENDING_ADMIN_REPUBLISH' && (
+            <Tooltip title="Xuất bản lại">
+              <Popconfirm
+                title="Xuất bản lại đề cương"
+                description="Đề cương đã được chỉnh sửa và duyệt. Xác nhận xuất bản lại?"
+                onConfirm={() => republishMutation.mutate(record.id)}
+                okText="Xuất bản"
+                cancelText="Hủy"
+              >
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  loading={republishMutation.isPending}
+                >
+                  Xuất bản lại
+                </Button>
+              </Popconfirm>
+            </Tooltip>
+          )}
 
           {/* Nút Gỡ bỏ chỉ hiện khi đã Publish */}
           {record.status === 'PUBLISHED' && (

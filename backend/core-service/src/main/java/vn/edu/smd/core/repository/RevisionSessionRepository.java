@@ -36,6 +36,14 @@ public interface RevisionSessionRepository extends JpaRepository<RevisionSession
     List<RevisionSession> findByStatusOrderByInitiatedAtDesc(RevisionSessionStatus status);
 
     /**
+     * Find sessions by syllabus version and status
+     */
+    List<RevisionSession> findBySyllabusVersionIdAndStatusOrderByInitiatedAtDesc(
+            UUID syllabusVersionId, 
+            RevisionSessionStatus status
+    );
+
+    /**
      * Find all pending HOD review sessions
      */
     @Query("SELECT rs FROM RevisionSession rs WHERE rs.status = 'PENDING_HOD' ORDER BY rs.updatedAt ASC")

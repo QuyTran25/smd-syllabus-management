@@ -333,6 +333,7 @@ public class RevisionService {
 
     /**
      * Get active revision session for a syllabus version
+     * Returns null if no active session found (this is a valid case)
      */
     @Transactional(readOnly = true)
     public RevisionSessionResponse getActiveRevisionSession(UUID syllabusVersionId) {
@@ -341,13 +342,51 @@ public class RevisionService {
         Optional<RevisionSession> sessionOpt = revisionSessionRepository.findActiveSessionBySyllabusVersionId(syllabusVersionId);
         
         if (sessionOpt.isEmpty()) {
-            throw new ResourceNotFoundException("Active revision session not found for syllabus", "syllabusId", syllabusVersionId);
+            log.info("No active revision session found for syllabus {}", syllabusVersionId);
+            return null;
         }
         
         RevisionSession session = sessionOpt.get();
         List<SyllabusErrorReport> feedbacks = feedbackRepository.findByRevisionSessionId(session.getId());
         
         log.info("Found active revision session {} with {} feedbacks", session.getId(), feedbacks.size());
+        
+        return mapToResponse(session, feedbacks);
+    }
+
+    /**
+     * Get completed revision session for a syllabus version (for republishing)
+     */
+    @Transactional(readOnly = true)
+    public RevisionSessionResponse getCompletedRevisionSession(UUID syllabusVersionId) {
+        log.info("Getting completed revision session for syllabus {}", syllabusVersionId);
+        
+        // Find the most recent completed session that hasn't been republished yet
+        List<RevisionSession> completedSessions = revisionSessionRepository
+                .findBySyllabusVersionIdAndStatusOrderByInitiatedAtDesc(
+                        syllabusVersionId, 
+                        RevisionSessionStatus.COMPLETED
+                );
+        
+        if (completedSessions.isEmpty()) {
+            log.info("No completed revision session found for syllabus {}", syllabusVersionId);
+            return null;
+        }
+        
+        // Get the most recent one that hasn't been republished
+        RevisionSession session = completedSessions.stream()
+                .filter(s -> s.getRepublishedAt() == null)
+                .findFirst()
+                .orElse(null);
+        
+        if (session == null) {
+            log.info("All completed sessions have been republished for syllabus {}", syllabusVersionId);
+            return null;
+        }
+        
+        List<SyllabusErrorReport> feedbacks = feedbackRepository.findByRevisionSessionId(session.getId());
+        
+        log.info("Found completed revision session {} with {} feedbacks", session.getId(), feedbacks.size());
         
         return mapToResponse(session, feedbacks);
     }
@@ -382,15 +421,35 @@ public class RevisionService {
     }
     
     private User findHodForSyllabus(SyllabusVersion syllabus) {
-        // TODO: Implement proper HOD lookup based on department
-        // For now, just find any HOD
+        // Try to find HOD from syllabus creator's department
+        User lecturer = syllabus.getCreatedBy();
+        if (lecturer != null && lecturer.getDepartment() != null) {
+            Optional<User> hodOpt = userRepository.findHodByDepartmentId(lecturer.getDepartment().getId());
+            if (hodOpt.isPresent()) {
+                log.info("Found HOD {} for department {}", hodOpt.get().getFullName(), lecturer.getDepartment().getName());
+                return hodOpt.get();
+            } else {
+                log.warn("No HOD found for department {}", lecturer.getDepartment().getName());
+            }
+        } else {
+            log.warn("Syllabus creator has no department, cannot find specific HOD");
+        }
+        
+        // Fallback: find any HOD
         List<User> hods = userRepository.findAll().stream()
             .filter(u -> u.getUserRoles().stream()
                 .anyMatch(ur -> ur.getRole().getCode().equals("HOD")))
             .findFirst()
             .map(List::of)
             .orElse(List.of());
-        return hods.isEmpty() ? null : hods.get(0);
+        
+        if (hods.isEmpty()) {
+            log.error("No HOD found in the system!");
+            return null;
+        }
+        
+        log.info("Using fallback HOD: {}", hods.get(0).getFullName());
+        return hods.get(0);
     }
     
     private String buildChangesSummary(List<SyllabusErrorReport> feedbacks) {

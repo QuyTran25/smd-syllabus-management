@@ -87,4 +87,22 @@ export const revisionService = {
       throw error;
     }
   },
+
+  /**
+   * Get completed revision session for a syllabus (for republishing)
+   */
+  getCompletedRevisionSession: async (syllabusId: string): Promise<RevisionSession | null> => {
+    try {
+      const response = await api.get<{ data: RevisionSession }>(
+        `/api/revisions/syllabus/${syllabusId}/completed`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      // If no completed session found (404), return null instead of throwing
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
 };

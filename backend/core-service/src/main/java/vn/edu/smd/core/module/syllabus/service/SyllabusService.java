@@ -22,6 +22,7 @@ import vn.edu.smd.shared.enums.SyllabusStatus;
 import vn.edu.smd.shared.enums.AssignmentStatus;
 import vn.edu.smd.shared.enums.ActorRoleType;
 import vn.edu.smd.shared.enums.DecisionType;
+import vn.edu.smd.shared.enums.NotificationType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -453,6 +454,7 @@ public class SyllabusService {
         
         SyllabusStatus nextStatus = switch (currentStatus) {
             case PENDING_HOD -> SyllabusStatus.PENDING_AA;
+            case PENDING_HOD_REVISION -> SyllabusStatus.PENDING_ADMIN_REPUBLISH; // Post-publication revision approved by HOD
             case PENDING_AA -> SyllabusStatus.PENDING_PRINCIPAL;
             case PENDING_PRINCIPAL -> SyllabusStatus.APPROVED;
             case APPROVED -> SyllabusStatus.PUBLISHED;
@@ -486,6 +488,12 @@ public class SyllabusService {
             updateTeachingAssignmentStatusBySyllabus(savedSyllabus, AssignmentStatus.COMPLETED);
             // Send notification to AA
             sendNotificationToAA(savedSyllabus, currentUser);
+        }
+        
+        // When HOD approves revision (PENDING_HOD_REVISION -> PENDING_ADMIN_REPUBLISH), send notification to Admin
+        // DO NOT update teaching assignment as it's already COMPLETED from first publication
+        if (currentStatus == SyllabusStatus.PENDING_HOD_REVISION && nextStatus == SyllabusStatus.PENDING_ADMIN_REPUBLISH) {
+            sendNotificationToAdminForRepublish(savedSyllabus, currentUser);
         }
         
         // When AA approves (PENDING_AA -> PENDING_PRINCIPAL), send notification to Principal
@@ -1741,6 +1749,53 @@ public class SyllabusService {
         } catch (Exception e) {
             log.error("Failed to send rejection notification to HOD for syllabus {}: {}", 
                       syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Send notification to Admin for republishing after HOD approved revision
+     */
+    private void sendNotificationToAdminForRepublish(SyllabusVersion syllabus, User hod) {
+        log.info("Sending republish notification to Admins for syllabus {}", syllabus.getId());
+        
+        // Find all admins
+        List<User> admins = userRepository.findAll().stream()
+                .filter(u -> u.getUserRoles().stream()
+                        .anyMatch(ur -> ur.getRole().getCode().equals("ADMIN")))
+                .collect(Collectors.toList());
+        
+        if (admins.isEmpty()) {
+            log.warn("No ADMIN users found for republish notification");
+            return;
+        }
+        
+        for (User admin : admins) {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("syllabusId", syllabus.getId().toString());
+            payload.put("syllabusCode", syllabus.getSnapSubjectCode());
+            payload.put("syllabusName", syllabus.getSnapSubjectNameVi());
+            payload.put("hodName", hod.getFullName());
+            payload.put("actionUrl", "/admin/syllabi/" + syllabus.getId() + "/republish");
+            payload.put("actionLabel", "Xuất bản lại");
+            payload.put("priority", "MEDIUM");
+            
+            try {
+                Notification notification = Notification.builder()
+                        .user(admin)
+                        .title("[Đã duyệt] Đề cương " + syllabus.getSnapSubjectCode() + " chờ xuất bản lại")
+                        .message("Trưởng bộ môn đã phê duyệt phiên bản chỉnh sửa. Vui lòng xuất bản lại.")
+                        .type(NotificationType.PUBLICATION.name())
+                        .payload(payload)
+                        .isRead(false)
+                        .relatedEntityType("SYLLABUS_VERSION")
+                        .relatedEntityId(syllabus.getId())
+                        .build();
+                
+                notificationRepository.save(notification);
+                log.info("Sent republish notification to admin: {}", admin.getFullName());
+            } catch (Exception e) {
+                log.error("Failed to send republish notification to admin {}: {}", admin.getId(), e.getMessage());
+            }
         }
     }
     

@@ -99,9 +99,15 @@ export const StudentNotificationBell: React.FC = () => {
 
     // Navigate to student portal syllabi list
     if (notification.payload?.actionUrl) {
-      const url = notification.payload.actionUrl;
-      // If it's a student portal URL, navigate directly
-      if (url.startsWith('/syllabi') || url.startsWith('/student')) {
+      let url = notification.payload.actionUrl;
+      
+      // Strip /student prefix since student portal runs standalone
+      if (url.startsWith('/student/')) {
+        url = url.replace('/student', '');
+      }
+      
+      // Navigate to the cleaned URL
+      if (url.startsWith('/syllabi')) {
         navigate(url);
       } else {
         // For other URLs, go to syllabi list as default

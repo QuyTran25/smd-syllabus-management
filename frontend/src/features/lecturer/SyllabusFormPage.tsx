@@ -437,17 +437,7 @@ const SyllabusFormPage: React.FC = () => {
         cloCount: clos.length,
         contentKeys: Object.keys(content),
       });
-// Check if this is a revision (has active revision session)
-          if (activeRevisionSession) {
-            // Submit revision to HOD
-            await submitRevisionMutation.mutateAsync({
-              sessionId: activeRevisionSession.id,
-              summary: 'Đã hoàn thành chỉnh sửa theo phản hồi',
-            });
-          } else {
-            // Normal approval workflow
-            await submitMutation.mutateAsync(id);
-          }
+
       const payload = {
         subjectId: (syllabus as any)?.subjectId || (syllabus as any)?.id || 'temp-subject-id',
         versionNo: `v${syllabus?.version || 1}`,
@@ -457,15 +447,29 @@ const SyllabusFormPage: React.FC = () => {
         teachingAssignmentId: assignmentId || undefined, // Link to teaching assignment if from notification
       };
 
+      // Handle different scenarios based on create/edit mode and revision status
       if (isCreateMode) {
+        // Create new syllabus
         const response = await createMutation.mutateAsync(payload);
         if (shouldSubmit && response.id) {
           await submitMutation.mutateAsync(response.id);
         }
       } else if (id) {
+        // Update existing syllabus
         await updateMutation.mutateAsync({ id, data: payload });
+        
+        // If shouldSubmit, check if this is a revision or normal submit
         if (shouldSubmit) {
-          await submitMutation.mutateAsync(id);
+          if (activeRevisionSession) {
+            // Submit revision to HOD for re-approval
+            await submitRevisionMutation.mutateAsync({
+              sessionId: activeRevisionSession.id,
+              summary: 'Đã hoàn thành chỉnh sửa theo phản hồi',
+            });
+          } else {
+            // Normal submit for approval (DRAFT → PENDING_HOD)
+            await submitMutation.mutateAsync(id);
+          }
         }
       }
     } catch (error) {
