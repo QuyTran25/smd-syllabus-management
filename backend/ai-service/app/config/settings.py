@@ -67,11 +67,20 @@ class Settings(BaseSettings):
     # =============================================
     # AI MODEL
     # =============================================
+    # AI Provider
+    AI_PROVIDER: str = Field(default="gemini", env="AI_PROVIDER")  # "gemini" or "local"
+    
+    # Gemini API
+    GEMINI_API_KEY: str = Field(default="", env="GEMINI_API_KEY")
+    GEMINI_MODEL: str = Field(default="gemini-1.5-flash", env="GEMINI_MODEL")
+    
+    # Local models
     AI_MODEL_ENABLED: bool = Field(default=False, env="AI_MODEL_ENABLED")
     AI_MODEL_NAME: str = Field(default="vinai/phogpt-4b-v1-instruct", env="AI_MODEL_NAME")
     AI_MODEL_DEVICE: str = Field(default="cpu", env="AI_MODEL_DEVICE")
     AI_MODEL_MAX_LENGTH: int = Field(default=2048, env="AI_MODEL_MAX_LENGTH")
     EMBEDDING_MODEL: str = Field(default="bkai-foundation-models/vietnamese-bi-encoder", env="EMBEDDING_MODEL")
+    USE_8BIT_QUANTIZATION: bool = Field(default=True, env="USE_8BIT_QUANTIZATION")
     
     # =============================================
     # WORKER

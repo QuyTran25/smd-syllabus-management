@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import vn.edu.smd.core.config.RabbitMQConfig;
 import vn.edu.smd.core.entity.CLO;
 import vn.edu.smd.core.entity.AssessmentScheme;
+import vn.edu.smd.core.entity.AssessmentMatrix;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.repository.CLORepository;
 import vn.edu.smd.core.repository.AssessmentSchemeRepository;
@@ -178,6 +179,9 @@ public class AITaskService {
         // Query Assessment Schemes from database (separate table) - REAL DATA!
         List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabusId);
         
+        // Query Assessment Matrix from syllabus relationship
+        List<AssessmentMatrix> assessmentMatrix = syllabus.getAssessmentMatrix();
+        
         // Build FULL syllabus_data payload
         Map<String, Object> content = syllabus.getContent();
         Map<String, Object> syllabusData = new HashMap<>();
@@ -189,30 +193,73 @@ public class AITaskService {
         syllabusData.put("theory_hours", syllabus.getTheoryHours() != null ? syllabus.getTheoryHours() : 0);
         syllabusData.put("practice_hours", syllabus.getPracticeHours() != null ? syllabus.getPracticeHours() : 0);
         
-        // CLOs from database table (REAL DATA)
-        List<Map<String, Object>> cloList = clos.stream().map(clo -> {
-            Map<String, Object> cloMap = new HashMap<>();
-            cloMap.put("code", clo.getCode());
-            cloMap.put("description", clo.getDescription());
-            cloMap.put("bloom_level", clo.getBloomLevel());
-            cloMap.put("weight", clo.getWeight());
-            return cloMap;
-        }).collect(Collectors.toList());
+        // CLOs from database table or JSONB content
+        List<Map<String, Object>> cloList = new ArrayList<>();
+        log.info("🔍 DEBUG - DB CLOs count: {}, content keys: {}", clos.size(), content != null ? content.keySet() : "null");
+        if (!clos.isEmpty()) {
+            // From database table (REAL DATA)
+            log.info("✅ Using CLOs from database table");
+            cloList = clos.stream().map(clo -> {
+                Map<String, Object> cloMap = new HashMap<>();
+                cloMap.put("code", clo.getCode());
+                cloMap.put("description", clo.getDescription());
+                cloMap.put("bloom_level", clo.getBloomLevel());
+                cloMap.put("weight", clo.getWeight());
+                return cloMap;
+            }).collect(Collectors.toList());
+        } else if (content != null && content.get("clos") != null) {
+            // Fallback to JSONB content
+            log.info("✅ Using CLOs from JSONB content");
+            Object closFromJson = content.get("clos");
+            log.info("🔍 DEBUG - clos type: {}, value: {}", closFromJson.getClass().getName(), closFromJson);
+            if (closFromJson instanceof List) {
+                cloList = (List<Map<String, Object>>) closFromJson;
+                log.info("✅ Converted to list, size: {}", cloList.size());
+            }
+        } else {
+            log.warn("⚠️ No CLOs found in DB or JSONB content");
+        }
         syllabusData.put("learning_outcomes", cloList);
         
-        // Assessment from database table (REAL DATA)
-        List<Map<String, Object>> assessmentList = assessments.stream().map(as -> {
-            Map<String, Object> assessMap = new HashMap<>();
-            assessMap.put("method", as.getName());  // Field is 'name' not 'assessmentType'
-            assessMap.put("weight", as.getWeightPercent());  // Field is 'weightPercent' not 'weight'
-            return assessMap;
-        }).collect(Collectors.toList());
+        // Assessment from database table or JSONB content
+        List<Map<String, Object>> assessmentList = new ArrayList<>();
+        if (!assessments.isEmpty()) {
+            // From database table (REAL DATA)
+            assessmentList = assessments.stream().map(as -> {
+                Map<String, Object> assessMap = new HashMap<>();
+                assessMap.put("method", as.getName());  // Field is 'name' not 'assessmentType'
+                assessMap.put("weight", as.getWeightPercent());  // Field is 'weightPercent' not 'weight'
+                return assessMap;
+            }).collect(Collectors.toList());
+        } else if (content != null && content.get("assessmentMethods") != null) {
+            // Fallback to JSONB content
+            Object assessFromJson = content.get("assessmentMethods");
+            if (assessFromJson instanceof List) {
+                assessmentList = (List<Map<String, Object>>) assessFromJson;
+            }
+        }
         syllabusData.put("assessment_scheme", assessmentList);
+        
+        // Assessment Matrix from database (Ma trận đánh giá)
+        if (assessmentMatrix != null && !assessmentMatrix.isEmpty()) {
+            List<Map<String, Object>> matrixList = assessmentMatrix.stream().map(am -> {
+                Map<String, Object> matrixMap = new HashMap<>();
+                matrixMap.put("method", am.getMethod());
+                matrixMap.put("form", am.getForm());
+                matrixMap.put("criteria", am.getCriteria());
+                matrixMap.put("weight", am.getWeight());
+                return matrixMap;
+            }).collect(Collectors.toList());
+            syllabusData.put("assessment_matrix", matrixList);
+        }
         
         if (content != null) {
             // Description & Objectives from JSONB
             syllabusData.put("description", content.get("description"));
             syllabusData.put("objectives", content.get("objectives"));
+            
+            // Teaching Methods (Phương pháp giảng dạy)
+            syllabusData.put("teaching_method", content.get("teachingMethods"));
             
             // Weekly Content/Schedule
             syllabusData.put("weekly_content", content.get("courseOutline"));

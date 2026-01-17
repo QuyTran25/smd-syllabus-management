@@ -165,6 +165,26 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
                 </ul>
               </Card>
             )}
+
+            {/* 9. Ma trận đánh giá */}
+            {result.ma_tran_danh_gia && result.ma_tran_danh_gia.length > 0 && (
+              <Card size="small" title="📋 Ma trận đánh giá">
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {result.ma_tran_danh_gia.map((item: any, i: number) => (
+                    <li key={i}>
+                      <strong>{item.method}</strong>
+                      {item.form && <> - Hình thức: {item.form}</>}
+                      {item.weight && <> - <Text type="secondary">Tỷ trọng: {item.weight}%</Text></>}
+                      {item.criteria && (
+                        <div style={{ marginTop: 4, fontSize: '13px', color: '#666' }}>
+                          Tiêu chí: {item.criteria}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </>
         )}
       </Space>

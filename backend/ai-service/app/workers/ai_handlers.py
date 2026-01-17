@@ -9,7 +9,17 @@ from datetime import datetime
 from typing import Dict, Any
 import os
 
-# AI Model imports
+from app.config.settings import settings
+
+# Gemini API
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    logging.warning("⚠️ Gemini SDK not installed. Install: pip install google-generativeai")
+
+# Local AI Model imports
 try:
     from transformers import (
         AutoTokenizer, 
@@ -31,25 +41,58 @@ class AIMessageHandler:
     
     def __init__(self, rabbitmq_manager=None):
         """
-        Initialize handler with AI model for SUMMARIZE function
+        Initialize handler with Gemini API or local AI model
         """
-        self.mock_mode = os.getenv('MOCK_MODE', 'false').lower() == 'true'
+        self.mock_mode = settings.MOCK_MODE
+        self.ai_provider = settings.AI_PROVIDER
+        self.gemini_client = None
         self.model = None
         self.tokenizer = None
         self.device = None
         self.rabbitmq_manager = rabbitmq_manager
         
-        # Load AI model for SUMMARIZE if not in mock mode
-        if not self.mock_mode and AI_AVAILABLE:
-            try:
-                self._load_summarize_model()
-            except Exception as e:
-                logger.error(f"❌ Failed to load AI model: {e}")
-                logger.warning("⚠️ Falling back to MOCK mode")
+        # Initialize AI based on provider
+        if not self.mock_mode:
+            if self.ai_provider == 'gemini' and GEMINI_AVAILABLE:
+                try:
+                    self._init_gemini()
+                except Exception as e:
+                    logger.error(f"❌ Failed to init Gemini: {e}")
+                    logger.warning("⚠️ Falling back to local model or MOCK mode")
+                    if AI_AVAILABLE:
+                        try:
+                            self._load_summarize_model()
+                        except Exception as e2:
+                            logger.error(f"❌ Local model also failed: {e2}")
+                            self.mock_mode = True
+                    else:
+                        self.mock_mode = True
+            elif AI_AVAILABLE:
+                try:
+                    self._load_summarize_model()
+                except Exception as e:
+                    logger.error(f"❌ Failed to load AI model: {e}")
+                    logger.warning("⚠️ Falling back to MOCK mode")
+                    self.mock_mode = True
+            else:
+                logger.warning("⚠️ No AI available, using MOCK mode")
                 self.mock_mode = True
         
-        mode = "MOCK" if self.mock_mode else "AI"
+        mode = "MOCK" if self.mock_mode else f"{self.ai_provider.upper()} AI"
         logger.info(f"🤖 AI Message Handler initialized in {mode} mode")
+    
+    def _init_gemini(self):
+        """Initialize Gemini API client"""
+        api_key = settings.GEMINI_API_KEY
+        if not api_key or api_key == 'your_api_key_here':
+            raise ValueError("GEMINI_API_KEY not configured")
+        
+        genai.configure(api_key=api_key)
+        model_name = settings.GEMINI_MODEL
+        self.gemini_client = genai.GenerativeModel(model_name)
+        
+        logger.info(f"✅ Gemini initialized: {model_name}")
+        logger.info(f"📊 Free tier: 1500 req/day, 1M tokens/day")
     
     def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -296,19 +339,22 @@ class AIMessageHandler:
         """
         Handler cho SUMMARIZE_SYLLABUS - Tóm tắt cho sinh viên
         
-        Sử dụng AI model thật (VietAI/vit5-base) để tóm tắt
+        Sử dụng AI model thật (VietAI/vit5-base hoặc Gemini) để tóm tắt
         """
         syllabus_id = payload.get('syllabus_id')
         syllabus_data = payload.get('syllabus_data', {})
         
         logger.info(f"📝 Summarizing syllabus: {syllabus_id}")
+        logger.info(f"🔍 AI Status: mock_mode={self.mock_mode}, model_loaded={self.model is not None}, gemini_available={self.gemini_client is not None}")
         
-        # Use real AI if available
-        if not self.mock_mode and self.model is not None:
+        # Use real AI if available (Gemini or local model)
+        if not self.mock_mode and (self.gemini_client is not None or self.model is not None):
+            ai_provider = "GEMINI" if self.gemini_client else "LOCAL MODEL"
+            logger.info(f"✅ Using {ai_provider} for summarization")
             return self._summarize_with_ai(syllabus_data)
         
         # Fallback to mock
-        logger.info("⚠️ Using MOCK data (AI model not available)")
+        logger.warning("⚠️ Using MOCK data (AI model not available or mock_mode=true)")
         time.sleep(2)  # 2 seconds
         
         # MOCK RESULT
@@ -376,11 +422,14 @@ class AIMessageHandler:
     
     def _load_summarize_model(self):
         """
-        Load VinAI/bartpho-word model cho summarization
-        BART Vietnamese - Tốt hơn cho Vietnamese text generation
+        Load VietAI T5 model cho Vietnamese summarization
+        Specialized model trained on Vietnamese news summarization
         """
-        model_name = os.getenv('AI_MODEL_NAME', 'vinai/bartpho-word')
+        model_name = os.getenv('AI_MODEL_NAME', 'VietAI/vit5-large-vietnews-summarization')
+        use_8bit = os.getenv('USE_8BIT_QUANTIZATION', 'false').lower() == 'true'
+        
         logger.info(f"📦 Loading model: {model_name}")
+        logger.info(f"🔧 8-bit quantization: {use_8bit}")
         
         # Determine device
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -389,19 +438,145 @@ class AIMessageHandler:
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         
-        # Load model - BART architecture
-        self.model = BartForConditionalGeneration.from_pretrained(
+        # Load model - Seq2Seq for T5 summarization
+        logger.info("⏳ Loading model... (first time may take 1-2 minutes to download ~1.2GB)")
+        
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(
             model_name,
             torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
         ).to(self.device)
         
         logger.info(f"✅ Model loaded successfully on {self.device}")
+        if use_8bit:
+            logger.info("✅ Using 8-bit quantization (reduced memory usage)")
     
+    def _summarize_text(self, text: str, max_length: int = 100) -> str:
+        """
+        Summarize text using Gemini API or local model
+        Falls back to extractive if AI not available
+        """
+        if not text or not isinstance(text, str):
+            return text
+        
+        text = ' '.join(text.split())
+        
+        if len(text) <= max_length:
+            return text
+        
+        # Try Gemini first
+        if self.gemini_client and self.ai_provider == 'gemini':
+            try:
+                return self._summarize_with_gemini(text, max_length)
+            except Exception as e:
+                logger.error(f"❌ [GEMINI FAILED] {str(e)}")
+                logger.info("📋 [FALLBACK] Trying extractive method")
+                return self._extractive_summarize(text, max_length)
+        
+        # Try local model
+        if self.model and self.tokenizer:
+            try:
+                return self._summarize_with_local_model(text, max_length)
+            except Exception as e:
+                logger.error(f"❌ [LOCAL MODEL FAILED] {str(e)}")
+                logger.info("📋 [FALLBACK] Using extractive method")
+                return self._extractive_summarize(text, max_length)
+        
+        # Fallback to extractive
+        logger.warning("📋 [FALLBACK MODE] No AI available, using extractive method")
+        return self._extractive_summarize(text, max_length)
+    
+    def _summarize_with_gemini(self, text: str, max_length: int) -> str:
+        """Summarize using Gemini API"""
+        logger.info(f"🤖 [GEMINI] Summarizing text: {len(text)} chars")
+        
+        prompt = f"""Tóm tắt văn bản sau thành 2-3 câu ngắn gọn (tối đa {max_length} ký tự), giữ nguyên thông tin quan trọng nhất:
+
+{text}
+
+Tóm tắt:"""
+        
+        response = self.gemini_client.generate_content(prompt)
+        summary = response.text.strip()
+        
+        logger.info(f"✅ [GEMINI SUCCESS] Summary: {len(summary)} chars")
+        return summary
+    
+    def _summarize_with_local_model(self, text: str, max_length: int) -> str:
+        """Summarize using local T5 model"""
+        logger.info(f"🤖 [LOCAL MODEL] Summarizing text: {len(text)} chars")
+        
+        # T5 prefix format
+        prompt = f"vietnews: {text}"
+        
+        # Tokenize
+        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        
+        # Move to device if needed
+        if hasattr(self, 'device') and self.device != "cpu":
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        # Generate summary
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=max_length,
+                temperature=0.7,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
+        
+        # Decode - T5 returns clean summary directly
+        summary = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        
+        logger.info(f"✅ [LOCAL MODEL SUCCESS] Summary: {len(summary)} chars")
+        return summary
+    
+    def _extractive_summarize(self, text: str, max_length: int = 100) -> str:
+        """
+        Simple extractive summarization - take first N sentences
+        Fallback when AI model not available
+        """
+        # Simple: Take first N sentences
+        sentences = []
+        for delimiter in ['. ', '.\n', '! ', '? ']:
+            if delimiter in text:
+                parts = [s.strip() for s in text.split(delimiter) if s.strip()]
+                sentences = parts
+                break
+        
+        if not sentences:
+            # No sentences, just truncate
+            return text[:max_length] + '...'
+        
+        # Take first 2-3 sentences
+        result = []
+        current_len = 0
+        for sent in sentences[:3]:
+            if current_len + len(sent) <= max_length:
+                result.append(sent)
+                current_len += len(sent) + 2
+            else:
+                break
+        
+        if result:
+            summary = '. '.join(result)
+            if not summary.endswith('.'):
+                summary += '.'
+            logger.info(f"📝 Simple truncation: {len(text)} -> {len(summary)} chars")
+            return summary
+        
+        # Fallback
+        return text[:max_length] + '...'
+
     def _summarize_with_ai(self, syllabus_data: Dict) -> Dict:
         """
         Tạo tóm tắt có cấu trúc từ dữ liệu đề cương theo format chuẩn
         """
         try:
+            # DEBUG: Print all keys received from Java
+            logger.info(f"🔍 DEBUG - Received syllabus_data keys: {list(syllabus_data.keys())}")
+            
             # Extract syllabus information
             course_name = syllabus_data.get('course_name', 'N/A')
             description = syllabus_data.get('description', '')
@@ -415,35 +590,80 @@ class AIMessageHandler:
             references = syllabus_data.get('references', [])
             weekly_content = syllabus_data.get('weekly_content', [])
             
-            # 1. Mô tả học phần
-            mo_ta = description if description else "Không có thông tin"
+            # DEBUG: Print sample data for important fields
+            if learning_outcomes:
+                logger.info(f"🔍 DEBUG - learning_outcomes sample: {learning_outcomes[0] if len(learning_outcomes) > 0 else 'empty'}")
+            if assessment_scheme:
+                logger.info(f"🔍 DEBUG - assessment_scheme sample: {assessment_scheme[0] if len(assessment_scheme) > 0 else 'empty'}")
             
-            # 2. Mục tiêu học phần
+            logger.info(f"📊 Processing syllabus: {course_name}")
+            logger.info(f"   Description length: {len(description) if description else 0} chars")
+            logger.info(f"   Objectives: {len(objectives) if isinstance(objectives, list) else 'string' if objectives else 0}")
+            logger.info(f"   Learning outcomes (CLO): {len(learning_outcomes)} items")
+            logger.info(f"   Assessment scheme: {len(assessment_scheme)} items")
+            logger.info(f"   Assessment matrix: {len(syllabus_data.get('assessment_matrix', []))} items")
+            
+            # 1. Mô tả học phần - TÓM TẮT GỌN bằng extractive summarization
+            mo_ta = self._summarize_text(description, max_length=200) if description else "Không có thông tin"
+            logger.info(f"✅ Description summarized: {len(description) if description else 0} -> {len(mo_ta)} chars")
+            
+            # 2. Mục tiêu học phần - TÓM TẮT TỪNG MỤC bằng extractive summarization
             muc_tieu = []
+            logger.info(f"📝 Processing objectives: type={type(objectives)}, length={len(objectives) if isinstance(objectives, (list, str)) else 0}")
             if objectives:
                 # Check if objectives is a list or string
                 if isinstance(objectives, list):
                     for obj in objectives:
-                        obj_text = obj if isinstance(obj, str) else str(obj)
-                        if obj_text:
-                            muc_tieu.append(obj_text)
-                elif isinstance(objectives, str):
+                        if isinstance(obj, dict):
+                            # If it's a dict, extract text from common keys
+                            obj_text = obj.get('text') or obj.get('description') or obj.get('objective') or str(obj)
+                        else:
+                            obj_text = obj if isinstance(obj, str) else str(obj)
+                        if obj_text and obj_text.strip():
+                            # Tóm tắt mỗi mục tiêu bằng extractive summarization
+                            summarized = self._summarize_text(obj_text.strip(), max_length=120)
+                            muc_tieu.append(summarized)
+                            logger.debug(f"   Objective: {len(obj_text)} -> {len(summarized)} chars")
+                elif isinstance(objectives, str) and objectives.strip():
                     # If it's a string, split by common delimiters or add as single item
                     if '\n' in objectives:
-                        muc_tieu = [o.strip() for o in objectives.split('\n') if o.strip()]
-                    elif '. ' in objectives:
-                        muc_tieu = [o.strip() + '.' for o in objectives.split('. ') if o.strip()]
+                        parts = [o.strip() for o in objectives.split('\n') if o.strip()]
+                        muc_tieu = [self._summarize_text(p, max_length=80) for p in parts[:5]]  # Limit to 5 objectives
+                    elif '. ' in objectives and len(objectives) > 50:  # Only split if it's a long text
+                        parts = objectives.split('. ')
+                        formatted = [o.strip() + ('.' if not o.endswith('.') else '') for o in parts if o.strip()]
+                        muc_tieu = [self._summarize_text(f, max_length=80) for f in formatted[:5]]  # Limit to 5
                     else:
-                        muc_tieu = [objectives]
+                        muc_tieu = [self._summarize_text(objectives.strip(), max_length=120)]
             
-            # 3. Phương pháp giảng dạy (từ weekly_content nếu có)
+            logger.info(f"✅ Objectives processed: {len(muc_tieu)} items")
+            
+            # 3. Phương pháp giảng dạy
             phuong_phap_giang_day = []
-            if weekly_content and len(weekly_content) > 0:
+            
+            # First check if there's a teaching_method field
+            teaching_method = syllabus_data.get('teaching_method', '')
+            if teaching_method:
+                if isinstance(teaching_method, str) and teaching_method.strip():
+                    # Split by newline or comma
+                    if '\n' in teaching_method:
+                        phuong_phap_giang_day = [m.strip() for m in teaching_method.split('\n') if m.strip()]
+                    elif ',' in teaching_method:
+                        phuong_phap_giang_day = [m.strip() for m in teaching_method.split(',') if m.strip()]
+                    else:
+                        phuong_phap_giang_day = [teaching_method.strip()]
+                elif isinstance(teaching_method, list):
+                    phuong_phap_giang_day = [str(m).strip() for m in teaching_method if str(m).strip()]
+            
+            # Fallback to weekly_content if teaching_method is empty
+            if not phuong_phap_giang_day and weekly_content and isinstance(weekly_content, list):
                 for week in weekly_content[:3]:
                     if isinstance(week, dict):
                         activities = week.get('activities', '')
                         if activities and activities not in phuong_phap_giang_day:
                             phuong_phap_giang_day.append(activities)
+            
+            # Final fallback to default methods
             if not phuong_phap_giang_day:
                 phuong_phap_giang_day = ["Bài giảng trên lớp", "Thảo luận nhóm", "Bài tập thực hành"]
             
@@ -462,19 +682,29 @@ class AIMessageHandler:
             
             # 5. Giáo trình chính
             giao_trinh_chinh = []
-            if textbooks and len(textbooks) > 0:
-                for book in textbooks:
-                    if isinstance(book, dict):
-                        if book.get('type') == 'required':
-                            giao_trinh_chinh.append({
-                                "title": book.get('title', ''),
-                                "authors": book.get('authors', ''),
-                                "year": book.get('year', '')
-                            })
+            if textbooks:
+                if isinstance(textbooks, str) and textbooks.strip():
+                    # If textbooks is a string, split by newline
+                    lines = [line.strip() for line in textbooks.split('\n') if line.strip()]
+                    for line in lines[:5]:  # Limit to 5 books
+                        giao_trinh_chinh.append({"title": line})
+                elif isinstance(textbooks, list) and len(textbooks) > 0:
+                    for book in textbooks:
+                        if isinstance(book, dict):
+                            if book.get('type') == 'required' or not book.get('type'):
+                                giao_trinh_chinh.append({
+                                    "title": book.get('title', ''),
+                                    "authors": book.get('authors', ''),
+                                    "year": book.get('year', '')
+                                })
+                        elif isinstance(book, str) and book.strip():
+                            giao_trinh_chinh.append({"title": book.strip()})
             
             # 6. Tài liệu tham khảo
             tai_lieu_tham_khao = []
-            if textbooks and len(textbooks) > 0:
+            
+            # First check textbooks for reference type
+            if textbooks and isinstance(textbooks, list) and len(textbooks) > 0:
                 for book in textbooks:
                     if isinstance(book, dict):
                         if book.get('type') == 'reference':
@@ -483,11 +713,24 @@ class AIMessageHandler:
                                 "authors": book.get('authors', ''),
                                 "year": book.get('year', '')
                             })
-            if references and len(references) > 0:
-                for ref in references:
-                    ref_text = ref if isinstance(ref, str) else str(ref)
-                    if ref_text:
-                        tai_lieu_tham_khao.append({"title": ref_text})
+            
+            # Then process references field
+            if references:
+                if isinstance(references, str) and references.strip():
+                    # If references is a string, split by newline
+                    lines = [line.strip() for line in references.split('\n') if line.strip()]
+                    for line in lines[:10]:  # Limit to 10 references
+                        tai_lieu_tham_khao.append({"title": line})
+                elif isinstance(references, list) and len(references) > 0:
+                    for ref in references:
+                        if isinstance(ref, dict):
+                            tai_lieu_tham_khao.append({
+                                "title": ref.get('title', ''),
+                                "authors": ref.get('authors', ''),
+                                "year": ref.get('year', '')
+                            })
+                        elif isinstance(ref, str) and ref.strip():
+                            tai_lieu_tham_khao.append({"title": ref.strip()})
             
             # 7. Nhiệm vụ của Sinh viên
             nhiem_vu = []
@@ -511,17 +754,36 @@ class AIMessageHandler:
                     "Chuẩn bị bài trước khi đến lớp"
                 ]
             
-            # 8. Chuẩn đầu ra học phần (CLO)
+            # 8. Chuẩn đầu ra học phần (CLO) - TÓM TẮT MÔ TẢ
             clo_list = []
             if learning_outcomes and len(learning_outcomes) > 0:
                 for clo in learning_outcomes:
                     if isinstance(clo, dict):
+                        desc = clo.get('description', '')
+                        summarized_desc = self._summarize_text(desc, max_length=100) if desc else desc
                         clo_list.append({
                             "code": clo.get('code', ''),
-                            "description": clo.get('description', ''),
+                            "description": summarized_desc,
                             "bloom_level": clo.get('bloom_level', ''),
                             "weight": str(clo.get('weight', ''))
                         })
+            else:
+                logger.warning("⚠️ No CLOs received from backend - check if syllabus was saved properly")
+            
+            # 9. Ma trận đánh giá (Assessment Matrix)
+            ma_tran_danh_gia = []
+            assessment_matrix = syllabus_data.get('assessment_matrix', [])
+            if assessment_matrix and isinstance(assessment_matrix, list):
+                for item in assessment_matrix:
+                    if isinstance(item, dict):
+                        ma_tran_danh_gia.append({
+                            "method": item.get('method', ''),
+                            "form": item.get('form', ''),
+                            "criteria": self._summarize_text(item.get('criteria', ''), max_length=80) if item.get('criteria') else '',
+                            "weight": str(item.get('weight', ''))
+                        })
+            else:
+                logger.warning("⚠️ No assessment matrix received from backend - check if syllabus was saved properly")
             
             result = {
                 "course_name": course_name,
@@ -532,11 +794,20 @@ class AIMessageHandler:
                 "giao_trinh_chinh": giao_trinh_chinh,
                 "tai_lieu_tham_khao": tai_lieu_tham_khao,
                 "nhiem_vu_sinh_vien": nhiem_vu,
-                "clo": clo_list
+                "clo": clo_list,
+                "ma_tran_danh_gia": ma_tran_danh_gia
             }
             
-            logger.info("✅ Structured Summary completed")
-            logger.info(f"📄 Result:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
+            logger.info("=" * 80)
+            logger.info("✅ STRUCTURED SUMMARY COMPLETED")
+            logger.info(f"📊 Summary stats:")
+            logger.info(f"   - Description: {len(mo_ta)} chars")
+            logger.info(f"   - Objectives: {len(muc_tieu)} items")
+            logger.info(f"   - Teaching methods: {len(phuong_phap_giang_day)} items")
+            logger.info(f"   - Assessment methods: {len(phuong_phap_danh_gia)} items")
+            logger.info(f"   - CLOs: {len(clo_list)} items")
+            logger.info(f"   - Assessment matrix: {len(ma_tran_danh_gia)} items")
+            logger.info("=" * 80)
             return result
             
         except Exception as e:

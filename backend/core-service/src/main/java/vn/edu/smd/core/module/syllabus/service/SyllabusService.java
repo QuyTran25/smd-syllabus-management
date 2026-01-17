@@ -299,7 +299,15 @@ public class SyllabusService {
         syllabus.setDescription(request.getDescription());
         syllabus.setUpdatedBy(currentUser);
 
-        return mapToResponse(syllabusVersionRepository.save(syllabus));
+        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
+        
+        // Sync CLOs from JSONB content to syllabus_clos table
+        syncCLOsFromContent(savedSyllabus);
+        
+        // Sync Assessment Methods from JSONB content to assessment_matrix table  
+        syncAssessmentMethodsFromContent(savedSyllabus);
+
+        return mapToResponse(savedSyllabus);
     }
 
     @Transactional
@@ -587,11 +595,19 @@ public class SyllabusService {
         }
         
         if (syllabus.getAcademicTerm() != null) {
-            // Parse semester number from academic term code (e.g., "HK1_2024" -> "1")
+            // Parse semester number from academic term code (e.g., "HK1_2024" or "HK2-2026" -> "1" or "2")
             String code = syllabus.getAcademicTerm().getCode();
             if (code != null && code.startsWith("HK")) {
-                String semesterNum = code.substring(2, code.indexOf('_'));
-                response.setSemester(semesterNum);
+                int separatorIndex = code.indexOf('_');
+                if (separatorIndex == -1) {
+                    separatorIndex = code.indexOf('-');
+                }
+                if (separatorIndex > 2) {
+                    String semesterNum = code.substring(2, separatorIndex);
+                    response.setSemester(semesterNum);
+                } else {
+                    response.setSemester(syllabus.getAcademicTerm().getName());
+                }
             } else {
                 response.setSemester(syllabus.getAcademicTerm().getName());
             }
@@ -1698,6 +1714,60 @@ public class SyllabusService {
             log.error("Failed to create snapshot for syllabus {}: {}", 
                       syllabus.getId(), e.getMessage(), e);
             // Don't throw exception - snapshot failure shouldn't block main operation
+        }
+    }
+    
+    /**
+     * Sync CLOs from JSONB content to syllabus_clos table
+     */
+    private void syncCLOsFromContent(SyllabusVersion syllabus) {
+        try {
+            Map<String, Object> content = syllabus.getContent();
+            if (content == null || content.get("clos") == null) {
+                return;
+            }
+            
+            // Delete existing CLOs for this syllabus
+            cloRepository.deleteBySyllabusVersionId(syllabus.getId());
+            
+            Object closObj = content.get("clos");
+            if (closObj instanceof List) {
+                List<Map<String, Object>> closList = (List<Map<String, Object>>) closObj;
+                for (Map<String, Object> cloData : closList) {
+                    CLO clo = new CLO();
+                    clo.setSyllabusVersion(syllabus);
+                    clo.setCode((String) cloData.get("code"));
+                    clo.setDescription((String) cloData.get("description"));
+                    clo.setBloomLevel((String) cloData.get("bloomLevel"));
+                    clo.setWeight(cloData.get("weight") != null ? Integer.parseInt(cloData.get("weight").toString()) : 0);
+                    cloRepository.save(clo);
+                }
+                log.info("Synced {} CLOs from content to database for syllabus {}", closList.size(), syllabus.getId());
+            }
+        } catch (Exception e) {
+            log.error("Failed to sync CLOs from content for syllabus {}: {}", syllabus.getId(), e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Sync Assessment Methods from JSONB content to assessment_matrix table
+     */
+    private void syncAssessmentMethodsFromContent(SyllabusVersion syllabus) {
+        try {
+            Map<String, Object> content = syllabus.getContent();
+            if (content == null || content.get("assessmentMethods") == null) {
+                return;
+            }
+            
+            // For now, just log - assessment_matrix table structure may be different
+            Object assessObj = content.get("assessmentMethods");
+            if (assessObj instanceof List) {
+                List<Map<String, Object>> assessList = (List<Map<String, Object>>) assessObj;
+                log.info("Found {} assessment methods in content for syllabus {}", assessList.size(), syllabus.getId());
+                // TODO: Insert into assessment_matrix table if structure is compatible
+            }
+        } catch (Exception e) {
+            log.error("Failed to sync assessment methods from content for syllabus {}: {}", syllabus.getId(), e.getMessage(), e);
         }
     }
 }

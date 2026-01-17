@@ -36,10 +36,11 @@ transformers==4.36.2
 torch==2.1.2
 sentencepiece==0.1.99
 accelerate==0.25.0
+bitsandbytes==0.41.3  # For 8-bit quantization (Gemma 2B)
 
 # Vietnamese Models Support
-# Using: VietAI/vit5-base (T5 cho Vietnamese - smaller, faster)
-# Alternative: vinai/phogpt-4b-v1-instruct (GPT - larger, better quality)
+# Using: google/gemma-2b (Google's small LLM - good for Vietnamese)
+# Alternative: VietAI/vit5-base (T5 Vietnamese)
 
 # Sentence Embeddings (optional for now)
 # sentence-transformers==2.3.1
