@@ -13,7 +13,7 @@ import {
   Form,
   Input,
   InputNumber,
-  message,
+  App,
   Popconfirm,
   Tabs,
   Switch,
@@ -63,6 +63,7 @@ export const CourseManagementPage: React.FC = () => {
   const [creditsWarning, setCreditsWarning] = useState<string>('');
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   // Fetch relationships for selected course
   const { data: relationships, isLoading: isLoadingRelationships } = useQuery({

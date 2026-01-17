@@ -20,8 +20,8 @@ public class PLO {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "curriculum_id", nullable = false)
-    private Curriculum curriculum;
+    @JoinColumn(name = "subject_id", nullable = false)
+    private Subject subject;
 
     private String code;
 

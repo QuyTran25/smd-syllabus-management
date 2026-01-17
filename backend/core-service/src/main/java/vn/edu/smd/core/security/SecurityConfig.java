@@ -90,7 +90,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 
                 // ⭐ CHO PHÉP STUDENT API PUBLIC (sinh viên không cần đăng nhập để xem đề cương)
-                .requestMatchers("/api/student/**").permitAll()
+                .requestMatchers("/api/student/**").authenticated()
                 
                 // ⭐ CHO PHÉP AI API PUBLIC (để student có thể gọi AI summarize)
                 .requestMatchers("/api/ai/**").permitAll()

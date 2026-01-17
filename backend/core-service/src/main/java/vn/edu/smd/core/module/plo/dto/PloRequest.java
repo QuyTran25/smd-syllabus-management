@@ -10,8 +10,8 @@ import java.util.UUID;
 
 @Data
 public class PloRequest {
-    @NotNull(message = "Curriculum ID is required")
-    private UUID curriculumId;
+    @NotNull(message = "Subject ID is required")
+    private UUID subjectId;
 
     @NotBlank(message = "Code is required")
     @Size(max = 20, message = "Code must not exceed 20 characters")

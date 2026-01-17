@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -13,21 +13,25 @@ import {
   Descriptions,
   Badge,
   Select,
+  Row,
+  Col,
+  Statistic,
+  Progress,
+  Empty,
 } from 'antd';
 import {
   MessageOutlined,
   CheckCircleOutlined,
   EditOutlined,
   EyeOutlined,
+  FileExcelOutlined,
+  FilterOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { feedbackService } from '@/services';
-import {
-  StudentFeedback,
-  FeedbackStatus,
-  FeedbackType,
-} from '@/types';
+import { StudentFeedback, FeedbackStatus, FeedbackType } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 
@@ -101,8 +105,7 @@ export const StudentFeedbackPage: React.FC = () => {
 
   // Enable edit mutation
   const enableEditMutation = useMutation({
-    mutationFn: (id: string) =>
-      feedbackService.enableEditForLecturer(id, 'Admin User'),
+    mutationFn: (id: string) => feedbackService.enableEditForLecturer(id, 'Admin User'),
     onSuccess: () => {
       message.success('Đã bật quyền chỉnh sửa cho giảng viên');
       queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
@@ -179,9 +182,7 @@ export const StudentFeedbackPage: React.FC = () => {
       })),
       onFilter: (value, record) => record.type === value,
       render: (type: FeedbackType) => (
-        <Tag color={FEEDBACK_TYPE_COLORS[type]}>
-          {FEEDBACK_TYPE_LABELS[type]}
-        </Tag>
+        <Tag color={FEEDBACK_TYPE_COLORS[type]}>{FEEDBACK_TYPE_LABELS[type]}</Tag>
       ),
     },
     {
@@ -233,9 +234,7 @@ export const StudentFeedbackPage: React.FC = () => {
       })),
       onFilter: (value, record) => record.status === value,
       render: (status: FeedbackStatus) => (
-        <Tag color={FEEDBACK_STATUS_COLORS[status]}>
-          {FEEDBACK_STATUS_LABELS[status]}
-        </Tag>
+        <Tag color={FEEDBACK_STATUS_COLORS[status]}>{FEEDBACK_STATUS_LABELS[status]}</Tag>
       ),
     },
     {
@@ -259,8 +258,7 @@ export const StudentFeedbackPage: React.FC = () => {
       key: 'createdAt',
       width: 100,
       align: 'center',
-      sorter: (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend',
       render: (date) => dayjs(date).format('DD/MM'),
     },
@@ -270,11 +268,7 @@ export const StudentFeedbackPage: React.FC = () => {
       width: 250,
       render: (_, record) => (
         <Space>
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
           <Button
@@ -315,9 +309,22 @@ export const StudentFeedbackPage: React.FC = () => {
     },
   ];
 
-  const pendingCount = feedbacks?.filter(
-    (f) => f.status === FeedbackStatus.PENDING
-  ).length || 0;
+  const pendingCount = feedbacks?.filter((f) => f.status === FeedbackStatus.PENDING).length || 0;
+
+  const stats = useMemo(() => {
+    if (!feedbacks) return null;
+    return {
+      total: feedbacks.length,
+      pending: feedbacks.filter((f) => f.status === FeedbackStatus.PENDING).length,
+      inReview: feedbacks.filter((f) => f.status === FeedbackStatus.IN_REVIEW).length,
+      resolved: feedbacks.filter((f) => f.status === FeedbackStatus.RESOLVED).length,
+      rejected: feedbacks.filter((f) => f.status === FeedbackStatus.REJECTED).length,
+      errors: feedbacks.filter((f) => f.type === FeedbackType.ERROR).length,
+      suggestions: feedbacks.filter((f) => f.type === FeedbackType.SUGGESTION).length,
+      questions: feedbacks.filter((f) => f.type === FeedbackType.QUESTION).length,
+      otherTypes: feedbacks.filter((f) => f.type === FeedbackType.OTHER).length,
+    };
+  }, [feedbacks]);
 
   return (
     <div style={{ padding: '24px' }}>
@@ -327,11 +334,7 @@ export const StudentFeedbackPage: React.FC = () => {
             <Title level={4} style={{ margin: 0 }}>
               <MessageOutlined /> Quản lý Phản hồi từ Sinh viên
               {pendingCount > 0 && (
-                <Badge
-                  count={pendingCount}
-                  style={{ marginLeft: 16 }}
-                  showZero
-                />
+                <Badge count={pendingCount} style={{ marginLeft: 16 }} showZero />
               )}
             </Title>
             <Space>
@@ -397,10 +400,7 @@ export const StudentFeedbackPage: React.FC = () => {
           setSelectedFeedback(null);
         }}
         footer={[
-          <Button
-            key="close"
-            onClick={() => setDetailModalVisible(false)}
-          >
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
             Đóng
           </Button>,
         ]}
@@ -447,9 +447,7 @@ export const StudentFeedbackPage: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày phản hồi" span={1}>
                     {selectedFeedback.respondedAt
-                      ? dayjs(selectedFeedback.respondedAt).format(
-                          'DD/MM/YYYY HH:mm'
-                        )
+                      ? dayjs(selectedFeedback.respondedAt).format('DD/MM/YYYY HH:mm')
                       : '-'}
                   </Descriptions.Item>
                 </>
@@ -461,9 +459,7 @@ export const StudentFeedbackPage: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày bật sửa" span={1}>
                     {selectedFeedback.editEnabledAt
-                      ? dayjs(selectedFeedback.editEnabledAt).format(
-                          'DD/MM/YYYY HH:mm'
-                        )
+                      ? dayjs(selectedFeedback.editEnabledAt).format('DD/MM/YYYY HH:mm')
                       : '-'}
                   </Descriptions.Item>
                 </>
@@ -479,9 +475,7 @@ export const StudentFeedbackPage: React.FC = () => {
             <Space>
               <Button
                 icon={<EyeOutlined />}
-                onClick={() =>
-                  navigate(`/syllabi/${selectedFeedback.syllabusId}`)
-                }
+                onClick={() => navigate(`/admin/syllabi/${selectedFeedback.syllabusId}`)}
               >
                 Xem đề cương
               </Button>
@@ -510,12 +504,8 @@ export const StudentFeedbackPage: React.FC = () => {
         {selectedFeedback && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={1} size="small">
-              <Descriptions.Item label="Tiêu đề">
-                {selectedFeedback.title}
-              </Descriptions.Item>
-              <Descriptions.Item label="Mô tả">
-                {selectedFeedback.description}
-              </Descriptions.Item>
+              <Descriptions.Item label="Tiêu đề">{selectedFeedback.title}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả">{selectedFeedback.description}</Descriptions.Item>
             </Descriptions>
 
             <Form form={form} layout="vertical" onFinish={handleSubmitResponse}>
@@ -524,19 +514,12 @@ export const StudentFeedbackPage: React.FC = () => {
                 name="response"
                 rules={[{ required: true, message: 'Nhập nội dung phản hồi' }]}
               >
-                <TextArea
-                  rows={4}
-                  placeholder="Nhập nội dung phản hồi cho sinh viên..."
-                />
+                <TextArea rows={4} placeholder="Nhập nội dung phản hồi cho sinh viên..." />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button
-                    onClick={() => setResponseModalVisible(false)}
-                  >
-                    Hủy
-                  </Button>
+                  <Button onClick={() => setResponseModalVisible(false)}>Hủy</Button>
                   <Button
                     type="primary"
                     htmlType="submit"
@@ -553,4 +536,53 @@ export const StudentFeedbackPage: React.FC = () => {
       </Modal>
     </div>
   );
+};
+
+const convertToCSV = (feedbacks: StudentFeedback[]): string => {
+  const headers = [
+    'ID',
+    'Mã HP',
+    'Tên HP',
+    'Sinh viên',
+    'Email',
+    'Loại',
+    'Tiêu đề',
+    'Mô tả',
+    'Trạng thái',
+    'Phản hồi',
+    'Ngày tạo',
+  ];
+
+  const rows = feedbacks.map((fb) => [
+    fb.id,
+    fb.syllabusCode,
+    fb.syllabusName,
+    fb.studentName,
+    fb.studentEmail,
+    fb.type,
+    fb.title,
+    fb.description.replace(/,/g, ';'),
+    fb.status,
+    (fb.adminResponse || '').replace(/,/g, ';'),
+    dayjs(fb.createdAt).format('DD/MM/YYYY HH:mm'),
+  ]);
+
+  const csv = [
+    headers.join(','),
+    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+  ].join('\n');
+
+  return csv;
+};
+
+const downloadCSV = (csv: string) => {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `feedback-${dayjs().format('YYYYMMDD-HHmmss')}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

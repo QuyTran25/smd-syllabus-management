@@ -6,7 +6,7 @@ import { SyllabusCard } from '../components/SyllabusCard';
 import { useStudentSyllabi, useToggleTrack } from '../hooks/useStudentSyllabus';
 import type { StudentSyllabiFilters } from '../types';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 export const StudentSyllabusListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export const StudentSyllabusListPage: React.FC = () => {
     faculty: undefined,
     program: undefined,
     term: undefined,
-    sort: 'newest',
+    sort: 'newest', // Mặc định là mới nhất
   });
 
   // Đồng bộ URL -> Filters
@@ -41,20 +41,66 @@ export const StudentSyllabusListPage: React.FC = () => {
     });
   }, [filters.scope, setSearchParams]);
 
-  // Lấy dữ liệu từ Hook (Dữ liệu trả về là 1 Array)
+  // Lấy dữ liệu từ Hook
   const { data, isLoading } = useStudentSyllabi(filters);
   const toggleTrack = useToggleTrack();
 
-  // ⭐ SỬA LỖI: data chính là mảng các rows
   const rows = useMemo(() => data ?? [], [data]);
 
-  // ⭐ SỬA LỖI: Tính toán số lượng theo dõi trực tiếp từ mảng
   const trackedCount = useMemo(() => rows.filter((r) => r.tracked).length, [rows]);
 
-  // Tự động trích xuất danh sách Khoa/Chương trình/Học kỳ từ dữ liệu thật
+  // Tự động trích xuất danh sách options cho bộ lọc
   const faculties = useMemo(() => Array.from(new Set(rows.map((x) => x.faculty))).sort(), [rows]);
   const programs = useMemo(() => Array.from(new Set(rows.map((x) => x.program))).sort(), [rows]);
   const terms = useMemo(() => Array.from(new Set(rows.map((x) => x.term))).sort(), [rows]);
+
+  // --- LOGIC LỌC VÀ SẮP XẾP ---
+  const filteredRows = useMemo(() => {
+    // 1. Lọc dữ liệu (Filter)
+    const result = rows.filter((item) => {
+      // Lọc theo scope (Theo dõi)
+      if (filters.scope === 'TRACKED' && !item.tracked) return false;
+
+      // Lọc theo từ khóa (Search)
+      if (filters.q) {
+        const q = filters.q.toLowerCase();
+        // Kiểm tra an toàn
+        const code = item.code?.toLowerCase() || '';
+        const nameVi = item.nameVi?.toLowerCase() || '';
+        const lecturer = item.lecturerName?.toLowerCase() || '';
+
+        if (!code.includes(q) && !nameVi.includes(q) && !lecturer.includes(q)) {
+          return false;
+        }
+      }
+
+      // Lọc theo các dropdown
+      if (filters.faculty && item.faculty !== filters.faculty) return false;
+      if (filters.program && item.program !== filters.program) return false;
+      if (filters.term && item.term !== filters.term) return false;
+
+      return true;
+    });
+
+    // 2. Sắp xếp dữ liệu (Sort)
+    return result.sort((a, b) => {
+      // SỬA LỖI: Dùng 'id' để sắp xếp thay vì 'createdAt'
+      // Giả sử ID là số (hoặc chuỗi số), ID lớn = Mới hơn
+      const idA = Number(a.id);
+      const idB = Number(b.id);
+
+      // Nếu id không phải số (ví dụ UUID), đoạn này sẽ không sort được theo thời gian.
+      // Khi đó bạn cần báo Back-end trả về thêm trường 'createdDate'.
+
+      if (filters.sort === 'newest') {
+        return idB - idA; // Mới nhất (ID lớn) lên đầu
+      }
+      if (filters.sort === 'oldest') {
+        return idA - idB; // Cũ nhất (ID nhỏ) lên đầu
+      }
+      return 0;
+    });
+  }, [rows, filters]);
 
   return (
     <>
@@ -149,7 +195,7 @@ export const StudentSyllabusListPage: React.FC = () => {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
               }}
             >
-              {rows.map((item) => (
+              {filteredRows.map((item) => (
                 <SyllabusCard
                   key={item.id}
                   item={item}

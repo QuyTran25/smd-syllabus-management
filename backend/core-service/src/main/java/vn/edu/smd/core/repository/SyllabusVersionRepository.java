@@ -19,12 +19,11 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
-    // FIX: Đổi kiểu String thành SyllabusStatus để đồng nhất với Entity
     List<SyllabusVersion> findByStatus(SyllabusStatus status);
 
     // Use custom query to avoid PostgreSQL enum casting issues
-    @Query("SELECT s FROM SyllabusVersion s WHERE s.status IN :statuses AND s.isDeleted = false")
-    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") List<SyllabusStatus> statuses);
+    @Query(value = "SELECT * FROM core_service.syllabus_versions WHERE CAST(status AS TEXT) = ANY(CAST(:statuses AS TEXT[])) AND is_deleted = false", nativeQuery = true)
+    List<SyllabusVersion> findByStatusInAndIsDeletedFalse(@Param("statuses") String[] statuses);
 
     List<SyllabusVersion> findByCreatedById(UUID createdById);
 
@@ -35,11 +34,20 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     @Query("SELECT s FROM SyllabusVersion s WHERE s.status = :status AND s.isDeleted = false")
     List<SyllabusVersion> findByStatusAndNotDeleted(@Param("status") SyllabusStatus status);
-    
-    // Tìm syllabus theo subject, academic term và status
-    Optional<SyllabusVersion> findBySubjectIdAndAcademicTermIdAndStatus(
-            UUID subjectId, UUID academicTermId, SyllabusStatus status);
-    
-    // Đếm số syllabus versions của một môn trong một kỳ học
+
+    // ==========================================
+    // CÁC HÀM MỚI ĐƯỢC THÊM ĐỂ FIX LỖI BUILD
+    // ==========================================
+
+    // 1. Tìm Syllabus theo Subject, Term và Status (Trả về Optional để xử lý null safe)
+    Optional<SyllabusVersion> findBySubjectIdAndAcademicTermIdAndStatus(UUID subjectId, UUID academicTermId, SyllabusStatus status);
+
+    // 2. Đếm số lượng Syllabus theo Subject và Term
     long countBySubjectIdAndAcademicTermId(UUID subjectId, UUID academicTermId);
+
+    // 3. Lấy Syllabus mới nhất (theo ngày tạo) của một Subject
+    Optional<SyllabusVersion> findFirstBySubjectIdOrderByCreatedAtDesc(UUID subjectId);
+    
+    // Count syllabi by status
+    long countByStatusAndIsDeletedFalse(SyllabusStatus status);
 }

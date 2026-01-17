@@ -3,16 +3,18 @@ package vn.edu.smd.core.module.plo.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
-import vn.edu.smd.core.entity.Curriculum;
+import vn.edu.smd.core.entity.Subject;
 import vn.edu.smd.core.entity.PLO;
 import vn.edu.smd.core.module.plo.dto.PloRequest;
 import vn.edu.smd.core.module.plo.dto.PloResponse;
-import vn.edu.smd.core.repository.CurriculumRepository;
+import vn.edu.smd.core.repository.SubjectRepository;
 import vn.edu.smd.core.repository.PLORepository;
 import vn.edu.smd.shared.enums.PloCategory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,7 +23,7 @@ import java.util.stream.Collectors;
 public class PloService {
 
     private final PLORepository ploRepository;
-    private final CurriculumRepository curriculumRepository;
+    private final SubjectRepository subjectRepository;
 
     @Transactional(readOnly = true)
     public List<PloResponse> getAllPlos() {
@@ -31,11 +33,11 @@ public class PloService {
     }
 
     @Transactional(readOnly = true)
-    public List<PloResponse> getClosByCurriculum(UUID curriculumId) {
-        if (!curriculumRepository.existsById(curriculumId)) {
-            throw new ResourceNotFoundException("Curriculum", "id", curriculumId);
+    public List<PloResponse> getPlosBySubject(UUID subjectId) {
+        if (!subjectRepository.existsById(subjectId)) {
+            throw new ResourceNotFoundException("Subject", "id", subjectId);
         }
-        return ploRepository.findByCurriculumId(curriculumId).stream()
+        return ploRepository.findBySubjectId(subjectId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -48,11 +50,16 @@ public class PloService {
 
     @Transactional
     public PloResponse createPlo(PloRequest request) {
-        Curriculum curriculum = curriculumRepository.findById(request.getCurriculumId())
-                .orElseThrow(() -> new ResourceNotFoundException("Curriculum", "id", request.getCurriculumId()));
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
+
+        // Check for duplicate PLO code within the same subject
+        if (ploRepository.existsBySubjectIdAndCode(request.getSubjectId(), request.getCode())) {
+            throw new BadRequestException("Mã PLO đã tồn tại trong môn học này.");
+        }
 
         PLO plo = PLO.builder()
-                .curriculum(curriculum)
+                .subject(subject)
                 .code(request.getCode())
                 .description(request.getDescription())
                 .category(request.getCategory() != null ? request.getCategory() : PloCategory.KNOWLEDGE)
@@ -67,10 +74,16 @@ public class PloService {
         PLO plo = ploRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PLO", "id", id));
 
-        Curriculum curriculum = curriculumRepository.findById(request.getCurriculumId())
-                .orElseThrow(() -> new ResourceNotFoundException("Curriculum", "id", request.getCurriculumId()));
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
 
-        plo.setCurriculum(curriculum);
+        // Check if the new code is being used by another PLO in the same subject
+        Optional<PLO> existingPloWithSameCode = ploRepository.findBySubjectIdAndCode(request.getSubjectId(), request.getCode());
+        if (existingPloWithSameCode.isPresent() && !existingPloWithSameCode.get().getId().equals(id)) {
+            throw new BadRequestException("Mã PLO đã tồn tại trong môn học này.");
+        }
+
+        plo.setSubject(subject);
         plo.setCode(request.getCode());
         plo.setDescription(request.getDescription());
         if (request.getCategory() != null) {
@@ -92,9 +105,9 @@ public class PloService {
     private PloResponse mapToResponse(PLO plo) {
         PloResponse response = new PloResponse();
         response.setId(plo.getId());
-        response.setCurriculumId(plo.getCurriculum().getId());
-        response.setCurriculumCode(plo.getCurriculum().getCode());
-        response.setCurriculumName(plo.getCurriculum().getName());
+        response.setSubjectId(plo.getSubject().getId());
+        response.setSubjectCode(plo.getSubject().getCode());
+        response.setSubjectName(plo.getSubject().getCurrentNameVi());
         response.setCode(plo.getCode());
         response.setDescription(plo.getDescription());
         response.setCategory(plo.getCategory());

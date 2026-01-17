@@ -19,4 +19,6 @@ public interface CLORepository extends JpaRepository<CLO, UUID> {
     Optional<CLO> findBySyllabusVersionIdAndCode(UUID syllabusVersionId, String code);
     
     boolean existsBySyllabusVersionIdAndCode(UUID syllabusVersionId, String code);
+
+    List<CLO> findBySyllabusVersionIdOrderByCodeAsc(UUID syllabusVersionId);
 }

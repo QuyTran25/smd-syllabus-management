@@ -51,7 +51,7 @@ export const SyllabusListPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  
+
   // Modals state
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [unpublishModalVisible, setUnpublishModalVisible] = useState(false);
@@ -94,11 +94,8 @@ export const SyllabusListPage: React.FC = () => {
   // Publish mutation
   const publishMutation = useMutation({
     mutationFn: ({ id, effectiveDate }: { id: string; effectiveDate: string }) =>
-      syllabusService.approveSyllabus({
-        syllabusId: id,
-        action: 'APPROVE',
-        reason: `Xuất hành với ngày hiệu lực: ${effectiveDate}`,
-      }),
+      // 🔥 FIX: Gọi publishSyllabus thay vì approveSyllabus
+      syllabusService.publishSyllabus(id, effectiveDate, `Xuất hành với ngày hiệu lực: ${effectiveDate}`),
     onSuccess: () => {
       message.success('Xuất hành đề cương thành công');
       queryClient.invalidateQueries({ queryKey: ['syllabi'] });
@@ -106,8 +103,9 @@ export const SyllabusListPage: React.FC = () => {
       setSelectedSyllabus(null);
       publishForm.resetFields();
     },
-    onError: () => {
-      message.error('Xuất hành đề cương thất bại');
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.message || 'Xuất hành đề cương thất bại';
+      message.error(errorMsg);
     },
   });
 
@@ -167,7 +165,9 @@ export const SyllabusListPage: React.FC = () => {
       content: (
         <Space direction="vertical">
           <Text>Bạn có chắc muốn gỡ bỏ đề cương này?</Text>
-          <Text strong>{selectedSyllabus.subjectCode} - {selectedSyllabus.subjectNameVi}</Text>
+          <Text strong>
+            {selectedSyllabus.subjectCode} - {selectedSyllabus.subjectNameVi}
+          </Text>
           <Text type="danger">Đề cương sẽ không còn hiển thị cho sinh viên.</Text>
         </Space>
       ),
@@ -206,47 +206,56 @@ export const SyllabusListPage: React.FC = () => {
   // Handle status filter change
   const handleStatusFilterChange = (values: string[]) => {
     setStatusFilter(values);
-    
+
     // Map special filters
     if (values.includes('needs-edit')) {
       // For "needs-edit", we need PUBLISHED syllabi only
-      setFilters({ 
-        ...filters, 
-        status: [SyllabusStatus.PUBLISHED]
+      setFilters({
+        ...filters,
+        status: [SyllabusStatus.PUBLISHED],
       });
     } else if (values.includes('not-published')) {
       // Replace 'not-published' with APPROVED
       const mappedStatuses = values
-        .filter(v => v !== 'not-published')
-        .map(v => v as SyllabusStatus)
+        .filter((v) => v !== 'not-published')
+        .map((v) => v as SyllabusStatus)
         .concat([SyllabusStatus.APPROVED]);
       setFilters({ ...filters, status: mappedStatuses });
     } else if (values.includes('approved-statuses')) {
       // AA "Đã duyệt" includes PENDING_PRINCIPAL, APPROVED, PUBLISHED
       const mappedStatuses = values
-        .filter(v => v !== 'approved-statuses')
-        .map(v => v as SyllabusStatus)
-        .concat([SyllabusStatus.PENDING_PRINCIPAL, SyllabusStatus.APPROVED, SyllabusStatus.PUBLISHED]);
+        .filter((v) => v !== 'approved-statuses')
+        .map((v) => v as SyllabusStatus)
+        .concat([
+          SyllabusStatus.PENDING_PRINCIPAL,
+          SyllabusStatus.APPROVED,
+          SyllabusStatus.PUBLISHED,
+        ]);
       setFilters({ ...filters, status: mappedStatuses });
     } else if (values.includes('pending-hod-all')) {
       // HoD "Chưa duyệt" includes PENDING_HOD and PENDING_HOD_REVISION
       const mappedStatuses = values
-        .filter(v => v !== 'pending-hod-all')
-        .map(v => v as SyllabusStatus)
+        .filter((v) => v !== 'pending-hod-all')
+        .map((v) => v as SyllabusStatus)
         .concat([SyllabusStatus.PENDING_HOD, SyllabusStatus.PENDING_HOD_REVISION]);
       setFilters({ ...filters, status: mappedStatuses });
     } else if (values.includes('approved-hod')) {
       // HoD "Đã duyệt" includes PENDING_AA, PENDING_PRINCIPAL, APPROVED, PUBLISHED
       const mappedStatuses = values
-        .filter(v => v !== 'approved-hod')
-        .map(v => v as SyllabusStatus)
-        .concat([SyllabusStatus.PENDING_AA, SyllabusStatus.PENDING_PRINCIPAL, SyllabusStatus.APPROVED, SyllabusStatus.PUBLISHED]);
+        .filter((v) => v !== 'approved-hod')
+        .map((v) => v as SyllabusStatus)
+        .concat([
+          SyllabusStatus.PENDING_AA,
+          SyllabusStatus.PENDING_PRINCIPAL,
+          SyllabusStatus.APPROVED,
+          SyllabusStatus.PUBLISHED,
+        ]);
       setFilters({ ...filters, status: mappedStatuses });
     } else if (values.length > 0) {
       // Normal status filter
-      setFilters({ 
-        ...filters, 
-        status: values.map(v => v as SyllabusStatus)
+      setFilters({
+        ...filters,
+        status: values.map((v) => v as SyllabusStatus),
       });
     } else {
       // No filter - but Admin still restricted to allowed statuses
@@ -256,7 +265,7 @@ export const SyllabusListPage: React.FC = () => {
         setFilters({ ...filters, status: undefined });
       }
     }
-    
+
     setPagination({ ...pagination, page: 1 });
   };
 
@@ -264,10 +273,11 @@ export const SyllabusListPage: React.FC = () => {
   const displayData = React.useMemo(() => {
     if (statusFilter.includes('needs-edit')) {
       // Only show PUBLISHED syllabi that have PENDING feedback
-      return data?.data?.filter((s: Syllabus) => 
-        s.status === SyllabusStatus.PUBLISHED && 
-        needsEditSyllabiIds.has(s.id)
-      ) || [];
+      return (
+        data?.data?.filter(
+          (s: Syllabus) => s.status === SyllabusStatus.PUBLISHED && needsEditSyllabiIds.has(s.id)
+        ) || []
+      );
     }
     return data?.data || [];
   }, [data?.data, statusFilter, needsEditSyllabiIds]);
@@ -464,10 +474,8 @@ export const SyllabusListPage: React.FC = () => {
           [SyllabusStatus.ARCHIVED]: { color: 'default', text: 'Đã lưu trữ' },
         };
         const config = statusConfig[status];
-        
-        return (
-          <Tag color={config.color}>{config.text}</Tag>
-        );
+
+        return <Tag color={config.color}>{config.text}</Tag>;
       },
     },
     {
@@ -494,7 +502,7 @@ export const SyllabusListPage: React.FC = () => {
               onClick={() => navigate(`/admin/syllabi/${record.id}`)}
             />
           </Tooltip>
-          
+
           {record.status === SyllabusStatus.APPROVED && user?.role === UserRole.ADMIN && (
             <Tooltip title="Xuất hành">
               <Button
@@ -507,7 +515,7 @@ export const SyllabusListPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-          
+
           {record.status === SyllabusStatus.PUBLISHED && user?.role === UserRole.ADMIN && (
             <>
               <Tooltip title="Lịch sử">
@@ -527,7 +535,7 @@ export const SyllabusListPage: React.FC = () => {
               </Tooltip>
             </>
           )}
-          
+
           {user?.role === UserRole.AA && (
             <Tooltip title="So sánh phiên bản">
               <Button
@@ -542,7 +550,7 @@ export const SyllabusListPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-          
+
           {record.status === SyllabusStatus.DRAFT && (
             <Tooltip title="Xóa">
               <Button
@@ -728,28 +736,16 @@ export const SyllabusListPage: React.FC = () => {
                 rules={[{ required: true, message: 'Chọn ngày hiệu lực' }]}
                 extra="Đề cương sẽ có hiệu lực từ ngày này"
               >
-                <DatePicker
-                  format="DD/MM/YYYY"
-                  style={{ width: '100%' }}
-                  placeholder="Chọn ngày"
-                />
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày" />
               </Form.Item>
 
-              <Form.Item
-                label="Ghi chú (tùy chọn)"
-                name="note"
-              >
-                <TextArea
-                  rows={3}
-                  placeholder="Ghi chú về lần xuất hành này..."
-                />
+              <Form.Item label="Ghi chú (tùy chọn)" name="note">
+                <TextArea rows={3} placeholder="Ghi chú về lần xuất hành này..." />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setPublishModalVisible(false)}>
-                    Hủy
-                  </Button>
+                  <Button onClick={() => setPublishModalVisible(false)}>Hủy</Button>
                   <Button
                     type="primary"
                     htmlType="submit"
@@ -785,15 +781,11 @@ export const SyllabusListPage: React.FC = () => {
         {selectedSyllabus && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Descriptions bordered column={1} size="small">
-              <Descriptions.Item label="Mã HP">
-                {selectedSyllabus.subjectCode}
-              </Descriptions.Item>
+              <Descriptions.Item label="Mã HP">{selectedSyllabus.subjectCode}</Descriptions.Item>
               <Descriptions.Item label="Tên học phần">
                 {selectedSyllabus.subjectNameVi}
               </Descriptions.Item>
-              <Descriptions.Item label="Giảng viên">
-                {selectedSyllabus.ownerName}
-              </Descriptions.Item>
+              <Descriptions.Item label="Giảng viên">{selectedSyllabus.ownerName}</Descriptions.Item>
             </Descriptions>
 
             <Form form={unpublishForm} layout="vertical" onFinish={handleUnpublish}>
@@ -802,17 +794,12 @@ export const SyllabusListPage: React.FC = () => {
                 name="reason"
                 rules={[{ required: true, message: 'Nhập lý do gỡ bỏ' }]}
               >
-                <TextArea
-                  rows={4}
-                  placeholder="Nhập lý do gỡ bỏ đề cương (bắt buộc)..."
-                />
+                <TextArea rows={4} placeholder="Nhập lý do gỡ bỏ đề cương (bắt buộc)..." />
               </Form.Item>
 
               <Form.Item style={{ marginBottom: 0 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setUnpublishModalVisible(false)}>
-                    Hủy
-                  </Button>
+                  <Button onClick={() => setUnpublishModalVisible(false)}>Hủy</Button>
                   <Button
                     type="primary"
                     danger
