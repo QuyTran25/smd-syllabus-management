@@ -964,7 +964,7 @@ public class SyllabusService {
         
         if (syllabus.getAcademicTerm() != null) {
             String code = syllabus.getAcademicTerm().getCode();
-            if (code != null && code.startsWith("HK")) {
+            if (code != null && code.startsWith("HK") && code.indexOf('_') > 2) {
                 String semesterNum = code.substring(2, code.indexOf('_'));
                 response.setSemester(semesterNum);
             } else {

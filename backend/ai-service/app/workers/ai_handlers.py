@@ -638,7 +638,7 @@ Tóm tắt:"""
             
             logger.info(f"✅ Objectives processed: {len(muc_tieu)} items")
             
-            # 3. Phương pháp giảng dạy
+            # 3. Phương pháp giảng dạy - TÓM TẮT
             phuong_phap_giang_day = []
             
             # First check if there's a teaching_method field
@@ -647,13 +647,17 @@ Tóm tắt:"""
                 if isinstance(teaching_method, str) and teaching_method.strip():
                     # Split by newline or comma
                     if '\n' in teaching_method:
-                        phuong_phap_giang_day = [m.strip() for m in teaching_method.split('\n') if m.strip()]
+                        methods_list = [m.strip() for m in teaching_method.split('\n') if m.strip()]
+                        # Tóm tắt từng phương pháp nếu dài
+                        phuong_phap_giang_day = [self._summarize_text(m, max_length=100) if len(m) > 100 else m for m in methods_list]
                     elif ',' in teaching_method:
-                        phuong_phap_giang_day = [m.strip() for m in teaching_method.split(',') if m.strip()]
+                        methods_list = [m.strip() for m in teaching_method.split(',') if m.strip()]
+                        phuong_phap_giang_day = [self._summarize_text(m, max_length=100) if len(m) > 100 else m for m in methods_list]
                     else:
-                        phuong_phap_giang_day = [teaching_method.strip()]
+                        phuong_phap_giang_day = [self._summarize_text(teaching_method.strip(), max_length=150)]
                 elif isinstance(teaching_method, list):
-                    phuong_phap_giang_day = [str(m).strip() for m in teaching_method if str(m).strip()]
+                    # Tóm tắt từng phương pháp nếu dài
+                    phuong_phap_giang_day = [self._summarize_text(str(m).strip(), max_length=100) if len(str(m)) > 100 else str(m).strip() for m in teaching_method if str(m).strip()]
             
             # Fallback to weekly_content if teaching_method is empty
             if not phuong_phap_giang_day and weekly_content and isinstance(weekly_content, list):
@@ -732,18 +736,21 @@ Tóm tắt:"""
                         elif isinstance(ref, str) and ref.strip():
                             tai_lieu_tham_khao.append({"title": ref.strip()})
             
-            # 7. Nhiệm vụ của Sinh viên
+            # 7. Nhiệm vụ của Sinh viên - TÓM TẮT
             nhiem_vu = []
             student_duties = syllabus_data.get('student_duties', '')
             if student_duties:
                 # If data from database exists
                 if isinstance(student_duties, str):
                     if '. ' in student_duties:
-                        nhiem_vu = [nv.strip() + '.' for nv in student_duties.split('. ') if nv.strip()]
+                        duties_list = [nv.strip() + '.' for nv in student_duties.split('. ') if nv.strip()]
+                        # Tóm tắt từng nhiệm vụ
+                        nhiem_vu = [self._summarize_text(duty, max_length=80) for duty in duties_list]
                     else:
-                        nhiem_vu = [student_duties]
+                        nhiem_vu = [self._summarize_text(student_duties, max_length=100)]
                 elif isinstance(student_duties, list):
-                    nhiem_vu = student_duties
+                    # Tóm tắt từng item trong list
+                    nhiem_vu = [self._summarize_text(str(duty), max_length=80) for duty in student_duties if str(duty).strip()]
             
             # If no data from database, generate generic template
             if not nhiem_vu:
@@ -760,7 +767,8 @@ Tóm tắt:"""
                 for clo in learning_outcomes:
                     if isinstance(clo, dict):
                         desc = clo.get('description', '')
-                        summarized_desc = self._summarize_text(desc, max_length=100) if desc else desc
+                        # Tóm tắt CLO description nếu dài hơn 120 ký tự
+                        summarized_desc = self._summarize_text(desc, max_length=120) if desc and len(desc) > 120 else desc
                         clo_list.append({
                             "code": clo.get('code', ''),
                             "description": summarized_desc,

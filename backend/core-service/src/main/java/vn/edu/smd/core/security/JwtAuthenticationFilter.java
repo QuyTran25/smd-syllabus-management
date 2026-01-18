@@ -37,7 +37,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 requestPath.contains("/api/auth/reset-password") ||
                 requestPath.contains("/api/auth/refresh") ||
                 requestPath.contains("/api/auth/debug-password") ||
-                requestPath.startsWith("/api/student/") ||
                 requestPath.startsWith("/api/ai/") ||
                 requestPath.startsWith("/api/academic-terms/") ||
                 requestPath.startsWith("/api/semesters/")) {

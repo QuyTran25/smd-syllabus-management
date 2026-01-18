@@ -8,6 +8,7 @@ import {
   ReportIssuePayload,
 } from '../api/studentSyllabus.api';
 import { StudentSyllabiFilters } from '../types';
+import { http } from '../api/http';
 
 export function useStudentSyllabi(filters: StudentSyllabiFilters) {
   return useQuery({
@@ -114,5 +115,34 @@ export const useDownloadPdf = () => {
 export const useReportIssue = () => {
   return useMutation({
     mutationFn: (payload: ReportIssuePayload) => reportIssue(payload),
+  });
+};
+
+// TODO: Implement AI summarization hooks
+export const useSummarizeSyllabus = () => {
+  return useMutation({
+    mutationFn: async (syllabusId: string): Promise<string> => {
+      const response = await http.post(`/ai/syllabus/${syllabusId}/summarize`);
+      return response.data.task_id;
+    },
+  });
+};
+
+export const useAITaskStatus = (taskId: string | null) => {
+  return useQuery({
+    queryKey: ['ai-task-status', taskId],
+    queryFn: async () => {
+      if (!taskId) return null;
+      const response = await http.get(`/ai/tasks/${taskId}/status`);
+      return response.data;
+    },
+    enabled: !!taskId,
+    refetchInterval: (data) => {
+      // Stop polling if task is completed or failed
+      if (data?.status === 'COMPLETED' || data?.status === 'FAILED') {
+        return false;
+      }
+      return 2000; // Poll every 2 seconds
+    },
   });
 };

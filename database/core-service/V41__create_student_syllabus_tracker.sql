@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS student_syllabus_tracker (
 );
 
 -- 2. Tạo index để query cho nhanh
-CREATE INDEX idx_tracker_student ON student_syllabus_tracker(student_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_student ON student_syllabus_tracker(student_id);
 
 COMMIT;

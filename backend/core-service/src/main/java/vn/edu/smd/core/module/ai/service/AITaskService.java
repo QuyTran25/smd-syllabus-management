@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import vn.edu.smd.core.config.RabbitMQConfig;
 import vn.edu.smd.core.entity.CLO;
 import vn.edu.smd.core.entity.AssessmentScheme;
-import vn.edu.smd.core.entity.AssessmentMatrix;
 import vn.edu.smd.core.entity.SyllabusVersion;
 import vn.edu.smd.core.repository.CLORepository;
 import vn.edu.smd.core.repository.AssessmentSchemeRepository;
@@ -15,6 +14,7 @@ import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.shared.dto.ai.AIMessageRequest;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -169,18 +169,17 @@ public class AITaskService {
     public String requestSummarize(UUID syllabusId, String userId) {
         String messageId = UUID.randomUUID().toString();
         
-        // Query syllabus data from database
-        SyllabusVersion syllabus = syllabusVersionRepository.findById(syllabusId)
-                .orElseThrow(() -> new RuntimeException("Syllabus not found: " + syllabusId));
+        log.info("🔍 [SUMMARIZE] Searching for syllabusVersion with ID: {}", syllabusId);
+        
+        // Query syllabus data from database (chỉ lấy chưa xóa)
+        SyllabusVersion syllabus = syllabusVersionRepository.findByIdAndNotDeleted(syllabusId)
+                .orElseThrow(() -> new RuntimeException("Syllabus not found or deleted: " + syllabusId));
         
         // Query CLOs from database (separate table) - REAL DATA!
         List<CLO> clos = cloRepository.findBySyllabusVersionId(syllabusId);
         
         // Query Assessment Schemes from database (separate table) - REAL DATA!
         List<AssessmentScheme> assessments = assessmentSchemeRepository.findBySyllabusVersionId(syllabusId);
-        
-        // Query Assessment Matrix from syllabus relationship
-        List<AssessmentMatrix> assessmentMatrix = syllabus.getAssessmentMatrix();
         
         // Build FULL syllabus_data payload
         Map<String, Object> content = syllabus.getContent();
@@ -240,19 +239,6 @@ public class AITaskService {
         }
         syllabusData.put("assessment_scheme", assessmentList);
         
-        // Assessment Matrix from database (Ma trận đánh giá)
-        if (assessmentMatrix != null && !assessmentMatrix.isEmpty()) {
-            List<Map<String, Object>> matrixList = assessmentMatrix.stream().map(am -> {
-                Map<String, Object> matrixMap = new HashMap<>();
-                matrixMap.put("method", am.getMethod());
-                matrixMap.put("form", am.getForm());
-                matrixMap.put("criteria", am.getCriteria());
-                matrixMap.put("weight", am.getWeight());
-                return matrixMap;
-            }).collect(Collectors.toList());
-            syllabusData.put("assessment_matrix", matrixList);
-        }
-        
         if (content != null) {
             // Description & Objectives from JSONB
             syllabusData.put("description", content.get("description"));
@@ -310,8 +296,9 @@ public class AITaskService {
                 }
         );
         
+        String courseName = syllabusData.getOrDefault("course_name", "Unknown").toString();
         log.info("Sent SUMMARIZE_SYLLABUS request: messageId={}, syllabusId={}, course={}", 
-                 messageId, syllabusId, syllabus.getSnapSubjectNameVi());
+                 messageId, syllabusId, courseName);
         
         return messageId;
     }

@@ -116,7 +116,7 @@ public class AIAnalysisController {
         
         String userId = user != null ? user.getId().toString() : "anonymous";
         
-        log.info("Received summarize request: syllabusId={}, userId={}", id, userId);
+        log.info("🔵 [SUMMARIZE] Received request - syllabusVersionId={}, userId={}", id, userId);
         
         String taskId = aiTaskService.requestSummarize(id, userId);
         
