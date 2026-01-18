@@ -12,4 +12,3 @@ export * from './plo.service';
 export * from './auditlog.service';
 export * from './collaboration.service';
 export * from './revision.service';
-export * from './notification.service';

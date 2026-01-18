@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort; // 🔥 Import Sort
+import org.springframework.data.web.SortDefault; // 🔥 Import SortDefault
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.smd.core.common.dto.ApiResponse;
@@ -25,7 +27,10 @@ public class AuditLogController {
 
     @Operation(summary = "Get all audit logs", description = "Get list of audit logs with pagination")
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<AuditLogResponse>>> getAllAuditLogs(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PageResponse<AuditLogResponse>>> getAllAuditLogs(
+            // 🔥 FIX: Thêm SortDefault để mặc định lấy bản ghi mới nhất (giảm dần theo thời gian)
+            @SortDefault(sort = "createdAt", direction = Sort.Direction.DESC) 
+            Pageable pageable) {
         Page<AuditLogResponse> auditLogs = auditLogService.getAllAuditLogs(pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(auditLogs)));
     }

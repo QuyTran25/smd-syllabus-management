@@ -15,6 +15,7 @@ import vn.edu.smd.core.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator; // 🔥 Import Comparator
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class AuditLogService {
 
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getAllAuditLogs(Pageable pageable) {
+        // Repository sẽ tự động xử lý sort dựa trên Pageable từ Controller
         return auditLogRepository.findAll(pageable).map(this::mapToResponse);
     }
 
@@ -90,11 +92,18 @@ public class AuditLogService {
                     }
                     return true;
                 })
+                // 🔥 FIX: Sắp xếp giảm dần theo thời gian (Mới nhất lên đầu)
+                .sorted(Comparator.comparing(AuditLog::getCreatedAt).reversed())
                 .collect(Collectors.toList());
         
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), filteredLogs.size());
         
+        // Handle case where offset is beyond list size
+        if (start > filteredLogs.size()) {
+             return new PageImpl<>(List.of(), pageable, filteredLogs.size());
+        }
+
         List<AuditLogResponse> pageContent = filteredLogs.subList(start, end).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -109,21 +118,6 @@ public class AuditLogService {
         response.setEntityId(auditLog.getEntityId());
         response.setAction(auditLog.getAction());
         response.setActorId(auditLog.getActorId());
-        
-        // Fetch user info for actor with roles
-        if (auditLog.getActorId() != null) {
-            Optional<User> actorOpt = userRepository.findByIdWithRoles(auditLog.getActorId());
-            if (actorOpt.isPresent()) {
-                User actor = actorOpt.get();
-                response.setActorName(actor.getFullName());
-                response.setActorEmail(actor.getEmail());
-                // Get primary role
-                if (actor.getUserRoles() != null && !actor.getUserRoles().isEmpty()) {
-                    response.setActorRole(actor.getUserRoles().iterator().next().getRole().getCode());
-                }
-            }
-        }
-        
         response.setDescription(auditLog.getDescription());
         response.setStatus(auditLog.getStatus());
         response.setOldValue(auditLog.getOldValue());
@@ -131,6 +125,42 @@ public class AuditLogService {
         response.setIpAddress(auditLog.getIpAddress());
         response.setUserAgent(auditLog.getUserAgent());
         response.setCreatedAt(auditLog.getCreatedAt());
+        
+        if (auditLog.getActorId() != null) {
+            try {
+                Optional<User> actorOpt = userRepository.findByIdWithRoles(auditLog.getActorId());
+                if (actorOpt.isPresent()) {
+                    User actor = actorOpt.get();
+                    response.setActorName(actor.getFullName());
+                    response.setActorEmail(actor.getEmail());
+                    
+                    if (actor.getUserRoles() != null && !actor.getUserRoles().isEmpty()) {
+                        var firstRole = actor.getUserRoles().iterator().next().getRole();
+                        if (firstRole != null) {
+                            response.setActorRole(firstRole.getCode());
+                        } else {
+                            response.setActorRole("UNKNOWN");
+                        }
+                    } else {
+                        response.setActorRole("NO_ROLE");
+                    }
+                } else {
+                    response.setActorName("Người dùng đã xóa");
+                    response.setActorEmail("unknown@deleted.user");
+                    response.setActorRole("DELETED");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Failed to fetch user info for audit log: " + e.getMessage());
+                response.setActorName("Lỗi tải user");
+                response.setActorEmail("error@system");
+                response.setActorRole("ERROR");
+            }
+        } else {
+            response.setActorName("Hệ thống");
+            response.setActorEmail("system@smd.edu.vn");
+            response.setActorRole("SYSTEM");
+        }
+        
         return response;
     }
 }
