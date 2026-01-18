@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.entity.*;
+import vn.edu.smd.core.module.notification.service.NotificationService;
 import vn.edu.smd.core.module.student.dto.ReportIssueDto;
 import vn.edu.smd.core.module.student.dto.StudentSyllabusDetailDto;
 import vn.edu.smd.core.module.student.dto.StudentSyllabusSummaryDto;
@@ -36,6 +37,7 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     private final StudentSyllabusTrackerRepository trackerRepository;
     private final SyllabusErrorReportRepository errorReportRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     private User getCurrentStudent() {
@@ -439,5 +441,38 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .build();
 
         errorReportRepository.save(report);
+
+        // 🔔 Tạo notification cho tất cả ADMIN khi sinh viên báo lỗi
+        String notificationTitle = "🚨 Báo lỗi từ sinh viên";
+        String notificationMessage = String.format(
+            "Sinh viên %s đã báo lỗi về đề cương '%s' (Phần: %s)",
+            student.getFullName(),
+            version.getSubject().getCurrentNameVi(),
+            finalSectionEnum.toString()
+        );
+
+        // 🔥 FIX: Đổi từ "ADMIN" sang "Administrator"
+        List<User> adminUsers = userRepository.findAll().stream()
+                .filter(u -> u.getUserRoles() != null && 
+                        u.getUserRoles().stream()
+                                .anyMatch(ur -> ur.getRole() != null && 
+                                        ("Administrator".equals(ur.getRole().getName()) || 
+                                        "ADMIN".equals(ur.getRole().getCode()))))
+                .collect(Collectors.toList());
+
+        log.info("📨 Found {} admin user(s) to notify", adminUsers.size());
+
+        for (User admin : adminUsers) {
+            log.info("🔔 Creating notification for admin: {} (ID: {})", admin.getFullName(), admin.getId());
+            notificationService.createNotificationForUser(
+                admin,
+                notificationTitle,
+                notificationMessage,
+                "ERROR_REPORT"
+            );
+        }
+
+        log.info("✅ Sinh viên {} đã báo lỗi về đề cương {} - Đã gửi thông báo cho {} admin(s)", 
+                student.getId(), version.getId(), adminUsers.size());
     }
 }
