@@ -71,4 +71,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.userRoles ur JOIN ur.role r " +
            "WHERE u.department.id = :departmentId AND r.code = 'HOD'")
     long countHodByDepartmentId(@Param("departmentId") UUID departmentId);
+    
+    /**
+     * Tìm tất cả users theo role code (VD: "ADMIN", "LECTURER", "STUDENT")
+     * Dùng cho việc gửi notification đến tất cả users có role cụ thể
+     */
+    @Query("SELECT DISTINCT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
+           "WHERE r.code = :roleCode")
+    List<User> findByRoleName(@Param("roleCode") String roleCode);
 }

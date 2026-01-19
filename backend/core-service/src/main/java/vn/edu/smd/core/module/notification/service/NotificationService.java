@@ -25,6 +25,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final vn.edu.smd.core.service.FCMService fcmService;
 
     public List<NotificationResponse> getUserNotifications() {
         User currentUser = getCurrentUser();
@@ -92,6 +93,31 @@ public class NotificationService {
         notification.setIsRead(false);
 
         Notification saved = notificationRepository.save(notification);
+        
+        // Send push notification via FCM
+        try {
+            java.util.Map<String, String> fcmData = new java.util.HashMap<>();
+            fcmData.put("notificationId", saved.getId().toString());
+            fcmData.put("type", saved.getType());
+            if (saved.getRelatedEntityType() != null) {
+                fcmData.put("relatedEntityType", saved.getRelatedEntityType());
+            }
+            if (saved.getRelatedEntityId() != null) {
+                fcmData.put("relatedEntityId", saved.getRelatedEntityId().toString());
+            }
+            fcmData.put("actionUrl", "/notifications");
+            
+            String pushBody = saved.getMessage();
+            if (pushBody != null && pushBody.length() > 100) {
+                pushBody = pushBody.substring(0, 97) + "...";
+            }
+            
+            fcmService.sendNotificationToUser(user, saved.getTitle(), pushBody, fcmData);
+        } catch (Exception e) {
+            // Log error but don't fail the notification creation
+            // Notification is still saved to database even if push fails
+        }
+        
         return mapToResponse(saved);
     }
 

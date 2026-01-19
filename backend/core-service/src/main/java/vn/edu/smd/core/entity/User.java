@@ -98,6 +98,12 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "fcm_token", length = 512)
+    private String fcmToken;
+
+    @Column(name = "fcm_token_updated_at")
+    private LocalDateTime fcmTokenUpdatedAt;
+
     // Helper methods for backward compatibility
     public String getPassword() {
         return this.passwordHash;
