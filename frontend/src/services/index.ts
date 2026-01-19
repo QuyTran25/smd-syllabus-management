@@ -1,5 +1,6 @@
 export * from './auth.service';
 export * from './syllabus.service';
+export * from './syllabusAudit.service';
 export * from './user.service';
 export * from './ai.service';
 export * from './course.service';

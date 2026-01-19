@@ -23,7 +23,8 @@ import {
 import { useAuth } from '../auth';
 import { UserRole, SyllabusStatus } from '@/types';
 import { useQuery } from '@tanstack/react-query';
-import { syllabusService, notificationService } from '@/services';
+import { syllabusService } from '@/services';
+import { notificationService } from '@/services/notification.service';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
