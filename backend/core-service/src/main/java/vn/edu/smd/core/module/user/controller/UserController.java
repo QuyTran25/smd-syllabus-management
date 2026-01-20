@@ -6,8 +6,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.smd.core.common.dto.ApiResponse;
 import vn.edu.smd.core.common.dto.PageResponse;
 import vn.edu.smd.core.module.user.dto.AssignRolesRequest;
@@ -16,6 +18,7 @@ import vn.edu.smd.core.module.user.dto.UserRequest;
 import vn.edu.smd.core.module.user.dto.UserResponse;
 import vn.edu.smd.core.module.user.service.UserService;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,8 +32,13 @@ public class UserController {
 
     @Operation(summary = "Get all users", description = "Get list of users with pagination and filtering")
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(Pageable pageable) {
-        Page<UserResponse> users = userService.getAllUsers(pageable);
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        // Truyền xuống Service nhưng service lúc này sẽ bỏ qua bộ lọc
+        Page<UserResponse> users = userService.getAllUsers(role, isActive, search, pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(users)));
     }
 
@@ -67,6 +75,21 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> updateStatus(@PathVariable UUID id, @Valid @RequestBody UpdateStatusRequest request) {
         UserResponse user = userService.updateStatus(id, request);
         return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
+    }
+
+    @Operation(summary = "Toggle user status", description = "Quickly lock/unlock user")
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<ApiResponse<UserResponse>> toggleStatus(@PathVariable UUID id) {
+        UserResponse user = userService.toggleUserStatus(id);
+        String msg = user.getStatus().equals("ACTIVE") ? "User unlocked" : "User locked";
+        return ResponseEntity.ok(ApiResponse.success(msg, user));
+    }
+
+    @Operation(summary = "Import users", description = "Import users from CSV file")
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importUsers(@RequestParam("file") MultipartFile file) {
+        Map<String, Object> result = userService.importUsers(file);
+        return ResponseEntity.ok(ApiResponse.success("Import processed", result));
     }
 
     @Operation(summary = "Get user roles", description = "Get roles assigned to user")

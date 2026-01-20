@@ -14,6 +14,8 @@ import {
   Popconfirm,
   Avatar,
   Typography,
+  Row,
+  Col,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,70 +38,84 @@ const { Option } = Select;
 
 export const UserManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const [form] = Form.useForm();
+
+  // --- States ---
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>();
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
+
+  // Pagination
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+
+  // Modal visibility
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedRole, setSelectedRole] = useState<UserRole | undefined>();
-  const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>();
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string | undefined>();
-  const [form] = Form.useForm();
 
-  // Fetch users
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['users', roleFilter, statusFilter, searchText],
-    queryFn: () => userService.getUsers({ role: roleFilter, isActive: statusFilter, search: searchText }),
+  // Selected Data for Edit/Dependent Dropdowns
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | undefined>();
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string | undefined>();
+
+  // --- Queries ---
+
+  // 1. Fetch Users (Server-side Pagination & Filter)
+  const { data: userResponse, isLoading } = useQuery({
+    queryKey: [
+      'users',
+      pagination.current,
+      pagination.pageSize,
+      roleFilter,
+      statusFilter,
+      searchText,
+    ],
+    queryFn: () =>
+      userService.getUsers({
+        page: pagination.current - 1, // Backend 0-based
+        size: pagination.pageSize,
+        role: roleFilter,
+        isActive: statusFilter,
+        search: searchText,
+      }),
   });
 
-  // Fetch all faculties for dropdown
+  // 2. Fetch Faculties
   const { data: faculties } = useQuery({
     queryKey: ['faculties'],
     queryFn: () => facultyService.getAllFaculties(),
   });
 
-  // Fetch departments for selected faculty
+  // 3. Fetch Departments (Dependent on selectedFacultyId)
   const { data: departments } = useQuery({
     queryKey: ['departments', selectedFacultyId],
     queryFn: () => facultyService.getDepartmentsByFaculty(selectedFacultyId!),
     enabled: !!selectedFacultyId,
   });
 
-  // Fetch HODs for manager dropdown (filtered by department)
-  const { data: hods } = useQuery({
-    queryKey: ['users', UserRole.HOD, selectedDepartment],
-    queryFn: () => userService.getUsers({ role: UserRole.HOD }),
-    select: (data) => {
-      if (!selectedDepartment) return data;
-      return data.filter(user => user.department === selectedDepartment);
-    },
-  });
+  // --- Mutations ---
 
-  // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: Omit<User, 'id' | 'createdAt' | 'lastLogin'>) => userService.createUser(data),
+    mutationFn: (values: any) => userService.createUser(values),
     onSuccess: () => {
       message.success('Tạo người dùng thành công');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateModalVisible(false);
       form.resetFields();
-    },
-  });
-
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<User> }) => userService.updateUser(id, data),
-    onSuccess: () => {
-      message.success('Cập nhật người dùng thành công');
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setIsEditModalVisible(false);
-      setSelectedUser(null);
     },
+    onError: (err: any) => message.error(err.response?.data?.message || 'Tạo thất bại'),
   });
 
-  // Delete mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => userService.updateUser(id, data),
+    onSuccess: () => {
+      message.success('Cập nhật thành công');
+      setIsEditModalVisible(false);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: any) => message.error(err.response?.data?.message || 'Cập nhật thất bại'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userService.deleteUser(id),
     onSuccess: () => {
@@ -108,28 +124,27 @@ export const UserManagementPage: React.FC = () => {
     },
   });
 
-  // Toggle status mutation
   const toggleStatusMutation = useMutation({
     mutationFn: (id: string) => userService.toggleUserStatus(id),
     onSuccess: (user) => {
-      message.success(`${user.isActive ? 'Mở khóa' : 'Khóa'} tài khoản thành công`);
+      message.success(`Đã ${user.isActive ? 'mở khóa' : 'khóa'} tài khoản`);
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
-  // Import mutation
   const importMutation = useMutation({
     mutationFn: (file: File) => userService.importUsers(file),
-    onSuccess: (result) => {
-      if (result.errors && result.errors.length > 0) {
+    onSuccess: (res: any) => {
+      if (res.failed > 0) {
         Modal.warning({
-          title: `Import hoàn tất: ${result.success} thành công, ${result.failed} lỗi`,
+          title: `Import: ${res.success} thành công, ${res.failed} lỗi`,
           content: (
-            <div>
-              <p>Các lỗi gặp phải:</p>
-              <ul style={{ maxHeight: '300px', overflow: 'auto' }}>
-                {result.errors.map((err, idx) => (
-                  <li key={idx} style={{ color: 'red', fontSize: '12px' }}>{err}</li>
+            <div style={{ maxHeight: 300, overflow: 'auto' }}>
+              <ul style={{ paddingLeft: 20 }}>
+                {res.errors.map((e: string, i: number) => (
+                  <li key={i} style={{ color: 'red' }}>
+                    {e}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -137,458 +152,390 @@ export const UserManagementPage: React.FC = () => {
           width: 600,
         });
       } else {
-        message.success(`Import thành công ${result.success} người dùng`);
+        message.success(`Import thành công ${res.success} dòng!`);
       }
-      queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsImportModalVisible(false);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
-    onError: (error: Error) => {
-      message.error(error.message || 'Import thất bại');
-    },
+    onError: () => message.error('Lỗi khi import file'),
   });
 
-  const handleCreate = (values: any) => {
-    createMutation.mutate(values);
+  // --- Handlers ---
+
+  const handleOpenCreate = () => {
+    form.resetFields();
+    setSelectedRole(undefined);
+    setSelectedFacultyId(undefined);
+    setIsCreateModalVisible(true);
   };
 
-  const handleEdit = (values: any) => {
-    if (!selectedUser) return;
-    updateMutation.mutate({ id: selectedUser.id, data: values });
-  };
-
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
-
-  const handleToggleStatus = (id: string) => {
-    toggleStatusMutation.mutate(id);
-  };
-
-  const handleImport = (info: any) => {
-    if (info.file.status === 'done') {
-      importMutation.mutate(info.file.originFileObj);
-    }
-  };
-
-  const openEditModal = (user: User) => {
+  const handleOpenEdit = (user: User) => {
     setSelectedUser(user);
-    setSelectedRole(user.role);
-    setSelectedDepartment(user.department);
-    form.setFieldsValue(user);
+
+    // Set state để trigger load departments và hiển thị đúng logic
+    // Lưu ý: role trong user là Enum, cần convert sang string khớp với value của Select
+    const roleStr = user.role?.toString();
+    setSelectedRole(roleStr);
+    setSelectedFacultyId(user.facultyId);
+
+    // Fill form
+    form.setFieldsValue({
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: roleStr,
+      facultyId: user.facultyId,
+      departmentId: user.departmentId,
+      isActive: user.isActive,
+    });
+
     setIsEditModalVisible(true);
   };
 
-  const roleLabels: Record<UserRole, string> = {
-    [UserRole.ADMIN]: 'Quản trị viên',
-    [UserRole.LECTURER]: 'Giảng viên',
-    [UserRole.HOD]: 'Trưởng Bộ môn',
-    [UserRole.AA]: 'Phòng Đào tạo',
-    [UserRole.PRINCIPAL]: 'Hiệu trưởng',
-    [UserRole.STUDENT]: 'Sinh viên',
+  const roleLabels: Record<string, string> = {
+    ADMIN: 'Quản trị viên',
+    LECTURER: 'Giảng viên',
+    HOD: 'Trưởng bộ môn',
+    AA: 'Giáo vụ',
+    PRINCIPAL: 'Hiệu trưởng',
+    STUDENT: 'Sinh viên',
   };
 
+  const roleColors: Record<string, string> = {
+    ADMIN: 'red',
+    LECTURER: 'blue',
+    HOD: 'green',
+    AA: 'purple',
+    PRINCIPAL: 'gold',
+    STUDENT: 'default',
+  };
+
+  // --- Columns ---
   const columns: ColumnsType<User> = [
     {
       title: 'Người dùng',
       key: 'user',
       width: 250,
-      ellipsis: { showTitle: false },
-      render: (_, record) => (
-        <Space size="small">
-          <Avatar size="small" src={record.avatar} icon={<UserOutlined />} />
-          <Text strong>{record.fullName}</Text>
+      render: (_, r) => (
+        <Space>
+          <Avatar icon={<UserOutlined />} src={r.avatar} />
+          <div>
+            <Text strong>{r.fullName}</Text> <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {r.email}
+            </Text>
+          </div>
         </Space>
       ),
     },
     {
       title: 'Vai trò',
       dataIndex: 'role',
-      key: 'role',
-      width: 115,
-      render: (role: UserRole) => {
-        const colors: Record<UserRole, string> = {
-          ADMIN: 'red',
-          PRINCIPAL: 'purple',
-          AA: 'blue',
-          HOD: 'green',
-          LECTURER: 'orange',
-          STUDENT: 'default',
-        };
-        return <Tag color={colors[role]}>{roleLabels[role]}</Tag>;
-      },
+      width: 150,
+      render: (role) => <Tag color={roleColors[role] || 'default'}>{roleLabels[role] || role}</Tag>,
     },
     {
-      title: 'Khoa/Bộ môn',
-      key: 'department',
+      title: 'Đơn vị',
+      key: 'org',
       width: 200,
-      ellipsis: { showTitle: false },
-      render: (_, record) => (
-        <Text>
-          {record.faculty}{record.department ? ` - ${record.department}` : ''}
-        </Text>
+      render: (_, r) => (
+        <div>
+          {r.faculty && (
+            <div>
+              <Text type="secondary">K: </Text>
+              {r.faculty}
+            </div>
+          )}
+          {r.department && <div style={{ fontSize: 12, color: '#666' }}>BM: {r.department}</div>}
+        </div>
       ),
     },
     {
       title: 'SĐT',
       dataIndex: 'phone',
-      key: 'phone',
-      width: 110,
+      width: 120,
     },
     {
       title: 'Trạng thái',
       dataIndex: 'isActive',
-      key: 'isActive',
-      width: 95,
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'success' : 'error'}>{isActive ? 'Hoạt động' : 'Khóa'}</Tag>
+      width: 100,
+      render: (active) => (
+        <Tag color={active ? 'success' : 'error'}>{active ? 'Active' : 'Locked'}</Tag>
       ),
     },
     {
-      title: 'Đăng nhập',
-      dataIndex: 'lastLogin',
-      key: 'lastLogin',
-      width: 90,
-      render: (date?: string) => date ? new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '-',
-    },
-    {
       title: 'Hành động',
-      key: 'actions',
-      width: 110,
+      key: 'action',
+      width: 120,
       fixed: 'right',
-      render: (_, record) => (
+      render: (_, r) => (
         <Space>
+          <Button icon={<EditOutlined />} type="text" onClick={() => handleOpenEdit(r)} />
           <Button
+            icon={r.isActive ? <LockOutlined /> : <UnlockOutlined />}
             type="text"
-            icon={<EditOutlined />}
-            onClick={() => openEditModal(record)}
+            danger={r.isActive}
+            style={{ color: !r.isActive ? '#52c41a' : undefined }}
+            onClick={() => toggleStatusMutation.mutate(r.id)}
           />
-          <Button
-            type="text"
-            icon={record.isActive ? <LockOutlined /> : <UnlockOutlined />}
-            onClick={() => handleToggleStatus(record.id)}
-            style={{ color: record.isActive ? '#ff4d4f' : '#52c41a' }}
-          />
-          <Popconfirm
-            title="Xóa người dùng này?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Xóa"
-            cancelText="Hủy"
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} />
+          <Popconfirm title="Xóa người dùng?" onConfirm={() => deleteMutation.mutate(r.id)}>
+            <Button icon={<DeleteOutlined />} type="text" danger />
           </Popconfirm>
         </Space>
       ),
     },
   ];
 
+  // --- Form Content (Reusable) ---
+  const renderFormContent = () => (
+    <>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="fullName"
+            label="Họ và tên"
+            rules={[{ required: true, message: 'Nhập họ tên' }]}
+          >
+            <Input placeholder="Nguyễn Văn A" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, type: 'email', message: 'Email không hợp lệ' }]}
+          >
+            <Input placeholder="email@smd.edu.vn" />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="role"
+            label="Vai trò"
+            rules={[{ required: true, message: 'Chọn vai trò' }]}
+          >
+            <Select onChange={setSelectedRole} placeholder="Chọn vai trò">
+              {Object.entries(roleLabels).map(([key, label]) => (
+                <Option key={key} value={key}>
+                  {label}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item name="phone" label="Số điện thoại">
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Chỉ hiện Khoa/Bộ môn nếu Role là LECTURER hoặc HOD */}
+      {(selectedRole === 'LECTURER' || selectedRole === 'HOD') && (
+        <Row
+          gutter={16}
+          style={{
+            background: '#f5f5f5',
+            padding: '10px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+          }}
+        >
+          <Col span={24}>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+              Thông tin đơn vị công tác:
+            </Text>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="facultyId"
+              label="Khoa"
+              rules={[{ required: true, message: 'Vui lòng chọn Khoa' }]}
+            >
+              <Select
+                placeholder="Chọn Khoa"
+                showSearch
+                optionFilterProp="label"
+                options={faculties?.map((f) => ({ label: f.name, value: f.id }))}
+                onChange={(val) => {
+                  setSelectedFacultyId(val);
+                  form.setFieldValue('departmentId', undefined); // Reset bộ môn khi đổi khoa
+                }}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="departmentId"
+              label="Bộ môn"
+              rules={[{ required: true, message: 'Vui lòng chọn Bộ môn' }]}
+            >
+              <Select
+                placeholder={!selectedFacultyId ? 'Chọn Khoa trước' : 'Chọn Bộ môn'}
+                showSearch
+                optionFilterProp="label"
+                disabled={!selectedFacultyId}
+                options={departments?.map((d) => ({ label: d.name, value: d.id }))}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+      )}
+
+      {!selectedUser && (
+        <Form.Item
+          name="password"
+          label="Mật khẩu khởi tạo"
+          initialValue="Smd@123456"
+          help="Mặc định: Smd@123456"
+        >
+          <Input.Password />
+        </Form.Item>
+      )}
+
+      {selectedUser && (
+        <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+          <Select>
+            <Option value={true}>Hoạt động</Option>
+            <Option value={false}>Đang khóa</Option>
+          </Select>
+        </Form.Item>
+      )}
+    </>
+  );
+
   return (
-    <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2} style={{ margin: 0 }}>
-          Quản lý Người dùng
+    <div style={{ padding: 24 }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Title level={4} style={{ margin: 0 }}>
+          Quản lý người dùng
         </Title>
         <Space>
           <Button icon={<UploadOutlined />} onClick={() => setIsImportModalVisible(true)}>
             Import CSV
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)}>
-            Tạo người dùng
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+            Thêm mới
           </Button>
         </Space>
       </div>
 
       <Card>
-        <Space style={{ marginBottom: 16 }} size="middle">
+        <Space style={{ marginBottom: 16 }}>
           <Input
-            placeholder="Tìm theo tên hoặc email..."
+            placeholder="Tìm tên hoặc email..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: 250 }}
             allowClear
           />
           <Select
             placeholder="Lọc theo vai trò"
-            style={{ width: 200 }}
-            onChange={setRoleFilter}
             allowClear
+            onChange={setRoleFilter}
+            style={{ width: 180 }}
           >
             {Object.entries(roleLabels).map(([key, label]) => (
-              <Option key={key} value={key}>{label}</Option>
+              <Option key={key} value={key}>
+                {label}
+              </Option>
             ))}
           </Select>
           <Select
-            placeholder="Lọc theo trạng thái"
-            style={{ width: 150 }}
-            onChange={setStatusFilter}
+            placeholder="Trạng thái"
             allowClear
+            onChange={setStatusFilter}
+            style={{ width: 120 }}
           >
-            <Option value={true}>Hoạt động</Option>
-            <Option value={false}>Bị khóa</Option>
+            <Option value={true}>Active</Option>
+            <Option value={false}>Locked</Option>
           </Select>
         </Space>
 
         <Table
           columns={columns}
-          dataSource={users}
-          rowKey="id"
+          dataSource={userResponse?.data || []}
           loading={isLoading}
+          rowKey="id"
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: userResponse?.total || 0,
+            showSizeChanger: true,
+            onChange: (page, size) => setPagination({ current: page, pageSize: size }),
+            showTotal: (total) => `Tổng ${total} user`,
+          }}
           scroll={{ x: 1000 }}
         />
       </Card>
 
       {/* Create Modal */}
       <Modal
-        title="Tạo người dùng mới"
+        title="Thêm người dùng mới"
         open={isCreateModalVisible}
-        onCancel={() => {
-          setIsCreateModalVisible(false);
-          setSelectedRole(undefined);
-          setSelectedDepartment(undefined);
-          setSelectedFacultyId(undefined);
-          form.resetFields();
-        }}
+        onCancel={() => setIsCreateModalVisible(false)}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
-        width={600}
+        width={700}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
-            <Select onChange={(value) => setSelectedRole(value)}>
-              {Object.entries(roleLabels).map(([key, label]) => (
-                <Option key={key} value={key}>{label}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
-            <Input />
-          </Form.Item>
-          <Form.Item 
-            name="facultyId" 
-            label="Khoa"
-            rules={[
-              { 
-                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD, 
-                message: 'Vui lòng chọn khoa' 
-              }
-            ]}
-          >
-            <Select 
-              placeholder="Chọn khoa"
-              showSearch
-              allowClear
-              onChange={(value) => {
-                setSelectedFacultyId(value);
-                form.setFieldValue('departmentId', undefined);
-              }}
-              options={faculties?.map(f => ({
-                value: f.id,
-                label: f.name,
-              }))}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-          <Form.Item 
-            name="departmentId" 
-            label="Bộ môn"
-            rules={[
-              { 
-                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD, 
-                message: 'Vui lòng chọn bộ môn' 
-              }
-            ]}
-          >
-            <Select 
-              placeholder="Chọn bộ môn"
-              showSearch
-              allowClear
-              disabled={!selectedFacultyId}
-              onChange={(value) => {
-                const dept = departments?.find(d => d.id === value);
-                setSelectedDepartment(dept?.name);
-              }}
-              options={departments?.map(d => ({
-                value: d.id,
-                label: d.name,
-              }))}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-          {selectedRole === UserRole.LECTURER && (
-            <Form.Item 
-              name="managerId" 
-              label="Trưởng bộ môn quản lý trực tiếp" 
-              rules={[{ required: true, message: 'Vui lòng chọn Trưởng bộ môn' }]}
-            >
-              <Select 
-                placeholder="Chọn Trưởng bộ môn"
-                showSearch
-                options={hods?.map(hod => ({
-                  value: hod.id,
-                  label: `${hod.fullName}${hod.department ? ` (${hod.department})` : ''}`,
-                }))}
-                filterOption={(input, option) =>
-                  String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-                }
-              />
-            </Form.Item>
-          )}
-          <Form.Item name="isActive" label="Trạng thái" initialValue={true}>
-            <Select>
-              <Option value={true}>Hoạt động</Option>
-              <Option value={false}>Khóa</Option>
-            </Select>
-          </Form.Item>
+        <Form form={form} layout="vertical" onFinish={createMutation.mutate}>
+          {renderFormContent()}
         </Form>
       </Modal>
 
       {/* Edit Modal */}
       <Modal
-        title="Chỉnh sửa người dùng"
+        title="Cập nhật thông tin"
         open={isEditModalVisible}
-        onCancel={() => {
-          setIsEditModalVisible(false);
-          setSelectedUser(null);
-          setSelectedRole(undefined);
-          setSelectedDepartment(undefined);
-          setSelectedFacultyId(undefined);
-          form.resetFields();
-        }}
+        onCancel={() => setIsEditModalVisible(false)}
         onOk={() => form.submit()}
         confirmLoading={updateMutation.isPending}
-        width={600}
+        width={700}
       >
-        <Form form={form} layout="vertical" onFinish={handleEdit}>
-          <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
-            <Select onChange={(value) => setSelectedRole(value)}>
-              {Object.entries(roleLabels).map(([key, label]) => (
-                <Option key={key} value={key}>{label}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
-            <Input />
-          </Form.Item>
-          <Form.Item 
-            name="facultyId" 
-            label="Khoa"
-            rules={[
-              { 
-                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD || selectedUser?.role === UserRole.LECTURER || selectedUser?.role === UserRole.HOD, 
-                message: 'Vui lòng chọn khoa' 
-              }
-            ]}
-          >
-            <Select 
-              placeholder="Chọn khoa"
-              showSearch
-              allowClear
-              onChange={(value) => {
-                setSelectedFacultyId(value);
-                form.setFieldValue('departmentId', undefined);
-              }}
-              options={faculties?.map(f => ({
-                value: f.id,
-                label: f.name,
-              }))}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-          <Form.Item 
-            name="departmentId" 
-            label="Bộ môn"
-            rules={[
-              { 
-                required: selectedRole === UserRole.LECTURER || selectedRole === UserRole.HOD || selectedUser?.role === UserRole.LECTURER || selectedUser?.role === UserRole.HOD, 
-                message: 'Vui lòng chọn bộ môn' 
-              }
-            ]}
-          >
-            <Select 
-              placeholder="Chọn bộ môn"
-              showSearch
-              allowClear
-              disabled={!selectedFacultyId}
-              onChange={(value) => {
-                const dept = departments?.find(d => d.id === value);
-                setSelectedDepartment(dept?.name);
-              }}
-              options={departments?.map(d => ({
-                value: d.id,
-                label: d.name,
-              }))}
-              filterOption={(input, option) =>
-                String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-          {(selectedRole === UserRole.LECTURER || selectedUser?.role === UserRole.LECTURER) && (
-            <Form.Item 
-              name="managerId" 
-              label="Trưởng bộ môn quản lý trực tiếp" 
-              rules={[{ required: true, message: 'Vui lòng chọn Trưởng bộ môn' }]}
-            >
-              <Select 
-                placeholder="Chọn Trưởng bộ môn"
-                showSearch
-                options={hods?.map(hod => ({
-                  value: hod.id,
-                  label: `${hod.fullName}${hod.department ? ` (${hod.department})` : ''}`,
-                }))}
-                filterOption={(input, option) =>
-                  String(option?.label || '').toLowerCase().includes(input.toLowerCase())
-                }
-              />
-            </Form.Item>
-          )}
-          <Form.Item name="isActive" label="Trạng thái">
-            <Select>
-              <Option value={true}>Hoạt động</Option>
-              <Option value={false}>Khóa</Option>
-            </Select>
-          </Form.Item>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) => updateMutation.mutate({ id: selectedUser!.id, data: values })}
+        >
+          {renderFormContent()}
         </Form>
       </Modal>
 
       {/* Import Modal */}
       <Modal
-        title="Import người dùng từ CSV"
+        title="Import Users từ CSV"
         open={isImportModalVisible}
         onCancel={() => setIsImportModalVisible(false)}
         footer={null}
       >
-        <Upload
+        <Upload.Dragger
           accept=".csv"
-          maxCount={1}
-          onChange={handleImport}
-          beforeUpload={() => false}
+          beforeUpload={(file) => {
+            importMutation.mutate(file);
+            return false;
+          }}
+          showUploadList={false}
+          disabled={importMutation.isPending}
         >
-          <Button icon={<UploadOutlined />} block>Chọn file CSV</Button>
-        </Upload>
-        <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
-          <p style={{ margin: 0, fontWeight: 500 }}>Format CSV:</p>
-          <code style={{ fontSize: '0.85rem' }}>
-            fullName,email,role,phone,faculty,department
-          </code>
-        </div>
+          <p className="ant-upload-drag-icon">
+            <UploadOutlined />
+          </p>
+          <p className="ant-upload-text">Kéo thả hoặc nhấn để chọn file CSV</p>
+          <p className="ant-upload-hint">
+            Format yêu cầu: email, fullName, role, phone (không có header)
+          </p>
+        </Upload.Dragger>
       </Modal>
     </div>
   );

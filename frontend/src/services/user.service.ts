@@ -1,7 +1,8 @@
 import { User, UserRole } from '@/types';
 import { apiClient as api } from '@/config/api-config';
 
-// API Response types
+// --- Interfaces & Types ---
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -23,7 +24,7 @@ interface UserApiResponse {
   fullName: string;
   phoneNumber?: string;
   status: string;
-  roles: string[];
+  roles: string[]; // Backend trả về Set<String> (Role Code)
   facultyId?: string;
   facultyName?: string;
   departmentId?: string;
@@ -32,42 +33,57 @@ interface UserApiResponse {
   updatedAt: string;
 }
 
-// Map backend role to frontend UserRole
+// Request type for create/update (Khớp với UserRequest.java của Backend)
+interface UserRequest {
+  email: string;
+  fullName: string;
+  phoneNumber?: string;
+  password?: string;
+  role?: string; // 🔥 QUAN TRỌNG: Backend chờ 'role', không phải 'roleCode'
+  status?: string; // 'ACTIVE' | 'INACTIVE'
+  facultyId?: string;
+  departmentId?: string;
+  managerId?: string;
+}
+
+// --- Helper Functions ---
+
+// Map backend role string[] to frontend UserRole Enum
 const mapRole = (roles: string[]): UserRole => {
-  // Use role code (first 3-8 chars) to map
+  if (!roles || roles.length === 0) return UserRole.LECTURER;
+
+  // Ưu tiên các role quyền cao hoặc đặc biệt
   for (const role of roles) {
-    if (role === 'Administrator' || role === 'ADMIN') return UserRole.ADMIN;
-    if (role === 'Principal' || role === 'PRINCIPAL') return UserRole.PRINCIPAL;
-    if (role === 'Academic Affairs' || role === 'AA') return UserRole.AA;
-    if (role === 'Head of Department' || role === 'HOD') return UserRole.HOD;
-    if (role === 'Lecturer' || role === 'LECTURER') return UserRole.LECTURER;
-    if (role === 'Student' || role === 'STUDENT') return UserRole.STUDENT;
+    if (role === 'ADMIN' || role === 'Administrator') return UserRole.ADMIN;
+    if (role === 'PRINCIPAL' || role === 'Principal') return UserRole.PRINCIPAL;
+    if (role === 'AA' || role === 'Academic Affairs') return UserRole.AA;
+    if (role === 'HOD' || role === 'Head of Department') return UserRole.HOD;
+    if (role === 'LECTURER' || role === 'Lecturer') return UserRole.LECTURER;
+    if (role === 'STUDENT' || role === 'Student') return UserRole.STUDENT;
   }
-  return UserRole.LECTURER; // default
+  return UserRole.LECTURER; // Fallback default
 };
 
-// Map API response to frontend User type
+// Map API response to frontend User object
 const mapToUser = (data: UserApiResponse): User => ({
   id: data.id,
   email: data.email,
   fullName: data.fullName,
   role: mapRole(data.roles),
   phone: data.phoneNumber,
+
+  // Map ID để binding vào Dropdown khi mở Form Edit
+  facultyId: data.facultyId,
   faculty: data.facultyName,
+  departmentId: data.departmentId,
   department: data.departmentName,
+
   isActive: data.status === 'ACTIVE',
   createdAt: data.createdAt,
-  lastLogin: data.updatedAt, // Using updatedAt as proxy for lastLogin
+  lastLogin: data.updatedAt,
 });
 
-// Request type for create/update
-interface UserRequest {
-  email: string;
-  fullName: string;
-  phoneNumber?: string;
-  password?: string;
-  roleCode?: string;
-}
+// --- Service Implementation ---
 
 export const userService = {
   // Get all users with filters
@@ -75,36 +91,30 @@ export const userService = {
     role?: UserRole;
     isActive?: boolean;
     search?: string;
-  }): Promise<User[]> => {
+    page?: number;
+    size?: number;
+  }): Promise<{ data: User[]; total: number; page: number; pageSize: number }> => {
+    // Trả về object chuẩn cho Antd Table
     try {
+      const params: any = {
+        page: filters?.page || 0,
+        size: filters?.size || 10,
+      };
+
+      if (filters?.role) params.role = filters.role;
+      if (filters?.isActive !== undefined) params.isActive = filters.isActive;
+      if (filters?.search) params.search = filters.search;
+
       const response = await api.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
-        params: {
-          page: 0,
-          size: 100,
-        },
+        params,
       });
 
-      let users = response.data.data.content.map(mapToUser);
-
-      // Apply client-side filtering
-      if (filters?.role) {
-        users = users.filter((u) => u.role === filters.role);
-      }
-
-      if (filters?.isActive !== undefined) {
-        users = users.filter((u) => u.isActive === filters.isActive);
-      }
-
-      if (filters?.search) {
-        const searchLower = filters.search.toLowerCase();
-        users = users.filter(
-          (u) =>
-            u.fullName.toLowerCase().includes(searchLower) ||
-            u.email.toLowerCase().includes(searchLower)
-        );
-      }
-
-      return users;
+      return {
+        data: response.data.data.content.map(mapToUser),
+        total: response.data.data.totalElements,
+        page: response.data.data.number + 1, // Convert 0-based to 1-based
+        pageSize: response.data.data.size,
+      };
     } catch (error) {
       console.error('Failed to fetch users from API:', error);
       throw error;
@@ -118,13 +128,20 @@ export const userService = {
   },
 
   // Create user
-  createUser: async (data: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): Promise<User> => {
+  createUser: async (data: any): Promise<User> => {
+    // 🔥 FIX: Mapping đúng field names theo Backend DTO
     const request: UserRequest = {
       email: data.email,
       fullName: data.fullName,
       phoneNumber: data.phone,
-      roleCode: data.role,
-      password: 'DefaultPass@123', // Default password, should be changed
+
+      role: data.role, // 🔥 Gửi key là 'role'
+
+      password: data.password || 'Smd@123456', // Default password
+      facultyId: data.facultyId,
+      departmentId: data.departmentId,
+      managerId: data.managerId,
+      status: data.isActive === false ? 'INACTIVE' : 'ACTIVE',
     };
 
     const response = await api.post<ApiResponse<UserApiResponse>>('/api/users', request);
@@ -132,15 +149,19 @@ export const userService = {
   },
 
   // Update user
-  updateUser: async (id: string, data: Partial<User>): Promise<User> => {
-    // Get existing user first
-    const existing = await userService.getUserById(id);
-
+  updateUser: async (id: string, data: any): Promise<User> => {
+    // Không cần gọi getUserById trước, gửi thẳng data cập nhật lên
     const request: UserRequest = {
-      email: data.email ?? existing.email,
-      fullName: data.fullName ?? existing.fullName,
-      phoneNumber: data.phone ?? existing.phone,
-      roleCode: data.role ?? existing.role,
+      email: data.email,
+      fullName: data.fullName,
+      phoneNumber: data.phone,
+
+      role: data.role, // 🔥 Gửi key là 'role'
+
+      facultyId: data.facultyId,
+      departmentId: data.departmentId,
+      managerId: data.managerId,
+      status: data.isActive === false ? 'INACTIVE' : 'ACTIVE',
     };
 
     const response = await api.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
@@ -154,73 +175,31 @@ export const userService = {
 
   // Toggle user status (lock/unlock)
   toggleUserStatus: async (id: string): Promise<User> => {
-    // Get current user status
-    const user = await userService.getUserById(id);
-    const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
-
-    const response = await api.patch<ApiResponse<UserApiResponse>>(`/api/users/${id}/status`, {
-      status: newStatus,
-    });
-
+    // Gọi endpoint mới trong Controller (không cần body JSON)
+    const response = await api.patch<ApiResponse<UserApiResponse>>(
+      `/api/users/${id}/toggle-status`
+    );
     return mapToUser(response.data.data);
   },
 
-  // Bulk import users from CSV
-  importUsers: async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
-    // TODO: Implement real API call for bulk import
-    // For now, simulate with delay
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      const errors: string[] = [];
-      let successCount = 0;
-      let failedCount = 0;
+  // 🔥 FIX: Bulk import users (Real API Call)
+  importUsers: async (
+    file: File
+  ): Promise<{ success: number; failed: number; errors: string[] }> => {
+    const formData = new FormData();
+    formData.append('file', file);
 
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result as string;
-          const lines = text.split('\n').filter((line) => line.trim());
-          const header = lines[0]?.toLowerCase();
-
-          // Validate CSV header
-          if (!header?.includes('email') || !header?.includes('fullname')) {
-            errors.push('CSV phải có các cột: email, fullName');
-            resolve({ success: 0, failed: lines.length - 1, errors });
-            return;
-          }
-
-          // Process rows
-          const headerCols = header.split(',').map((col) => col.trim());
-          const emailIndex = headerCols.indexOf('email');
-          const fullNameIndex = headerCols.indexOf('fullname');
-          const roleIndex = headerCols.indexOf('role');
-
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(',').map((col) => col.trim());
-            const email = cols[emailIndex];
-            const fullName = cols[fullNameIndex];
-            const role = cols[roleIndex];
-
-            if (!email || !fullName) {
-              errors.push(`Dòng ${i + 1}: Thiếu email hoặc tên`);
-              failedCount++;
-              continue;
-            }
-
-            successCount++;
-          }
-
-          resolve({ success: successCount, failed: failedCount, errors });
-        } catch {
-          errors.push('Lỗi xử lý file CSV');
-          resolve({ success: 0, failed: 0, errors });
-        }
-      };
-
-      reader.onerror = () => {
-        resolve({ success: 0, failed: 0, errors: ['Không đọc được file'] });
-      };
-
-      reader.readAsText(file);
-    });
+    try {
+      const response = await api.post<ApiResponse<any>>('/api/users/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      // Backend trả về: { success: 10, failed: 2, errors: [...] }
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Import API error:', error);
+      throw new Error(error?.response?.data?.message || 'Lỗi kết nối khi import file');
+    }
   },
 };

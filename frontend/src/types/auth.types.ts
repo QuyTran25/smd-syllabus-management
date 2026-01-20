@@ -23,6 +23,8 @@ export interface User {
   lastLogin?: string;
   managerId?: string; // ID của Trưởng bộ môn quản lý (chỉ cho LECTURER)
   managerName?: string; // Tên Trưởng bộ môn (auto-populate)
+  facultyId?: string;
+  departmentId?: string;
 }
 
 // Auth types
