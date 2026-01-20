@@ -22,7 +22,7 @@ export const StudentSyllabusListPage: React.FC = () => {
     sort: 'newest', // Mặc định là mới nhất
   });
 
-  // Đồng bộ URL -> Filters
+  // Đồng bộ URL -> Filters (Chạy 1 lần khi load trang hoặc khi URL đổi)
   useEffect(() => {
     const scope = searchParams.get('scope');
     if (scope && (scope === 'ALL' || scope === 'TRACKED')) {
@@ -30,18 +30,21 @@ export const StudentSyllabusListPage: React.FC = () => {
         setFilters((p) => ({ ...p, scope: scope as any }));
       }
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // Bỏ filters.scope khỏi dependency để tránh loop
 
   // Đồng bộ Filters -> URL
   useEffect(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('scope', filters.scope);
+      if (filters.scope) next.set('scope', filters.scope);
       return next;
     });
   }, [filters.scope, setSearchParams]);
 
   // Lấy dữ liệu từ Hook
+  // Lưu ý: Backend Java của bạn hiện trả về full list, nên filters truyền vào đây
+  // có thể chưa được backend xử lý, nhưng không sao, ta sẽ lọc ở client bên dưới.
   const { data, isLoading } = useStudentSyllabi(filters);
   const toggleTrack = useToggleTrack();
 
@@ -49,22 +52,30 @@ export const StudentSyllabusListPage: React.FC = () => {
 
   const trackedCount = useMemo(() => rows.filter((r) => r.tracked).length, [rows]);
 
-  // Tự động trích xuất danh sách options cho bộ lọc
-  const faculties = useMemo(() => Array.from(new Set(rows.map((x) => x.faculty))).sort(), [rows]);
-  const programs = useMemo(() => Array.from(new Set(rows.map((x) => x.program))).sort(), [rows]);
-  const terms = useMemo(() => Array.from(new Set(rows.map((x) => x.term))).sort(), [rows]);
+  // Trích xuất options cho bộ lọc
+  const faculties = useMemo(
+    () => Array.from(new Set(rows.map((x) => x.faculty).filter(Boolean))).sort(),
+    [rows]
+  );
+  const programs = useMemo(
+    () => Array.from(new Set(rows.map((x) => x.program).filter(Boolean))).sort(),
+    [rows]
+  );
+  const terms = useMemo(
+    () => Array.from(new Set(rows.map((x) => x.term).filter(Boolean))).sort(),
+    [rows]
+  );
 
   // --- LOGIC LỌC VÀ SẮP XẾP ---
   const filteredRows = useMemo(() => {
     // 1. Lọc dữ liệu (Filter)
-    const result = rows.filter((item) => {
-      // Lọc theo scope (Theo dõi)
+    let result = rows.filter((item) => {
+      // Lọc theo scope
       if (filters.scope === 'TRACKED' && !item.tracked) return false;
 
-      // Lọc theo từ khóa (Search)
+      // Lọc theo từ khóa
       if (filters.q) {
         const q = filters.q.toLowerCase();
-        // Kiểm tra an toàn
         const code = item.code?.toLowerCase() || '';
         const nameVi = item.nameVi?.toLowerCase() || '';
         const lecturer = item.lecturerName?.toLowerCase() || '';
@@ -74,7 +85,7 @@ export const StudentSyllabusListPage: React.FC = () => {
         }
       }
 
-      // Lọc theo các dropdown
+      // Lọc theo dropdown
       if (filters.faculty && item.faculty !== filters.faculty) return false;
       if (filters.program && item.program !== filters.program) return false;
       if (filters.term && item.term !== filters.term) return false;
@@ -82,21 +93,17 @@ export const StudentSyllabusListPage: React.FC = () => {
       return true;
     });
 
-    // 2. Sắp xếp dữ liệu (Sort)
+    // 2. Sắp xếp dữ liệu (Sort) - ĐÃ SỬA LỖI UUID
     return result.sort((a, b) => {
-      // SỬA LỖI: Dùng 'id' để sắp xếp thay vì 'createdAt'
-      // Giả sử ID là số (hoặc chuỗi số), ID lớn = Mới hơn
-      const idA = Number(a.id);
-      const idB = Number(b.id);
-
-      // Nếu id không phải số (ví dụ UUID), đoạn này sẽ không sort được theo thời gian.
-      // Khi đó bạn cần báo Back-end trả về thêm trường 'createdDate'.
+      // Ưu tiên sắp xếp theo ngày xuất bản (publishedAt)
+      const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
 
       if (filters.sort === 'newest') {
-        return idB - idA; // Mới nhất (ID lớn) lên đầu
+        return dateB - dateA; // Mới nhất lên đầu
       }
       if (filters.sort === 'oldest') {
-        return idA - idB; // Cũ nhất (ID nhỏ) lên đầu
+        return dateA - dateB; // Cũ nhất lên đầu
       }
       return 0;
     });
@@ -199,6 +206,7 @@ export const StudentSyllabusListPage: React.FC = () => {
                 <SyllabusCard
                   key={item.id}
                   item={item}
+                  // Đảm bảo đường dẫn này đúng với route chi tiết bạn đã định nghĩa
                   onOpen={(sid) => navigate(`/syllabi/${sid}`)}
                   onToggleTrack={(sid) => toggleTrack.mutate(sid)}
                 />
