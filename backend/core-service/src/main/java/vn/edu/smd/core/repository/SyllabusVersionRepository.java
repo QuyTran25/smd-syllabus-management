@@ -50,4 +50,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     
     // Count syllabi by status
     long countByStatusAndIsDeletedFalse(SyllabusStatus status);
+
+    // Thêm dòng này vào cuối interface SyllabusVersionRepository
+    Optional<SyllabusVersion> findFirstBySubjectIdAndStatusOrderByCreatedAtDesc(UUID subjectId, SyllabusStatus status);
 }
