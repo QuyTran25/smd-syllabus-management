@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Breadcrumb, Typography, Skeleton, Empty } from 'antd';
+import { Badge, Breadcrumb, Typography, Skeleton, Empty, Tooltip } from 'antd'; // Thêm Tooltip cho xịn
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StudentFilters } from '../components/StudentFilters';
 import { SyllabusCard } from '../components/SyllabusCard';
@@ -19,10 +19,10 @@ export const StudentSyllabusListPage: React.FC = () => {
     faculty: undefined,
     program: undefined,
     term: undefined,
-    sort: 'newest', // Mặc định là mới nhất
+    sort: 'newest',
   });
 
-  // Đồng bộ URL -> Filters (Chạy 1 lần khi load trang hoặc khi URL đổi)
+  // Đồng bộ URL -> Filters
   useEffect(() => {
     const scope = searchParams.get('scope');
     if (scope && (scope === 'ALL' || scope === 'TRACKED')) {
@@ -31,7 +31,7 @@ export const StudentSyllabusListPage: React.FC = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]); // Bỏ filters.scope khỏi dependency để tránh loop
+  }, [searchParams]);
 
   // Đồng bộ Filters -> URL
   useEffect(() => {
@@ -42,17 +42,12 @@ export const StudentSyllabusListPage: React.FC = () => {
     });
   }, [filters.scope, setSearchParams]);
 
-  // Lấy dữ liệu từ Hook
-  // Lưu ý: Backend Java của bạn hiện trả về full list, nên filters truyền vào đây
-  // có thể chưa được backend xử lý, nhưng không sao, ta sẽ lọc ở client bên dưới.
   const { data, isLoading } = useStudentSyllabi(filters);
   const toggleTrack = useToggleTrack();
 
   const rows = useMemo(() => data ?? [], [data]);
-
   const trackedCount = useMemo(() => rows.filter((r) => r.tracked).length, [rows]);
 
-  // Trích xuất options cho bộ lọc
   const faculties = useMemo(
     () => Array.from(new Set(rows.map((x) => x.faculty).filter(Boolean))).sort(),
     [rows]
@@ -68,24 +63,19 @@ export const StudentSyllabusListPage: React.FC = () => {
 
   // --- LOGIC LỌC VÀ SẮP XẾP ---
   const filteredRows = useMemo(() => {
-    // 1. Lọc dữ liệu (Filter)
     let result = rows.filter((item) => {
-      // Lọc theo scope
       if (filters.scope === 'TRACKED' && !item.tracked) return false;
 
-      // Lọc theo từ khóa
       if (filters.q) {
         const q = filters.q.toLowerCase();
         const code = item.code?.toLowerCase() || '';
         const nameVi = item.nameVi?.toLowerCase() || '';
         const lecturer = item.lecturerName?.toLowerCase() || '';
-
         if (!code.includes(q) && !nameVi.includes(q) && !lecturer.includes(q)) {
           return false;
         }
       }
 
-      // Lọc theo dropdown
       if (filters.faculty && item.faculty !== filters.faculty) return false;
       if (filters.program && item.program !== filters.program) return false;
       if (filters.term && item.term !== filters.term) return false;
@@ -93,21 +83,24 @@ export const StudentSyllabusListPage: React.FC = () => {
       return true;
     });
 
-    // 2. Sắp xếp dữ liệu (Sort) - ĐÃ SỬA LỖI UUID
     return result.sort((a, b) => {
-      // Ưu tiên sắp xếp theo ngày xuất bản (publishedAt)
       const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-
-      if (filters.sort === 'newest') {
-        return dateB - dateA; // Mới nhất lên đầu
-      }
-      if (filters.sort === 'oldest') {
-        return dateA - dateB; // Cũ nhất lên đầu
-      }
+      if (filters.sort === 'newest') return dateB - dateA;
+      if (filters.sort === 'oldest') return dateA - dateB;
       return 0;
     });
   }, [rows, filters]);
+
+  // 🔥 UX MỚI: Hàm xử lý khi bấm vào khung "Đang theo dõi"
+  const handleToggleScope = () => {
+    setFilters((prev) => ({
+      ...prev,
+      scope: prev.scope === 'TRACKED' ? 'ALL' : 'TRACKED',
+    }));
+  };
+
+  const isTrackedMode = filters.scope === 'TRACKED';
 
   return (
     <>
@@ -161,19 +154,39 @@ export const StudentSyllabusListPage: React.FC = () => {
           <Title level={4} style={{ margin: 0 }}>
             Chào bạn, Sinh viên! 👋
           </Title>
-          <Badge count={trackedCount}>
-            <div
-              style={{
-                border: '1px solid #ffe58f',
-                background: '#fff7e6',
-                padding: '6px 12px',
-                borderRadius: 6,
-                fontSize: 13,
-              }}
-            >
-              ⭐ Đang theo dõi: {trackedCount} đề cương
-            </div>
-          </Badge>
+
+          {/* 🔥 UX MỚI: Biến khung badge thành nút bấm */}
+          <Tooltip title={isTrackedMode ? 'Bấm để xem tất cả' : 'Bấm để xem danh sách yêu thích'}>
+            <Badge count={trackedCount} overflowCount={99}>
+              <div
+                onClick={handleToggleScope}
+                style={{
+                  border: isTrackedMode ? '1px solid #faad14' : '1px solid #ffe58f',
+                  background: isTrackedMode ? '#fffbe6' : '#fff7e6', // Màu nền thay đổi khi active
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  cursor: 'pointer', // Con trỏ chuột thành hình bàn tay
+                  transition: 'all 0.2s',
+                  userSelect: 'none',
+                  fontWeight: isTrackedMode ? 600 : 400,
+                  boxShadow: isTrackedMode ? '0 0 0 2px rgba(250, 173, 20, 0.2)' : 'none', // Hiệu ứng focus
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>⭐</span>
+                {isTrackedMode ? (
+                  <span style={{ color: '#d48806' }}>
+                    Đang xem: {filteredRows.length} yêu thích
+                  </span>
+                ) : (
+                  <span>Đang theo dõi: {trackedCount} đề cương</span>
+                )}
+              </div>
+            </Badge>
+          </Tooltip>
         </div>
 
         {/* Thanh lọc dữ liệu */}
@@ -206,12 +219,23 @@ export const StudentSyllabusListPage: React.FC = () => {
                 <SyllabusCard
                   key={item.id}
                   item={item}
-                  // Đảm bảo đường dẫn này đúng với route chi tiết bạn đã định nghĩa
                   onOpen={(sid) => navigate(`/syllabi/${sid}`)}
                   onToggleTrack={(sid) => toggleTrack.mutate(sid)}
                 />
               ))}
             </div>
+          )}
+
+          {/* Thông báo khi không có kết quả lọc */}
+          {!isLoading && rows.length > 0 && filteredRows.length === 0 && (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                isTrackedMode
+                  ? 'Bạn chưa theo dõi đề cương nào.'
+                  : 'Không tìm thấy kết quả phù hợp.'
+              }
+            />
           )}
         </div>
       </div>

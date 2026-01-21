@@ -21,6 +21,7 @@ import vn.edu.smd.shared.enums.SyllabusStatus;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -57,21 +58,37 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     public List<StudentSyllabusSummaryDto> getAll() {
         User student = getCurrentStudent();
         
-        // Lấy danh sách ID các môn đã theo dõi
-        Set<UUID> trackedIds = trackerRepository.findByStudentId(student.getId()).stream()
+        // Lấy danh sách ID các bản version đã theo dõi
+        Set<UUID> trackedVersionIds = trackerRepository.findByStudentId(student.getId()).stream()
                 .map(StudentSyllabusTracker::getSyllabusId)
                 .collect(Collectors.toSet());
 
-        // Chỉ lấy các syllabus có status = PUBLISHED
-        return versionRepository.findByStatusAndNotDeleted(SyllabusStatus.PUBLISHED).stream()
-                // Sắp xếp: Mới nhất lên đầu (publishedAt DESC)
-                .sorted((v1, v2) -> {
-                    if (v1.getPublishedAt() == null && v2.getPublishedAt() == null) return 0;
-                    if (v1.getPublishedAt() == null) return 1;
-                    if (v2.getPublishedAt() == null) return -1;
-                    return v2.getPublishedAt().compareTo(v1.getPublishedAt());
-                })
-                .map(version -> mapToSummaryDto(version, trackedIds))
+        // 1. Lấy tất cả các bản ghi Published
+        List<SyllabusVersion> allPublished = versionRepository.findByStatusAndNotDeleted(SyllabusStatus.PUBLISHED);
+
+        // 2. Sắp xếp: Mới nhất lên đầu (để khi lọc trùng sẽ lấy bản mới nhất)
+        allPublished.sort((v1, v2) -> {
+            if (v1.getPublishedAt() == null && v2.getPublishedAt() == null) return 0;
+            if (v1.getPublishedAt() == null) return 1;
+            if (v2.getPublishedAt() == null) return -1;
+            return v2.getPublishedAt().compareTo(v1.getPublishedAt());
+        });
+
+        // 3. Lọc trùng: Chỉ giữ lại 1 Version mới nhất cho mỗi Subject
+        // Map<SubjectId, SyllabusVersion>
+        Map<UUID, SyllabusVersion> uniqueSubjectMap = new LinkedHashMap<>();
+        
+        for (SyllabusVersion v : allPublished) {
+            if (v.getSubject() != null) {
+                // putIfAbsent chỉ thêm vào nếu key chưa tồn tại
+                // Vì danh sách đã sort mới nhất lên đầu, nên bản đầu tiên thêm vào chính là bản mới nhất
+                uniqueSubjectMap.putIfAbsent(v.getSubject().getId(), v);
+            }
+        }
+
+        // 4. Convert sang DTO
+        return uniqueSubjectMap.values().stream()
+                .map(version -> mapToSummaryDto(version, trackedVersionIds))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
@@ -82,7 +99,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
         User student = getCurrentStudent();
 
         // 🟢 FIX 1: Logic tìm kiếm thông minh (Fallback)
-        // Thử tìm theo ID (Version ID) trước. Nếu không thấy -> Tìm theo Subject ID
         SyllabusVersion version = versionRepository.findById(id)
                 .orElseGet(() -> {
                     log.warn("⚠️ [getById] ID {} không phải Version ID. Đang thử tìm theo Subject ID...", id);
@@ -91,7 +107,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 });
 
         // 🟢 FIX 2: Nới lỏng điều kiện Status (Chấp nhận cả APPROVED và PUBLISHED)
-        // Điều này giúp tránh lỗi 403 khi tải PDF nếu dữ liệu cũ chưa kịp update status
         if (version.getStatus() != SyllabusStatus.PUBLISHED && version.getStatus() != SyllabusStatus.APPROVED) {
             log.warn("⛔ [getById] Sinh viên {} cố truy cập đề cương {} trạng thái {}", student.getId(), version.getId(), version.getStatus());
             throw new BadRequestException("Đề cương chưa được xuất bản!");
@@ -102,7 +117,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
             throw new BadRequestException("Dữ liệu lỗi: Đề cương không gắn với môn học nào!");
         }
 
-        // Gọi hàm helper để map dữ liệu chi tiết (đã bao gồm logic parse JSON)
         return mapToDetailDto(version, subject, student.getId());
     }
 
@@ -146,7 +160,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     @Override
     @Transactional
     public void reportIssue(ReportIssueDto dto) {
-        // Logic tìm đề cương để báo lỗi (có fallback)
         SyllabusVersion version = versionRepository.findById(dto.getSyllabusId())
                 .orElseGet(() -> versionRepository.findFirstBySubjectIdAndStatusOrderByCreatedAtDesc(dto.getSyllabusId(), SyllabusStatus.PUBLISHED)
                         .orElseThrow(() -> new BadRequestException("Không tìm thấy đề cương để báo lỗi!")));
@@ -175,13 +188,11 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .build();
 
         errorReportRepository.save(report);
-        
-        // Gửi thông báo cho Admin
         notifyAdmins(student, version, sectionEnum);
     }
 
     // =================================================================
-    // CÁC HÀM HELPER (Giúp code gọn gàng, logic không bị thay đổi)
+    // CÁC HÀM HELPER
     // =================================================================
 
     private StudentSyllabusSummaryDto mapToSummaryDto(SyllabusVersion version, Set<UUID> trackedIds) {
@@ -196,7 +207,7 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
         String publishedAtStr = (version.getPublishedAt() != null) ? version.getPublishedAt().toLocalDate().toString() : null;
 
         return StudentSyllabusSummaryDto.builder()
-                .id(version.getId())
+                .id(version.getId()) // Trả về VersionID để frontend gọi getDetail/PDF đúng đích danh
                 .code(s.getCode())
                 .nameVi(s.getCurrentNameVi())
                 .term(termName)
@@ -215,19 +226,16 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     private StudentSyllabusDetailDto mapToDetailDto(SyllabusVersion version, Subject subject, UUID studentId) {
         boolean isTracked = trackerRepository.findByStudentIdAndSyllabusId(studentId, version.getId()).isPresent();
         
-        // Khởi tạo các list dữ liệu
         List<StudentSyllabusDetailDto.CloDto> cloDtos = new ArrayList<>();
         List<StudentSyllabusDetailDto.AssessmentDto> assessmentDtos = new ArrayList<>();
         List<String> textbooksList = new ArrayList<>();
         List<String> referencesList = new ArrayList<>();
         Map<String, List<String>> matrixMap = new HashMap<>();
 
-        // 1. Ưu tiên Parse từ JSON content
         if (version.getContent() != null) {
             parseContent(version.getContent(), cloDtos, assessmentDtos, textbooksList, referencesList, matrixMap);
         }
 
-        // 2. Fallback: Nếu JSON rỗng thì lấy từ DB (Giữ nguyên logic cũ của bạn)
         if (cloDtos.isEmpty()) fallbackClosFromDb(version.getId(), cloDtos, matrixMap);
         if (assessmentDtos.isEmpty()) fallbackAssessmentsFromDb(version.getId(), assessmentDtos);
 
@@ -260,7 +268,7 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .description(descriptionText)
                 .publishedAt(publishedAtStr)
                 .summaryInline(descriptionText)
-                .status("PUBLISHED") // Luôn trả về PUBLISHED để Frontend hiển thị đúng
+                .status("PUBLISHED")
                 .isTracked(isTracked)
                 .clos(cloDtos)
                 .ploList(ploCodeList)
@@ -275,7 +283,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .build();
     }
 
-    // Hàm này gộp logic parse JSON của cả CLO, Assessment, Textbooks, References vào một chỗ
     private void parseContent(Map<String, Object> content, 
                               List<StudentSyllabusDetailDto.CloDto> cloDtos,
                               List<StudentSyllabusDetailDto.AssessmentDto> assessmentDtos,
@@ -283,7 +290,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                               List<String> references,
                               Map<String, List<String>> matrixMap) {
         try {
-            // CLOs
             Object closObj = content.get("clos");
             if (closObj instanceof List) {
                 for (Object item : (List<?>) closObj) {
@@ -309,7 +315,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 }
             }
 
-            // Assessments
             Object assessObj = content.get("assessmentMethods");
             if (assessObj instanceof List) {
                 for (Object item : (List<?>) assessObj) {
@@ -332,7 +337,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 }
             }
 
-            // Textbooks
             Object tbObj = content.get("textbooks");
             if (tbObj instanceof List) {
                 for (Object item : (List<?>) tbObj) {
@@ -343,7 +347,6 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 }
             }
 
-            // References
             Object refObj = content.get("references");
             if (refObj instanceof String) {
                 references.addAll(Arrays.asList(((String) refObj).split("\\n")));

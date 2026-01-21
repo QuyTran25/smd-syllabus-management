@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Builder
 public class User {
 
-    @Id
+    @Id 
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
