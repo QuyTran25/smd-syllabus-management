@@ -1,6 +1,6 @@
 // API Configuration
-// ⭐ Gọi trực tiếp Core Service (8081) để test, khi deploy sẽ dùng Gateway
-export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8081';
+//  All requests MUST go through Gateway (port 8888)
+export const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8888';
 export const API_TIMEOUT = 10000;
 
 // Storage Keys

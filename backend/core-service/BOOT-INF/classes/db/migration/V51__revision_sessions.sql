@@ -93,8 +93,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_update_revision_session_timestamp ON core_service.revision_sessions;
-
 CREATE TRIGGER trigger_update_revision_session_timestamp
 BEFORE UPDATE ON core_service.revision_sessions
 FOR EACH ROW

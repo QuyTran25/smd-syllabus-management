@@ -79,8 +79,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ⭐ BẬT CORS cho phép frontend gọi trực tiếp (port 5173)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // ⭐ CORS handled by Gateway - Core Service không cần CORS config
+            // Khi dùng API Gateway pattern, chỉ Gateway xử lý CORS để tránh duplicate headers
+            .cors(AbstractHttpConfigurer::disable)
             
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
