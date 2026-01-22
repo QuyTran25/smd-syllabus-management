@@ -36,7 +36,7 @@ export interface PageResponse<T> {
 }
 
 class AuditLogService {
-  private baseUrl = '/api/audit-logs';
+  private baseUrl = '/audit-logs';
 
   async getAuditLogs(filters: AuditLogFilters = {}): Promise<PageResponse<AuditLog>> {
     const params = new URLSearchParams();

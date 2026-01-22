@@ -96,7 +96,7 @@ export const CourseManagementPage: React.FC = () => {
   const { data: faculties } = useQuery({
     queryKey: ['faculties'],
     queryFn: async () => {
-      const response = await api.get('/api/faculties/all');
+      const response = await api.get('/faculties/all');
       return response.data.data;
     },
   });
@@ -106,7 +106,7 @@ export const CourseManagementPage: React.FC = () => {
     queryKey: ['departments', selectedFacultyId],
     queryFn: async () => {
       if (!selectedFacultyId) return [];
-      const response = await api.get(`/api/faculties/${selectedFacultyId}/departments`);
+      const response = await api.get(`/faculties/${selectedFacultyId}/departments`);
       return response.data.data;
     },
     enabled: !!selectedFacultyId,
@@ -278,7 +278,7 @@ export const CourseManagementPage: React.FC = () => {
         type: prerequisiteData.type,
       });
       
-      const response = await api.post(`/api/subjects/${subjectId}/prerequisites`, prerequisiteData);
+      const response = await api.post(`/subjects/${subjectId}/prerequisites`, prerequisiteData);
       return response.data;
     },
     onSuccess: () => {
@@ -444,7 +444,7 @@ export const CourseManagementPage: React.FC = () => {
                 let facultyId = undefined;
                 if (fullSubject.departmentId) {
                   // Fetch department to get its parent faculty
-                  const deptResponse = await api.get(`/api/departments/${fullSubject.departmentId}`);
+                  const deptResponse = await api.get(`/departments/${fullSubject.departmentId}`);
                   const department = deptResponse.data.data;
                   // API trả về facultyId, không phải parentId
                   if (department.facultyId) {

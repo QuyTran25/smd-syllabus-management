@@ -58,7 +58,7 @@ const mapToSemester = (data: SemesterApiResponse): Semester => ({
 export const semesterService = {
   // Get all semesters
   getSemesters: async (filters?: SemesterFilters): Promise<Semester[]> => {
-    const response = await api.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/api/semesters', {
+    const response = await api.get<ApiResponse<PageResponse<SemesterApiResponse>>>('/semesters', {
       params: {
         page: 0,
         size: 100,
@@ -93,14 +93,14 @@ export const semesterService = {
 
   // Get semester by ID
   getSemesterById: async (id: string): Promise<Semester> => {
-    const response = await api.get<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`);
+    const response = await api.get<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`);
     return mapToSemester(response.data.data);
   },
 
   // Get active semester
   getActiveSemester: async (): Promise<Semester | null> => {
     try {
-      const response = await api.get<ApiResponse<SemesterApiResponse>>('/api/semesters/current');
+      const response = await api.get<ApiResponse<SemesterApiResponse>>('/semesters/current');
       return mapToSemester(response.data.data);
     } catch {
       // If no current semester is set, return null
@@ -120,7 +120,7 @@ export const semesterService = {
       isActive: data.isActive,
     };
 
-    const response = await api.post<ApiResponse<SemesterApiResponse>>('/api/semesters', request);
+    const response = await api.post<ApiResponse<SemesterApiResponse>>('/semesters', request);
     return mapToSemester(response.data.data);
   },
 
@@ -139,13 +139,13 @@ export const semesterService = {
       isActive: data.isActive ?? existing.isActive,
     };
 
-    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
+    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`, request);
     return mapToSemester(response.data.data);
   },
 
   // Delete semester
   deleteSemester: async (id: string): Promise<void> => {
-    await api.delete(`/api/semesters/${id}`);
+    await api.delete(`/semesters/${id}`);
   },
 
   // Set active semester (only one can be active at a time)
@@ -163,7 +163,7 @@ export const semesterService = {
       isActive: true,
     };
 
-    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/api/semesters/${id}`, request);
+    const response = await api.put<ApiResponse<SemesterApiResponse>>(`/semesters/${id}`, request);
     return mapToSemester(response.data.data);
   },
 };

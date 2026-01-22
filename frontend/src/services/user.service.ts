@@ -105,7 +105,7 @@ export const userService = {
       if (filters?.isActive !== undefined) params.isActive = filters.isActive;
       if (filters?.search) params.search = filters.search;
 
-      const response = await api.get<ApiResponse<PageResponse<UserApiResponse>>>('/api/users', {
+      const response = await api.get<ApiResponse<PageResponse<UserApiResponse>>>('/users', {
         params,
       });
 
@@ -123,7 +123,7 @@ export const userService = {
 
   // Get user by ID
   getUserById: async (id: string): Promise<User> => {
-    const response = await api.get<ApiResponse<UserApiResponse>>(`/api/users/${id}`);
+    const response = await api.get<ApiResponse<UserApiResponse>>(`/users/${id}`);
     return mapToUser(response.data.data);
   },
 
@@ -144,7 +144,7 @@ export const userService = {
       status: data.isActive === false ? 'INACTIVE' : 'ACTIVE',
     };
 
-    const response = await api.post<ApiResponse<UserApiResponse>>('/api/users', request);
+    const response = await api.post<ApiResponse<UserApiResponse>>('/users', request);
     return mapToUser(response.data.data);
   },
 
@@ -164,20 +164,20 @@ export const userService = {
       status: data.isActive === false ? 'INACTIVE' : 'ACTIVE',
     };
 
-    const response = await api.put<ApiResponse<UserApiResponse>>(`/api/users/${id}`, request);
+    const response = await api.put<ApiResponse<UserApiResponse>>(`/users/${id}`, request);
     return mapToUser(response.data.data);
   },
 
   // Delete user
   deleteUser: async (id: string): Promise<void> => {
-    await api.delete(`/api/users/${id}`);
+    await api.delete(`/users/${id}`);
   },
 
   // Toggle user status (lock/unlock)
   toggleUserStatus: async (id: string): Promise<User> => {
     // Gọi endpoint mới trong Controller (không cần body JSON)
     const response = await api.patch<ApiResponse<UserApiResponse>>(
-      `/api/users/${id}/toggle-status`
+      `/users/${id}/toggle-status`
     );
     return mapToUser(response.data.data);
   },
@@ -190,7 +190,7 @@ export const userService = {
     formData.append('file', file);
 
     try {
-      const response = await api.post<ApiResponse<any>>('/api/users/import', formData, {
+      const response = await api.post<ApiResponse<any>>('/users/import', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

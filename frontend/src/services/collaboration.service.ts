@@ -22,7 +22,7 @@ export const collaborationService = {
   // Get all collaborators for a syllabus
   getCollaboratorsBySyllabus: async (syllabusVersionId: string): Promise<CollaboratorDTO[]> => {
     const response = await apiClient.get<{ data: CollaboratorDTO[] }>(
-      `/api/collaboration-sessions/syllabus/${syllabusVersionId}`
+      `/collaboration-sessions/syllabus/${syllabusVersionId}`
     );
     return response.data.data;
   },
@@ -30,14 +30,14 @@ export const collaborationService = {
   // Get all collaborations where user is a collaborator
   getMyCollaborations: async (userId: string): Promise<CollaboratorDTO[]> => {
     const response = await apiClient.get<{ data: CollaboratorDTO[] }>(
-      `/api/collaboration-sessions/user/${userId}`
+      `/collaboration-sessions/user/${userId}`
     );
     return response.data.data;
   },
 
   // Add collaborator to syllabus
   addCollaborator: async (syllabusVersionId: string, userId: string, role: 'EDITOR' | 'VIEWER'): Promise<CollaboratorDTO> => {
-    const response = await apiClient.post<{ data: CollaboratorDTO }>('/api/collaboration-sessions', {
+    const response = await apiClient.post<{ data: CollaboratorDTO }>('/collaboration-sessions', {
       syllabusVersionId,
       userId,
       role,
@@ -47,13 +47,13 @@ export const collaborationService = {
 
   // Remove collaborator
   removeCollaborator: async (collaborationId: string): Promise<void> => {
-    await apiClient.delete(`/api/collaboration-sessions/${collaborationId}`);
+    await apiClient.delete(`/collaboration-sessions/${collaborationId}`);
   },
 
   // Update collaborator role
   updateCollaborator: async (collaborationId: string, role: 'EDITOR' | 'VIEWER'): Promise<CollaboratorDTO> => {
     const response = await apiClient.put<{ data: CollaboratorDTO }>(
-      `/api/collaboration-sessions/${collaborationId}`,
+      `/collaboration-sessions/${collaborationId}`,
       { role }
     );
     return response.data.data;

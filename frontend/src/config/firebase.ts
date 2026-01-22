@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import axios from 'axios';
+import { apiClient } from './api-config';
 
 // Firebase configuration từ Firebase Console
 const firebaseConfig = {
@@ -45,7 +45,7 @@ export const registerFCMToken = async () => {
         
         // Gửi token lên backend
         try {
-          await axios.put('/api/users/fcm-token', { token });
+          await apiClient.put('/users/fcm-token', { token });
           console.log('✅ FCM Token đã lưu vào backend');
         } catch (error) {
           console.error('❌ Lỗi lưu FCM token:', error);
@@ -72,7 +72,7 @@ export const registerFCMToken = async () => {
 export const unregisterFCMToken = async () => {
   try {
     // Xóa token khỏi backend
-    await axios.delete('/api/users/fcm-token');
+    await apiClient.delete('/users/fcm-token');
     console.log('✅ FCM Token đã xóa khỏi backend');
   } catch (error) {
     console.error('❌ Lỗi xóa FCM token:', error);

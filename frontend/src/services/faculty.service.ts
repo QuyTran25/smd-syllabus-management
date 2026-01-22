@@ -24,12 +24,12 @@ export interface Department {
 
 const facultyService = {
   getAllFaculties: async (): Promise<Faculty[]> => {
-    const response = await api.get<ApiResponse<Faculty[]>>('/api/faculties/all');
+    const response = await api.get<ApiResponse<Faculty[]>>('/faculties/all');
     return response.data.data;
   },
 
   getDepartmentsByFaculty: async (facultyId: string): Promise<Department[]> => {
-    const response = await api.get<ApiResponse<Department[]>>(`/api/departments/faculty/${facultyId}`);
+    const response = await api.get<ApiResponse<Department[]>>(`/departments/faculty/${facultyId}`);
     return response.data.data;
   },
 };

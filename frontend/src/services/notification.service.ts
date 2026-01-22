@@ -18,7 +18,7 @@ interface NotificationResponseDTO {
 export const notificationService = {
   async getNotifications(): Promise<Notification[]> {
     const response = await apiClient.get<{ success: boolean; data: NotificationResponseDTO[] }>(
-      '/api/notifications'
+      '/notifications'
     );
     
     // Map backend response to frontend format
@@ -38,20 +38,20 @@ export const notificationService = {
 
   async getUnreadCount(): Promise<number> {
     const response = await apiClient.get<{ success: boolean; data: number }>(
-      '/api/notifications/unread-count'
+      '/notifications/unread-count'
     );
     return response.data.data;
   },
 
   async markAsRead(notificationId: string): Promise<void> {
-    await apiClient.patch(`/api/notifications/${notificationId}/read`);
+    await apiClient.patch(`/notifications/${notificationId}/read`);
   },
 
   async markAllAsRead(): Promise<void> {
-    await apiClient.patch('/api/notifications/read-all');
+    await apiClient.patch('/notifications/read-all');
   },
 
   async deleteNotification(notificationId: string): Promise<void> {
-    await apiClient.delete(`/api/notifications/${notificationId}`);
+    await apiClient.delete(`/notifications/${notificationId}`);
   },
 };
