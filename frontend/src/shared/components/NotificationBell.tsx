@@ -107,7 +107,30 @@ const NotificationBell: React.FC = () => {
     
     // Navigate using actionUrl from payload if available
     if (notification.payload?.actionUrl) {
-      navigate(notification.payload.actionUrl);
+      let url = notification.payload.actionUrl;
+      
+      // Map backend URLs to frontend routes
+      // Principal routes: /principal/* -> /admin/*
+      if (url.startsWith('/principal/')) {
+        url = url.replace('/principal/', '/admin/');
+      }
+      
+      // HoD routes: /hod/approvals/* -> /admin/syllabi/*
+      if (url.startsWith('/hod/approvals/')) {
+        url = url.replace('/hod/approvals/', '/admin/syllabi/');
+      }
+      
+      // HoD general routes: /hod/* -> /admin/*
+      if (url.startsWith('/hod/')) {
+        url = url.replace('/hod/', '/admin/');
+      }
+      
+      // AA routes: /aa/* -> /admin/*
+      if (url.startsWith('/aa/')) {
+        url = url.replace('/aa/', '/admin/');
+      }
+      
+      navigate(url);
     } else if (notification.type === 'ASSIGNMENT' && notification.relatedEntityType === 'SUBJECT') {
       // Fallback for HOD assignment notification
       navigate('/admin/teaching-assignment');

@@ -22,8 +22,9 @@ const VAPID_KEY = "BHyaLLjx0t-1O5dIDWB5vdkLIUTM4Wmtj-g2ddFU-H33rr2JuApwzPP9hstZe
 
 /**
  * Đăng ký FCM token và gửi lên backend
+ * @param userId - ID của user hiện tại
  */
-export const registerFCMToken = async () => {
+export const registerFCMToken = async (userId: string) => {
   try {
     // Kiểm tra browser support
     if (!('Notification' in window)) {
@@ -68,8 +69,9 @@ export const registerFCMToken = async () => {
 
 /**
  * Unregister FCM token (khi logout)
+ * @param userId - ID của user hiện tại
  */
-export const unregisterFCMToken = async () => {
+export const unregisterFCMToken = async (userId: string) => {
   try {
     // Xóa token khỏi backend
     await apiClient.delete('/users/fcm-token');

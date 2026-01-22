@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
 import { App } from 'antd';
-import { STORAGE_KEYS } from '@/constants'; // ✅ Giữ nguyên import này
+import { STORAGE_KEYS } from '@/constants';
+import { useFCM } from '@/hooks/useFCM';
+import { unregisterFCMToken } from '@/config/firebase';
 
 // ✅ Giữ nguyên Interface của bạn
 interface AuthContextType extends AuthState {
@@ -24,6 +26,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 🟢 QUAN TRỌNG: Mặc định isLoading = TRUE để chặn UI khi mới vào trang
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // 🔔 Initialize FCM when user is authenticated
+  useFCM(!!user, user?.id);
 
   // LOGIC VERIFY TOKEN KHI F5
   useEffect(() => {
@@ -93,6 +98,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
+      // 🔔 Unregister FCM token from backend
+      if (user?.id) {
+        await unregisterFCMToken(user.id);
+      }
+      
       await authService.logout();
     } catch (e) {
       console.error(e);
