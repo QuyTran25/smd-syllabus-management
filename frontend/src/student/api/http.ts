@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/constants';
 
 export const http = axios.create({
-  // Địa chỉ backend của bạn
-  baseURL: 'http://localhost:8081/api',
+  // Use centralized Gateway URL
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },

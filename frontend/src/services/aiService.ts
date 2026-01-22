@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8081/api';
+import { API_BASE_URL } from '@/constants';
 
 export interface TaskStatusResponse {
   taskId: string;

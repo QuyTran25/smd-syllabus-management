@@ -37,6 +37,7 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     private final SyllabusErrorReportRepository errorReportRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final vn.edu.smd.core.module.studentfeedback.service.StudentFeedbackService studentFeedbackService;
 
     private User getCurrentStudent() {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -438,6 +439,15 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .editEnabled(false)
                 .build();
 
-        errorReportRepository.save(report);
+        report = errorReportRepository.save(report);
+        
+        // Gửi thông báo đến tất cả admins
+        try {
+            studentFeedbackService.notifyAdminsStudentReportedIssue(report);
+            log.info("✅ Notified admins about error report from student {}", student.getId());
+        } catch (Exception e) {
+            log.error("❌ Failed to notify admins about error report: {}", e.getMessage());
+            // Continue anyway, report is already saved
+        }
     }
 }

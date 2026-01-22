@@ -14,6 +14,7 @@ import vn.edu.smd.core.module.user.dto.AssignRolesRequest;
 import vn.edu.smd.core.module.user.dto.UpdateStatusRequest;
 import vn.edu.smd.core.module.user.dto.UserRequest;
 import vn.edu.smd.core.module.user.dto.UserResponse;
+import vn.edu.smd.core.module.user.dto.UpdateFcmTokenRequest;
 import vn.edu.smd.core.module.user.service.UserService;
 
 import java.util.Set;
@@ -88,5 +89,14 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> removeRole(@PathVariable UUID id, @PathVariable UUID roleId) {
         userService.removeRole(id, roleId);
         return ResponseEntity.ok(ApiResponse.success("Role removed successfully", null));
+    }
+    
+    @Operation(summary = "Update FCM token", description = "Update Firebase Cloud Messaging token for push notifications")
+    @PatchMapping("/{id}/fcm-token")
+    public ResponseEntity<ApiResponse<Void>> updateFcmToken(
+            @PathVariable UUID id, 
+            @Valid @RequestBody UpdateFcmTokenRequest request) {
+        userService.updateFcmToken(id, request.getToken());
+        return ResponseEntity.ok(ApiResponse.success("FCM token updated successfully", null));
     }
 }

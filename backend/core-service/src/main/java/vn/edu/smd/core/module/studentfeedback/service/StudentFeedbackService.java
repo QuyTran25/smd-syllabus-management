@@ -38,6 +38,7 @@ public class StudentFeedbackService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final RevisionService revisionService;
+    private final vn.edu.smd.core.service.FCMService fcmService;
 
     @Transactional(readOnly = true)
     public Page<StudentFeedbackResponse> getAllFeedbacks(Pageable pageable) {
@@ -288,5 +289,90 @@ public class StudentFeedbackService {
                 .build();
         
         notificationRepository.save(notification);
+    }
+    
+    /**
+     * Notify all admins when a student reports an issue with a syllabus
+     * Called from StudentSyllabusServiceImpl.reportIssue()
+     */
+    public void notifyAdminsStudentReportedIssue(SyllabusErrorReport report) {
+        // Find all users with ADMIN role
+        List<User> admins = userRepository.findByRoleName("ADMIN");
+        
+        if (admins.isEmpty()) {
+            log.warn("No admins found to notify about student error report {}", report.getId());
+            return;
+        }
+        
+        User student = report.getUser();
+        SyllabusVersion syllabus = report.getSyllabusVersion();
+        
+        String title = String.format("[Báo lỗi mới] Sinh viên báo lỗi đề cương %s", 
+                syllabus.getSnapSubjectCode());
+        
+        String message = String.format(
+                "Sinh viên %s đã báo lỗi:\n📍 Phần: %s\n📝 %s",
+                student.getFullName(),
+                report.getSection() != null ? report.getSection().getDisplayName() : "Khác",
+                report.getDescription());
+        
+        // Prepare payload with FCM data
+        java.util.Map<String, String> fcmData = new java.util.HashMap<>();
+        fcmData.put("notificationId", "");  // Will be set per notification
+        fcmData.put("type", "STUDENT_FEEDBACK");
+        fcmData.put("feedbackId", report.getId().toString());
+        fcmData.put("studentId", student.getId().toString());
+        fcmData.put("studentName", student.getFullName());
+        fcmData.put("syllabusId", syllabus.getId().toString());
+        fcmData.put("syllabusCode", syllabus.getSnapSubjectCode());
+        fcmData.put("section", report.getSection() != null ? report.getSection().name() : "OTHER");
+        fcmData.put("actionUrl", "/admin/student-feedback");
+        fcmData.put("actionLabel", "Xem báo lỗi");
+        
+        // Create notification payload for database
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("feedbackId", report.getId().toString());
+        payload.put("studentId", student.getId().toString());
+        payload.put("studentName", student.getFullName());
+        payload.put("syllabusId", syllabus.getId().toString());
+        payload.put("syllabusCode", syllabus.getSnapSubjectCode());
+        payload.put("section", report.getSection() != null ? report.getSection().name() : "OTHER");
+        payload.put("description", report.getDescription());
+        payload.put("actionUrl", "/admin/student-feedback");
+        payload.put("actionLabel", "Xem báo lỗi");
+        payload.put("priority", "HIGH");
+        
+        // Send notification to each admin
+        for (User admin : admins) {
+            try {
+                // Save to database
+                Notification notification = Notification.builder()
+                        .user(admin)
+                        .title(title)
+                        .message(message)
+                        .type(NotificationType.ERROR_REPORT.name())
+                        .payload(payload)
+                        .isRead(false)
+                        .relatedEntityType("FEEDBACK")
+                        .relatedEntityId(report.getId())
+                        .build();
+                
+                notification = notificationRepository.save(notification);
+                
+                // Send push notification via FCM
+                fcmData.put("notificationId", notification.getId().toString());
+                
+                // Truncate message for push notification (max 100 chars)
+                String pushBody = message.length() > 100 ? message.substring(0, 97) + "..." : message;
+                
+                fcmService.sendNotificationToUser(admin, title, pushBody, fcmData);
+                
+                log.info("✅ Notified admin {} about student error report {}", 
+                        admin.getEmail(), report.getId());
+            } catch (Exception e) {
+                log.error("❌ Failed to notify admin {} about error report {}: {}", 
+                        admin.getEmail(), report.getId(), e.getMessage());
+            }
+        }
     }
 }
