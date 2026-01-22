@@ -34,26 +34,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
     
-    // ❌ ĐÃ XÓA BEAN CORS Ở ĐÂY (Vì Gateway đã lo việc này rồi)
-    /*
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://localhost:5173", 
-            "http://localhost:5174"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
-        configuration.setAllowCredentials(true);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-    */
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -78,10 +58,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ❌ QUAN TRỌNG: Tắt cấu hình CORS ở Service con.
-            // Thay vì .cors(cors -> cors.configurationSource(...))
-            // Hãy dùng .cors(AbstractHttpConfigurer::disable) hoặc xóa dòng này đi.
-            .cors(AbstractHttpConfigurer::disable) 
+            .cors(AbstractHttpConfigurer::disable)
             
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

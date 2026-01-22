@@ -209,6 +209,16 @@ public class UserService {
         user.getUserRoles().remove(roleToRemove);
         userRepository.save(user);
     }
+    
+    @Transactional
+    public void updateFcmToken(UUID userId, String fcmToken) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        
+        user.setFcmToken(fcmToken);
+        user.setFcmTokenUpdatedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
 
     // --- 4. IMPORT ---
 

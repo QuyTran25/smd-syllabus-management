@@ -41,6 +41,7 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+    private final vn.edu.smd.core.module.studentfeedback.service.StudentFeedbackService studentFeedbackService;
 
     // Helper: Lấy sinh viên hiện tại từ Security Context
     private User getCurrentStudent() {
@@ -187,8 +188,19 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
                 .editEnabled(false)
                 .build();
 
-        errorReportRepository.save(report);
-        notifyAdmins(student, version, sectionEnum);
+        report = errorReportRepository.save(report);
+
+        // BƯỚC 2: GỬI THÔNG BÁO AN TOÀN (Kết hợp main và HEAD)
+        try {
+            // Sử dụng hàm notifyAdmins chi tiết của bạn thay vì hàm mặc định của server
+            notifyAdmins(student, version, sectionEnum);
+            
+            // Ghi log thành công (từ main)
+            log.info("✅ Notified admins about error report from student {}", student.getId());
+        } catch (Exception e) {
+            // Chỉ log lỗi, KHÔNG ném exception để tránh rollback giao dịch (người dùng vẫn báo lỗi thành công)
+            log.error("❌ Failed to notify admins about error report: {}", e.getMessage());
+        }
     }
 
     // =================================================================
@@ -389,15 +401,20 @@ public class StudentSyllabusServiceImpl implements StudentSyllabusService {
 
     private void notifyAdmins(User student, SyllabusVersion version, ErrorReportSection section) {
         String notificationTitle = "🚨 Báo lỗi từ sinh viên";
+        // Format tin nhắn chi tiết
         String notificationMessage = String.format("Sinh viên %s đã báo lỗi về đề cương '%s' (Phần: %s)",
                 student.getFullName(), version.getSubject().getCurrentNameVi(), section.toString());
 
+        // Lấy danh sách Admin
+        // LƯU Ý QUAN TRỌNG: Logic findAll() filter dưới đây chạy đúng nhưng có thể chậm nếu DB lớn.
+        // Tốt nhất nên viết query findByRoleName trong Repository. Nhưng hiện tại tôi giữ nguyên để code chạy được ngay.
         List<User> adminUsers = userRepository.findAll().stream()
                 .filter(u -> u.getUserRoles() != null && u.getUserRoles().stream()
                         .anyMatch(ur -> ur.getRole() != null && 
                                 ("Administrator".equals(ur.getRole().getName()) || "ADMIN".equals(ur.getRole().getCode()))))
                 .collect(Collectors.toList());
 
+        // Gửi thông báo
         for (User admin : adminUsers) {
             notificationService.createNotificationForUser(admin, notificationTitle, notificationMessage, "ERROR_REPORT");
         }

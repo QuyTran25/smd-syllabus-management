@@ -1,35 +1,46 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-
-// Hàm kiểm tra Token (Phiên bản Nâng cấp)
-const isStudentLoggedIn = () => {
-  // 1. Kiểm tra "mọi ngóc ngách" trong LocalStorage
-  const studentToken = localStorage.getItem('student_token');
-  const accessToken = localStorage.getItem('access_token'); // Key chuẩn của hệ thống
-
-  // Debug: In ra để xem lúc bị lỗi thì token đang là gì
-  // console.log("🔍 [RouteGuard] Checking Token:", { studentToken: !!studentToken, accessToken: !!accessToken });
-
-  // 2. Chỉ cần 1 trong 2 có giá trị là coi như Đã đăng nhập
-  return Boolean(studentToken || accessToken);
-};
+import { useAuth } from '@/features/auth/AuthContext'; // Import hook từ Context vừa sửa
+import { Spin } from 'antd';
 
 export default function StudentProtectedRoute({ children }: { children: React.ReactNode }) {
+  // Lấy trạng thái từ "Bộ não" AuthContext
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const hasToken = isStudentLoggedIn();
 
-  // 🛑 NẾU KHÔNG CÓ TOKEN -> CHẶN NGAY
-  if (!hasToken) {
-    console.error(
-      '⛔ [StudentProtectedRoute] BLOCKING! Không thấy Token trong LocalStorage -> Chuyển về Login.'
+  // 1. CHẶN CỬA (LOADING STATE):
+  // Nếu AuthContext đang gọi API verify token -> Hiện màn hình chờ.
+  // Không cho render children (trang Dashboard) lúc này.
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          background: '#f0f2f5',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        <Spin size="large" />
+        <span style={{ color: '#666', fontFamily: 'sans-serif', marginTop: 10 }}>
+          Đang kiểm tra thông tin sinh viên...
+        </span>
+      </div>
     );
+  }
 
-    // 👇 Nếu bạn muốn chắc chắn nó là thủ phạm, hãy bỏ comment dòng alert này:
-    // alert("⛔ [StudentProtectedRoute] Dừng lại! Tôi sắp đá bạn về Login vì không thấy Token đâu cả!");
+  // 2. KIỂM TRA XONG (DONE STATE):
+  // isLoading = false. Lúc này isAuthenticated là chính xác (do Server trả về).
 
+  if (!isAuthenticated) {
+    // Nếu verify thất bại hoặc không có user -> Đá về Login
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // ✅ CÓ TOKEN -> CHO QUA
+  // 3. HỢP LỆ: Mời vào Dashboard
   return <>{children}</>;
 }

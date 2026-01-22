@@ -16,6 +16,7 @@ import vn.edu.smd.core.module.user.dto.AssignRolesRequest;
 import vn.edu.smd.core.module.user.dto.UpdateStatusRequest;
 import vn.edu.smd.core.module.user.dto.UserRequest;
 import vn.edu.smd.core.module.user.dto.UserResponse;
+import vn.edu.smd.core.module.user.dto.UpdateFcmTokenRequest;
 import vn.edu.smd.core.module.user.service.UserService;
 
 import java.util.Map;
@@ -36,7 +37,7 @@ public class UserController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String search,
-            Pageable pageable) {
+            @RequestParam(required = false) Pageable pageable) {
         // Truyền xuống Service nhưng service lúc này sẽ bỏ qua bộ lọc
         Page<UserResponse> users = userService.getAllUsers(role, isActive, search, pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(users)));
@@ -111,5 +112,15 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> removeRole(@PathVariable UUID id, @PathVariable UUID roleId) {
         userService.removeRole(id, roleId);
         return ResponseEntity.ok(ApiResponse.success("Role removed successfully", null));
+    }
+
+    // --- Added from origin/main ---
+    @Operation(summary = "Update FCM token", description = "Update Firebase Cloud Messaging token for push notifications")
+    @PatchMapping("/{id}/fcm-token")
+    public ResponseEntity<ApiResponse<Void>> updateFcmToken(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateFcmTokenRequest request) {
+        userService.updateFcmToken(id, request.getToken());
+        return ResponseEntity.ok(ApiResponse.success("FCM token updated successfully", null));
     }
 }

@@ -1,8 +1,14 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/constants';
 
 export const http = axios.create({
+<<<<<<< HEAD
   baseURL: 'http://localhost:8888/api',
 
+=======
+  // Use centralized Gateway URL
+  baseURL: `${API_BASE_URL}/api`,
+>>>>>>> origin/main
   headers: {
     'Content-Type': 'application/json',
   },

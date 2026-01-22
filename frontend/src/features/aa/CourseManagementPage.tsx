@@ -201,7 +201,24 @@ export const CourseManagementPage: React.FC = () => {
       setIsFormModalVisible(false);
       form.resetFields();
     },
-    onError: () => message.error('Thêm môn học thất bại'),
+    onError: (error: any) => {
+      console.error('Create subject error:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Extract validation errors from backend
+      const errorData = error.response?.data;
+      if (errorData?.message) {
+        message.error(`Thêm môn học thất bại: ${errorData.message}`);
+      } else if (errorData?.errors) {
+        // Display field-specific errors
+        const errorMessages = Object.entries(errorData.errors)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+        message.error(`Lỗi validation: ${errorMessages}`);
+      } else {
+        message.error('Thêm môn học thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
+    },
   });
 
   // Update mutation
@@ -633,6 +650,8 @@ export const CourseManagementPage: React.FC = () => {
               recommendedTerm: values.recommendedTerm,
               isActive: values.isActive !== false,
             };
+            
+            console.log('📤 Sending payload to backend:', payload);
 
             try {
               if (editingCourse) {
