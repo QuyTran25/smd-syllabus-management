@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   // 🔔 Initialize FCM when user is authenticated
-  useFCM(!!user);
+  useFCM(!!user, user?.id);
 
   // 2. LOGIC "VERIFY FIRST": Kiểm tra Token với Server khi App khởi động
   useEffect(() => {
@@ -92,7 +92,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       // 🔔 Unregister FCM token from backend
-      await unregisterFCMToken();
+      if (user?.id) {
+        await unregisterFCMToken(user.id);
+      }
       
       await authService.logout(); // Gọi API logout nếu có
     } catch (e) {

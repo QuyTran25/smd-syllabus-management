@@ -10,14 +10,14 @@ import type { MessagePayload } from 'firebase/messaging';
  * - Listens for foreground messages
  * - Auto-refreshes notification list when receiving new notifications
  */
-export const useFCM = (isAuthenticated: boolean) => {
+export const useFCM = (isAuthenticated: boolean, userId?: string) => {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { notification } = App.useApp();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      console.log('⏭️ User not authenticated, skipping FCM registration');
+    if (!isAuthenticated || !userId) {
+      console.log('⏭️ User not authenticated or userId not available, skipping FCM registration');
       return;
     }
 
@@ -25,7 +25,7 @@ export const useFCM = (isAuthenticated: boolean) => {
     const initFCM = async () => {
       try {
         console.log('🔔 Initializing FCM...');
-        const token = await registerFCMToken();
+        const token = await registerFCMToken(userId);
         
         if (token) {
           setFcmToken(token);
@@ -74,7 +74,7 @@ export const useFCM = (isAuthenticated: boolean) => {
       console.log('🧹 Cleaning up FCM listener');
       unsubscribe();
     };
-  }, [isAuthenticated, queryClient, notification]);
+  }, [isAuthenticated, userId, queryClient, notification]);
 
   return { fcmToken };
 };
