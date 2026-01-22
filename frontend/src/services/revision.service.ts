@@ -12,7 +12,7 @@ export const revisionService = {
    */
   startRevision: async (request: StartRevisionRequest): Promise<RevisionSession> => {
     const response = await api.post<{ data: RevisionSession }>(
-      '/api/revisions/start',
+      '/revisions/start',
       request
     );
     return response.data.data;
@@ -23,7 +23,7 @@ export const revisionService = {
    */
   submitRevision: async (request: SubmitRevisionRequest): Promise<RevisionSession> => {
     const response = await api.post<{ data: RevisionSession }>(
-      '/api/revisions/submit',
+      '/revisions/submit',
       request
     );
     return response.data.data;
@@ -34,7 +34,7 @@ export const revisionService = {
    */
   reviewRevision: async (request: ReviewRevisionRequest): Promise<RevisionSession> => {
     const response = await api.post<{ data: RevisionSession }>(
-      '/api/revisions/review',
+      '/revisions/review',
       request
     );
     return response.data.data;
@@ -45,7 +45,7 @@ export const revisionService = {
    */
   republishSyllabus: async (sessionId: string): Promise<RevisionSession> => {
     const response = await api.post<{ data: RevisionSession }>(
-      `/api/revisions/${sessionId}/republish`
+      `/revisions/${sessionId}/republish`
     );
     return response.data.data;
   },
@@ -55,7 +55,7 @@ export const revisionService = {
    */
   getPendingHodReview: async (): Promise<RevisionSession[]> => {
     const response = await api.get<{ data: RevisionSession[] }>(
-      '/api/revisions/pending-hod'
+      '/revisions/pending-hod'
     );
     return response.data.data;
   },
@@ -65,7 +65,7 @@ export const revisionService = {
    */
   getPendingRepublish: async (): Promise<RevisionSession[]> => {
     const response = await api.get<{ data: RevisionSession[] }>(
-      '/api/revisions/pending-republish'
+      '/revisions/pending-republish'
     );
     return response.data.data;
   },
@@ -76,7 +76,7 @@ export const revisionService = {
   getActiveRevisionSession: async (syllabusId: string): Promise<RevisionSession | null> => {
     try {
       const response = await api.get<{ data: RevisionSession }>(
-        `/api/revisions/syllabus/${syllabusId}/active`
+        `/revisions/syllabus/${syllabusId}/active`
       );
       return response.data.data;
     } catch (error: any) {
@@ -94,7 +94,7 @@ export const revisionService = {
   getCompletedRevisionSession: async (syllabusId: string): Promise<RevisionSession | null> => {
     try {
       const response = await api.get<{ data: RevisionSession }>(
-        `/api/revisions/syllabus/${syllabusId}/completed`
+        `/revisions/syllabus/${syllabusId}/completed`
       );
       return response.data.data;
     } catch (error: any) {

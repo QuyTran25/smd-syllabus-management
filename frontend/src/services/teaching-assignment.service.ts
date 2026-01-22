@@ -96,7 +96,7 @@ export const teachingAssignmentService = {
   // Get all teaching assignments
   getAll: async (page = 0, size = 20): Promise<TeachingAssignment[]> => {
     const response = await apiClient.get<{ data: TeachingAssignmentPageResponse }>(
-      `/api/teaching-assignments?page=${page}&size=${size}`
+      `/teaching-assignments?page=${page}&size=${size}`
     );
     return response.data.data.content.map(mapToTeachingAssignment);
   },
@@ -105,7 +105,7 @@ export const teachingAssignmentService = {
   getById: async (id: string): Promise<TeachingAssignment | null> => {
     try {
       const response = await apiClient.get<{ data: TeachingAssignmentDTO }>(
-        `/api/teaching-assignments/${id}`
+        `/teaching-assignments/${id}`
       );
       return mapToTeachingAssignment(response.data.data);
     } catch {
@@ -116,7 +116,7 @@ export const teachingAssignmentService = {
   // Get assignments by lecturer ID
   getByLecturerId: async (lecturerId: string): Promise<TeachingAssignment[]> => {
     const response = await apiClient.get<{ data: TeachingAssignmentDTO[] }>(
-      `/api/teaching-assignments/lecturer/${lecturerId}`
+      `/teaching-assignments/lecturer/${lecturerId}`
     );
     return response.data.data.map(mapToTeachingAssignment);
   },
@@ -131,7 +131,7 @@ export const teachingAssignmentService = {
     comments?: string;
   }): Promise<TeachingAssignment> => {
     const response = await apiClient.post<{ data: TeachingAssignmentDTO }>(
-      '/api/teaching-assignments',
+      '/teaching-assignments',
       data
     );
     return mapToTeachingAssignment(response.data.data);
@@ -151,7 +151,7 @@ export const teachingAssignmentService = {
       nameVi: string;
       nameEn: string;
       credits: number;
-    }> }>('/api/teaching-assignments/hod/subjects');
+    }> }>('/teaching-assignments/hod/subjects');
     return response.data.data;
   },
 
@@ -167,7 +167,7 @@ export const teachingAssignmentService = {
       fullName: string;
       email: string;
       phone?: string;
-    }> }>('/api/teaching-assignments/hod/lecturers');
+    }> }>('/teaching-assignments/hod/lecturers');
     return response.data.data;
   },
 };

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.common.exception.BadRequestException;
 import vn.edu.smd.core.common.exception.ResourceNotFoundException;
+import vn.edu.smd.core.common.util.AuditLogHelper;
 import vn.edu.smd.core.entity.User;
 import vn.edu.smd.core.module.auth.dto.*;
 import vn.edu.smd.core.repository.UserRepository;
@@ -31,51 +32,37 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final AuditLogHelper auditLogHelper;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().trim();
         String rawPassword = request.getPassword().trim();
 
-        System.out.println("=== LOGIN ATTEMPT ===");
-        System.out.println("Email: " + email);
-        System.out.println("Password length: " + rawPassword.length());
-        
-        // Debug: Check password directly
+        // 1. Kiểm tra User tồn tại để log login thất bại (nếu cần)
         User dbUser = userRepository.findByEmail(email).orElse(null);
-        if (dbUser != null) {
-            System.out.println("DB User found: " + dbUser.getEmail());
-            System.out.println("DB Hash: " + dbUser.getPasswordHash());
-            System.out.println("DB Hash length: " + (dbUser.getPasswordHash() != null ? dbUser.getPasswordHash().length() : 0));
-            boolean matches = passwordEncoder.matches(rawPassword, dbUser.getPasswordHash());
-            System.out.println("Direct password match: " + matches);
-        } else {
-            System.out.println("User NOT found in DB!");
-        }
 
         try {
-            System.out.println("Step 1: Calling authenticationManager.authenticate()");
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, rawPassword)
             );
-            System.out.println("Step 2: Authentication successful");
-            
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            System.out.println("Step 3: SecurityContext set");
             
             String accessToken = tokenProvider.generateToken(authentication);
-            System.out.println("Step 4: Access token generated");
-            
             String refreshToken = tokenProvider.generateRefreshToken(authentication);
-            System.out.println("Step 5: Refresh token generated");
             
-            System.out.println("=== LOGIN SUCCESS ===");
+            // 🔥 LOG LOGIN THÀNH CÔNG
+            if (dbUser != null) {
+                auditLogHelper.logLogin(dbUser.getId(), dbUser.getEmail(), true);
+            }
+            
             return new AuthResponse(accessToken, refreshToken);
         } catch (Exception e) {
-            System.out.println("=== LOGIN ERROR ===");
-            System.out.println("Exception type: " + e.getClass().getName());
-            System.out.println("Message: " + e.getMessage());
-            e.printStackTrace();
+            // 🔥 LOG LOGIN THẤT BẠI
+            if (dbUser != null) {
+                auditLogHelper.logLogin(dbUser.getId(), dbUser.getEmail(), false);
+            }
             throw e;
         }
     }
@@ -97,7 +84,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // Auto login after registration
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
@@ -108,8 +94,31 @@ public class AuthService {
         return new AuthResponse(accessToken, refreshToken);
     }
 
+    /**
+     * 🔥 FIX: Cập nhật logic Logout để ghi log trước khi xóa context
+     */
     public void logout() {
-        SecurityContextHolder.clearContext();
+        try {
+            // 1. Lấy thông tin người dùng hiện tại
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            
+            // 2. Kiểm tra xem có phải người dùng hợp lệ không (để tránh lỗi null)
+            if (auth != null && auth.getPrincipal() instanceof UserPrincipal) {
+                UserPrincipal userPrincipal = (UserPrincipal) auth.getPrincipal();
+                
+                // 3. Ghi log Logout
+                // Lưu ý: ID và Email lấy từ Principal (thông tin trong token)
+                auditLogHelper.logLogout(userPrincipal.getId(), userPrincipal.getEmail());
+                
+                System.out.println("✅ Đã ghi log logout cho user: " + userPrincipal.getEmail());
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Lỗi khi ghi log logout: " + e.getMessage());
+            // Không throw exception để quá trình logout vẫn diễn ra bình thường ở client
+        } finally {
+            // 4. Luôn luôn xóa context dù có lỗi hay không
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Transactional
@@ -140,15 +149,11 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
-        // TODO: Generate reset token and send email
-        // For now, just log
         log.info("Password reset requested for user: {}", user.getEmail());
     }
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        // TODO: Validate token and reset password
-        // For now, just throw exception
         throw new BadRequestException("Reset password feature not implemented yet");
     }
 
@@ -157,7 +162,6 @@ public class AuthService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-        // Use findByIdWithRoles to eager load roles and avoid LazyInitializationException
         User user = userRepository.findByIdWithRoles(userPrincipal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userPrincipal.getId()));
 

@@ -43,7 +43,7 @@ export const subjectService = {
   async getAllSubjects(page = 0, size = 100): Promise<Subject[]> {
     try {
       const response = await apiClient.get<SubjectResponse>(
-        `/api/subjects?page=${page}&size=${size}`
+        `/subjects?page=${page}&size=${size}`
       );
       return response.data.data.content || [];
     } catch (error) {
@@ -55,7 +55,7 @@ export const subjectService = {
   async getSubjectById(id: string): Promise<Subject | null> {
     try {
       const response = await apiClient.get<{ success: boolean; data: Subject }>(
-        `/api/subjects/${id}`
+        `/subjects/${id}`
       );
       return response.data.data;
     } catch (error) {
@@ -67,7 +67,7 @@ export const subjectService = {
   async getSubjectByCode(code: string): Promise<Subject | null> {
     try {
       const response = await apiClient.get<{ success: boolean; data: Subject }>(
-        `/api/subjects/code/${code}`
+        `/subjects/code/${code}`
       );
       return response.data.data;
     } catch (error) {
@@ -78,7 +78,7 @@ export const subjectService = {
 
   async createSubject(data: Partial<Subject>): Promise<Subject> {
     const response = await apiClient.post<{ success: boolean; data: Subject }>(
-      '/api/subjects',
+      '/subjects',
       data
     );
     return response.data.data;
@@ -86,14 +86,14 @@ export const subjectService = {
 
   async updateSubject(id: string, data: Partial<Subject>): Promise<Subject> {
     const response = await apiClient.put<{ success: boolean; data: Subject }>(
-      `/api/subjects/${id}`,
+      `/subjects/${id}`,
       data
     );
     return response.data.data;
   },
 
   async deleteSubject(id: string): Promise<void> {
-    await apiClient.delete(`/api/subjects/${id}`);
+    await apiClient.delete(`/subjects/${id}`);
   },
 
   // Relationship management
@@ -103,7 +103,7 @@ export const subjectService = {
     type: 'PREREQUISITE' | 'CO_REQUISITE' | 'REPLACEMENT' = 'PREREQUISITE'
   ): Promise<boolean> {
     const response = await apiClient.get<{ success: boolean; data: boolean }>(
-      `/api/subjects/${subjectId}/check-cycle`,
+      `/subjects/${subjectId}/check-cycle`,
       { params: { prerequisiteId, type } }
     );
     return response.data.data;
@@ -145,13 +145,13 @@ export const subjectService = {
     }>;
   }> {
     const response = await apiClient.get(
-      `/api/subjects/${subjectId}/relationships`
+      `/subjects/${subjectId}/relationships`
     );
     return response.data.data;
   },
 
   async deleteRelationship(subjectId: string, relationshipId: string): Promise<void> {
-    await apiClient.delete(`/api/subjects/${subjectId}/prerequisites/${relationshipId}`);
+    await apiClient.delete(`/subjects/${subjectId}/prerequisites/${relationshipId}`);
   },
 };
 

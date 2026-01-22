@@ -73,18 +73,18 @@ export const StudentLayout: React.FC = () => {
 
     { type: 'divider' },
 
-    {
-      key: 'tracked',
-      icon: <UserOutlined />,
-      label: 'Đề cương đang theo dõi',
-      onClick: () => navigate('/student/syllabi?scope=TRACKED'),
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Cài đặt',
-      onClick: () => navigate('/student/settings'),
-    },
+    // {
+    //   key: 'tracked',
+    //   icon: <UserOutlined />,
+    //   label: 'Đề cương đang theo dõi',
+    //   onClick: () => navigate('/student/syllabi?scope=TRACKED'),
+    // },
+    // {
+    //   key: 'settings',
+    //   icon: <SettingOutlined />,
+    //   label: 'Cài đặt',
+    //   onClick: () => navigate('/student/settings'),
+    // },
 
     { type: 'divider' },
 

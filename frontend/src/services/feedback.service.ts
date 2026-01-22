@@ -75,7 +75,7 @@ export const feedbackService = {
       params.append('sort', 'createdAt,desc');
       
       const response = await api.get<{ data: { content: StudentFeedbackResponse[] } }>(
-        `/api/student-feedbacks?${params.toString()}`
+        `/student-feedbacks?${params.toString()}`
       );
       
       let feedbacks = response.data.data.content.map(mapToStudentFeedback);
@@ -119,7 +119,7 @@ export const feedbackService = {
   // Get feedback by ID
   getFeedbackById: async (id: string): Promise<StudentFeedback> => {
     const response = await api.get<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}`
+      `/student-feedbacks/${id}`
     );
     return mapToStudentFeedback(response.data.data);
   },
@@ -132,7 +132,7 @@ export const feedbackService = {
     _respondedBy?: string
   ): Promise<StudentFeedback> => {
     const apiResponse = await api.post<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/respond`,
+      `/student-feedbacks/${id}/respond`,
       { response, enableEdit }
     );
     return mapToStudentFeedback(apiResponse.data.data);
@@ -141,7 +141,7 @@ export const feedbackService = {
   // Enable edit for lecturer
   enableEditForLecturer: async (id: string, _enabledBy: string): Promise<StudentFeedback> => {
     const response = await api.post<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/enable-edit`
+      `/student-feedbacks/${id}/enable-edit`
     );
     return mapToStudentFeedback(response.data.data);
   },
@@ -152,7 +152,7 @@ export const feedbackService = {
     status: FeedbackStatus
   ): Promise<StudentFeedback> => {
     const response = await api.patch<{ data: StudentFeedbackResponse }>(
-      `/api/student-feedbacks/${id}/status?status=${status}`
+      `/student-feedbacks/${id}/status?status=${status}`
     );
     return mapToStudentFeedback(response.data.data);
   },

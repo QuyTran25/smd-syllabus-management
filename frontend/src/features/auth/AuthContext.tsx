@@ -2,14 +2,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
 import { App } from 'antd';
-import { STORAGE_KEYS } from '@/constants';
-import { useFCM } from '@/hooks/useFCM';
-import { unregisterFCMToken } from '@/config/firebase';
+import { STORAGE_KEYS } from '@/constants'; // ✅ Giữ nguyên import này
 
+// ✅ Giữ nguyên Interface của bạn
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
+  isLoading: boolean; // Đảm bảo biến này được expose ra ngoài
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,48 +17,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { message } = App.useApp();
 
-  // 1. QUAN TRỌNG: Luôn khởi tạo user là NULL (Chưa tin ngay vào LocalStorage)
   const [user, setUser] = useState<User | null>(null);
-
-  // Lấy token ra để chuẩn bị đi kiểm tra
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem('student_token')
   );
 
-  const [isLoading, setIsLoading] = useState(true);
+  // 🟢 QUAN TRỌNG: Mặc định isLoading = TRUE để chặn UI khi mới vào trang
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 🔔 Initialize FCM when user is authenticated
-  useFCM(!!user, user?.id);
-
-  // 2. LOGIC "VERIFY FIRST": Kiểm tra Token với Server khi App khởi động
+  // LOGIC VERIFY TOKEN KHI F5
   useEffect(() => {
     const verifyToken = async () => {
+      // Lấy token từ các key định sẵn
       const storedToken =
         localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem('student_token');
 
       if (storedToken) {
         try {
-          console.log('🔄 Đang kiểm tra token với Server...');
-          // Gọi API verify token (API /me)
+          console.log('🔄 [AuthContext] Đang kiểm tra token với Server...');
+
+          // Gọi API verify token (Hàm này bạn đã có trong auth.service.ts)
           const currentUser = await authService.getCurrentUser(storedToken);
 
-          // Nếu Server trả về OK -> Set User -> Vào App
+          // Server OK -> Cập nhật State
           setUser(currentUser);
           setToken(storedToken);
-          console.log('✅ Token hợp lệ. Chào mừng:', currentUser.email);
+          console.log('✅ [AuthContext] Token hợp lệ:', currentUser.email);
         } catch (error) {
-          // Nếu Token hết hạn hoặc server lỗi -> XÓA SẠCH -> Văng ra Login
-          console.error('❌ Token không hợp lệ hoặc hết hạn.');
-          localStorage.clear();
+          console.error('❌ [AuthContext] Token hết hạn hoặc không hợp lệ.');
+
+          // Token hỏng -> Xóa sạch
+          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+          localStorage.removeItem('student_token');
+          localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+
           setUser(null);
           setToken(null);
         }
       } else {
-        // Không có token -> Chắc chắn là chưa đăng nhập
+        // Không có token
         setUser(null);
+        setToken(null);
       }
 
-      // Tắt màn hình chờ
+      // Dù thành công hay thất bại -> Tắt Loading để Router quyết định đi tiếp hay đá ra
       setIsLoading(false);
     };
 
@@ -66,16 +68,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       const response = await authService.login({ email, password });
 
       setUser(response.user);
       setToken(response.token);
 
-      // Lưu vào LocalStorage
+      // Lưu LocalStorage với STORAGE_KEYS chuẩn của bạn
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.token);
-      localStorage.setItem('student_token', response.token); // Lưu thêm key này cho chắc
+      localStorage.setItem('student_token', response.token); // Backup key
       localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
 
       message.success(`Chào mừng ${response.user.fullName}!`);
@@ -91,25 +93,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      // 🔔 Unregister FCM token from backend
-      if (user?.id) {
-        await unregisterFCMToken(user.id);
-      }
-      
-      await authService.logout(); // Gọi API logout nếu có
+      await authService.logout();
     } catch (e) {
       console.error(e);
     } finally {
-      localStorage.clear(); // Xóa sạch LocalStorage
+      // Xóa sạch LocalStorage với các Key chuẩn
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      localStorage.removeItem('student_token');
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+
       setUser(null);
       setToken(null);
       message.info('Đã đăng xuất');
-      // Reload trang để xóa sạch các state rác còn sót lại
       window.location.href = '/login';
     }
   };
 
-  const value = { user, token, isAuthenticated: !!user, isLoading, login, logout, setUser };
+  const value = {
+    user,
+    token,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    logout,
+    setUser,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

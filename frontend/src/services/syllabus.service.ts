@@ -43,7 +43,7 @@ export const syllabusService = {
       params.sort = `${pagination.sortBy},${pagination.sortOrder || 'ASC'}`;
     }
 
-    const response = await apiClient.get('/api/syllabi', { params });
+    const response = await apiClient.get('/syllabi', { params });
 
     return {
       data: response.data.data.content,
@@ -56,19 +56,19 @@ export const syllabusService = {
 
   // Get single syllabus by ID
   getSyllabusById: async (id: string): Promise<Syllabus> => {
-    const response = await apiClient.get(`/api/syllabi/${id}`);
+    const response = await apiClient.get(`/syllabi/${id}`);
     return response.data.data;
   },
 
   // Create new syllabus
   createSyllabus: async (data: Partial<Syllabus>): Promise<Syllabus> => {
-    const response = await apiClient.post('/api/syllabi', data);
+    const response = await apiClient.post('/syllabi', data);
     return response.data.data;
   },
 
   // Create syllabus from teaching assignment
   createSyllabusFromAssignment: async (teachingAssignmentId: string): Promise<Syllabus> => {
-    const response = await apiClient.post('/api/syllabi/from-assignment', {
+    const response = await apiClient.post('/syllabi/from-assignment', {
       teachingAssignmentId,
     });
     return response.data.data;
@@ -76,18 +76,18 @@ export const syllabusService = {
 
   // Update syllabus
   updateSyllabus: async (id: string, data: Partial<Syllabus>): Promise<Syllabus> => {
-    const response = await apiClient.put(`/api/syllabi/${id}`, data);
+    const response = await apiClient.put(`/syllabi/${id}`, data);
     return response.data.data;
   },
 
   // Delete syllabus
   deleteSyllabus: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/syllabi/${id}`);
+    await apiClient.delete(`/syllabi/${id}`);
   },
 
   // Submit syllabus for approval
   submitForApproval: async (id: string, comment?: string): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${id}/submit`, {
+    const response = await apiClient.patch(`/syllabi/${id}/submit`, {
       comment: comment || '',
     });
     return response.data.data;
@@ -95,7 +95,7 @@ export const syllabusService = {
 
   // Add review comment
   addComment: async (syllabusId: string, content: string): Promise<SyllabusComment> => {
-    const response = await apiClient.post('/api/review-comments', {
+    const response = await apiClient.post('/review-comments', {
       syllabusVersionId: syllabusId,
       content: content,
     });
@@ -104,7 +104,7 @@ export const syllabusService = {
 
   // Approval actions (Dành cho Hiệu trưởng/TBM)
   approveSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/approve`, {
+    const response = await apiClient.patch(`/syllabi/${action.syllabusId}/approve`, {
       comment: action.reason,
     });
     return response.data.data;
@@ -112,7 +112,7 @@ export const syllabusService = {
 
   // Reject syllabus
   rejectSyllabus: async (action: ApprovalAction): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${action.syllabusId}/reject`, {
+    const response = await apiClient.patch(`/syllabi/${action.syllabusId}/reject`, {
       comment: action.reason,
     });
     return response.data.data;
@@ -120,14 +120,14 @@ export const syllabusService = {
 
   // Get comments for syllabus
   getComments: async (syllabusId: string): Promise<SyllabusComment[]> => {
-    const response = await apiClient.get(`/api/review-comments/syllabus/${syllabusId}`);
+    const response = await apiClient.get(`/review-comments/syllabus/${syllabusId}`);
     return response.data.data;
   },
 
   // Get statistics
   // Resolved Conflict: Sử dụng API statistics của Backend để tối ưu hiệu năng
   getStatistics: async (): Promise<Record<string, number>> => {
-    const response = await apiClient.get('/api/syllabi/statistics');
+    const response = await apiClient.get('/syllabi/statistics');
     return response.data.data;
   },
 
@@ -174,7 +174,7 @@ export const syllabusService = {
     effectiveDate: string,
     comment?: string
   ): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${id}/publish`, {
+    const response = await apiClient.patch(`/syllabi/${id}/publish`, {
       effectiveDate,
       comment,
     });
@@ -183,19 +183,19 @@ export const syllabusService = {
 
   // 2. Unpublish syllabus (Gỡ bỏ)
   unpublishSyllabus: async (id: string, reason: string): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${id}/unpublish`, { reason });
+    const response = await apiClient.patch(`/syllabi/${id}/unpublish`, { reason });
     return response.data.data;
   },
 
   // 3. Archive syllabus (Lưu trữ)
   archiveSyllabus: async (id: string): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${id}/archive`);
+    const response = await apiClient.patch(`/syllabi/${id}/archive`);
     return response.data.data;
   },
 
   // 4. Update effective date
   updateEffectiveDate: async (id: string, effectiveDate: string): Promise<Syllabus> => {
-    const response = await apiClient.patch(`/api/syllabi/${id}/effective-date`, { effectiveDate });
+    const response = await apiClient.patch(`/syllabi/${id}/effective-date`, { effectiveDate });
     return response.data.data;
   },
 };

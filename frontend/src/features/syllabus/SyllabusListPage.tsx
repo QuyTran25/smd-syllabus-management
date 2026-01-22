@@ -11,12 +11,13 @@ import {
   Col,
   Typography,
   Tooltip,
-  message,
+  // message, // ❌ Xóa cái này
   Modal,
   Form,
   DatePicker,
   Descriptions,
   Timeline,
+  App, // ✅ 1. Thêm cái này
 } from 'antd';
 import {
   SearchOutlined,
@@ -27,11 +28,11 @@ import {
   StopOutlined,
   HistoryOutlined,
   ExclamationCircleOutlined,
-  EditOutlined,
+  // EditOutlined, // Không dùng thì có thể bỏ
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { syllabusService, feedbackService } from '@/services';
+import { syllabusService, feedbackService, syllabusAuditService } from '@/services';
 import { Syllabus, SyllabusStatus, SyllabusFilters, FeedbackStatus, UserRole } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig } from 'antd/es/table/interface';
@@ -43,6 +44,9 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 export const SyllabusListPage: React.FC = () => {
+  // ✅ 2. Khởi tạo Hook để lấy message và modal instance có chứa Context
+  const { message, modal } = App.useApp();
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -94,10 +98,13 @@ export const SyllabusListPage: React.FC = () => {
   // Publish mutation
   const publishMutation = useMutation({
     mutationFn: ({ id, effectiveDate }: { id: string; effectiveDate: string }) =>
-      // 🔥 FIX: Gọi publishSyllabus thay vì approveSyllabus
-      syllabusService.publishSyllabus(id, effectiveDate, `Xuất hành với ngày hiệu lực: ${effectiveDate}`),
+      syllabusAuditService.publishSyllabusWithLog(
+        id,
+        effectiveDate,
+        `Xuất hành với ngày hiệu lực: ${effectiveDate}`
+      ),
     onSuccess: () => {
-      message.success('Xuất hành đề cương thành công');
+      message.success('Xuất hành đề cương thành công'); // ✅ message này giờ là instance của useApp
       queryClient.invalidateQueries({ queryKey: ['syllabi'] });
       setPublishModalVisible(false);
       setSelectedSyllabus(null);
@@ -112,7 +119,7 @@ export const SyllabusListPage: React.FC = () => {
   // Unpublish mutation
   const unpublishMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      syllabusService.unpublishSyllabus(id, reason),
+      syllabusAuditService.unpublishSyllabusWithLog(id, reason),
     onSuccess: () => {
       message.success('Gỡ bỏ đề cương thành công');
       queryClient.invalidateQueries({ queryKey: ['syllabi'] });
@@ -159,7 +166,8 @@ export const SyllabusListPage: React.FC = () => {
   const handleUnpublish = (values: any) => {
     if (!selectedSyllabus) return;
 
-    Modal.confirm({
+    // ✅ 3. Đổi Modal.confirm thành modal.confirm (biến từ useApp)
+    modal.confirm({
       title: 'Xác nhận gỡ bỏ đề cương',
       icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
       content: (

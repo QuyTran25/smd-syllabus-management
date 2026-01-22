@@ -29,7 +29,12 @@ public class NotificationService {
 
     public List<NotificationResponse> getUserNotifications() {
         User currentUser = getCurrentUser();
-        return notificationRepository.findByUserOrderByCreatedAtDesc(currentUser).stream()
+        System.out.println("🔍 Getting notifications for user: " + currentUser.getId()); // Debug log
+        
+        List<Notification> notifications = notificationRepository.findByUserOrderByCreatedAtDesc(currentUser);
+        System.out.println("📨 Found " + notifications.size() + " notifications"); // Debug log
+        
+        return notifications.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -119,6 +124,21 @@ public class NotificationService {
         }
         
         return mapToResponse(saved);
+    }
+
+    @Transactional
+    public void createNotificationForUser(User user, String title, String message, String type) {
+        if (user == null) return;
+        
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setType(type != null ? type : "INFO");
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setIsRead(false);
+        notification.setCreatedAt(LocalDateTime.now());
+
+        notificationRepository.save(notification);
     }
 
     private NotificationResponse mapToResponse(Notification notification) {
