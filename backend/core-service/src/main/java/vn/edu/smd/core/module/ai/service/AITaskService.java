@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.edu.smd.core.config.RabbitMQConfig;
 import vn.edu.smd.core.entity.CLO;
 import vn.edu.smd.core.entity.AssessmentScheme;
@@ -114,14 +115,27 @@ public class AITaskService {
     /**
      * Request AI so sánh 2 phiên bản đề cương
      */
+    @Transactional(readOnly = true)
     public String requestCompareVersions(UUID oldVersionId, UUID newVersionId, 
                                          UUID subjectId, String userId) {
         String messageId = UUID.randomUUID().toString();
+        
+        // Query cả 2 versions từ database
+        SyllabusVersion oldVersion = syllabusVersionRepository.findByIdAndNotDeleted(oldVersionId)
+                .orElseThrow(() -> new RuntimeException("Old version not found: " + oldVersionId));
+        SyllabusVersion newVersion = syllabusVersionRepository.findByIdAndNotDeleted(newVersionId)
+                .orElseThrow(() -> new RuntimeException("New version not found: " + newVersionId));
+        
+        // Build full content cho mỗi version
+        Map<String, Object> oldVersionData = buildVersionData(oldVersion);
+        Map<String, Object> newVersionData = buildVersionData(newVersion);
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("old_version_id", oldVersionId.toString());
         payload.put("new_version_id", newVersionId.toString());
         payload.put("subject_id", subjectId.toString());
+        payload.put("old_version", oldVersionData);
+        payload.put("new_version", newVersionData);
         payload.put("comparison_depth", "DETAILED");
         
         AIMessageRequest message = AIMessageRequest.builder()
@@ -153,10 +167,32 @@ public class AITaskService {
                 }
         );
         
-        log.info("Sent COMPARE_VERSIONS request: messageId={}, oldVersion={}, newVersion={}", 
-                 messageId, oldVersionId, newVersionId);
+        log.info("Sent COMPARE_VERSIONS request: messageId={}, oldVersion={} (v{}), newVersion={} (v{})", 
+                 messageId, oldVersionId, oldVersion.getVersionNo(), newVersionId, newVersion.getVersionNo());
         
         return messageId;
+    }
+    
+    /**
+     * Helper method để build version data
+     */
+    private Map<String, Object> buildVersionData(SyllabusVersion version) {
+        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> content = version.getContent() != null ? version.getContent() : new HashMap<>();
+        
+        data.put("version_no", version.getVersionNo());
+        data.put("version_number", version.getVersionNumber());
+        data.put("status", version.getStatus().toString());
+        data.put("subject_code", version.getSnapSubjectCode());
+        data.put("subject_name", version.getSnapSubjectNameVi());
+        data.put("credit_count", version.getSnapCreditCount());
+        data.put("description", version.getDescription());
+        data.put("objectives", version.getObjectives());
+        data.put("content", content); // Full JSONB content (clos, assessments, etc.)
+        data.put("created_at", version.getCreatedAt());
+        data.put("updated_at", version.getUpdatedAt());
+        
+        return data;
     }
     
     // =============================================

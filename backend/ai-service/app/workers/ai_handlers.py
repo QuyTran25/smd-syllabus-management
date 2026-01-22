@@ -6,7 +6,7 @@ import logging
 import time
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 
 from app.config.settings import settings
@@ -270,70 +270,452 @@ class AIMessageHandler:
         """
         Handler cho COMPARE_VERSIONS - So sánh phiên bản
         
-        MOCK DATA
+        REAL IMPLEMENTATION with Gemini AI
         """
         old_version_id = payload.get('old_version_id')
         new_version_id = payload.get('new_version_id')
+        old_version = payload.get('old_version', {})
+        new_version = payload.get('new_version', {})
         
-        logger.info(f"🔍 Comparing versions: {old_version_id} → {new_version_id}")
+        logger.info(f"🔍 Comparing versions: {old_version.get('version_no')} → {new_version.get('version_no')}")
+        logger.info(f"📊 Old version: ID={old_version_id[:8]}..., version_no={old_version.get('version_no')}, CLOs={len(old_version.get('content', {}).get('clos', []))}")
+        logger.info(f"📊 New version: ID={new_version_id[:8]}..., version_no={new_version.get('version_no')}, CLOs={len(new_version.get('content', {}).get('clos', []))}")
         
-        time.sleep(3)  # 3 seconds
+        # Extract content from both versions
+        old_content = old_version.get('content', {})
+        new_content = new_version.get('content', {})
         
-        # MOCK RESULT
+        logger.info(f"📊 Comparing all sections of the syllabus")
+        
+        # Detect changes
+        changes = []
+        sections_affected = []
+        
+        # 1. Compare CLOs
+        old_clos = old_content.get('clos', [])
+        new_clos = new_content.get('clos', [])
+        if old_clos != new_clos:
+            sections_affected.append("learning_outcomes")
+            clo_changes = self._compare_clos(old_clos, new_clos)
+            if clo_changes:
+                changes.append({
+                    "section": "learning_outcomes",
+                    "section_title": "Mục tiêu học tập (CLOs)",
+                    "change_type": "MODIFIED",
+                    "changes": clo_changes
+                })
+        
+        # 2. Compare Assessment Schemes
+        old_assessments = old_content.get('assessment_schemes', [])
+        new_assessments = new_content.get('assessment_schemes', [])
+        if old_assessments != new_assessments:
+            sections_affected.append("assessment_schemes")
+            assessment_changes = self._compare_assessments(old_assessments, new_assessments)
+            if assessment_changes:
+                changes.append({
+                    "section": "assessment_schemes",
+                    "section_title": "Phương pháp đánh giá",
+                    "change_type": "MODIFIED",
+                    "changes": assessment_changes
+                })
+        
+        # 3. Compare Teaching Methods
+        old_methods = old_content.get('teaching_methods', [])
+        new_methods = new_content.get('teaching_methods', [])
+        if old_methods != new_methods:
+            sections_affected.append("teaching_methods")
+            method_changes = self._compare_teaching_methods(old_methods, new_methods)
+            if method_changes:
+                changes.append({
+                    "section": "teaching_methods",
+                    "section_title": "Phương pháp giảng dạy",
+                    "change_type": "MODIFIED",
+                    "changes": method_changes
+                })
+        
+        # 4. Compare Prerequisites
+        old_prereqs = old_content.get('prerequisites', [])
+        new_prereqs = new_content.get('prerequisites', [])
+        if old_prereqs != new_prereqs:
+            sections_affected.append("prerequisites")
+            prereq_changes = self._compare_prerequisites(old_prereqs, new_prereqs)
+            if prereq_changes:
+                changes.append({
+                    "section": "prerequisites",
+                    "section_title": "Môn học tiên quyết",
+                    "change_type": "MODIFIED",
+                    "changes": prereq_changes
+                })
+        
+        # 5. Compare Learning Materials
+        old_materials = old_content.get('learning_materials', [])
+        new_materials = new_content.get('learning_materials', [])
+        if old_materials != new_materials:
+            sections_affected.append("learning_materials")
+            material_changes = self._compare_learning_materials(old_materials, new_materials)
+            if material_changes:
+                changes.append({
+                    "section": "learning_materials",
+                    "section_title": "Tài liệu học tập",
+                    "change_type": "MODIFIED",
+                    "changes": material_changes
+                })
+        
+        # 6. Compare Weekly Plans
+        old_weekly = old_content.get('weekly_plans', [])
+        new_weekly = new_content.get('weekly_plans', [])
+        if old_weekly != new_weekly:
+            sections_affected.append("weekly_plans")
+            weekly_changes = self._compare_weekly_plans(old_weekly, new_weekly)
+            if weekly_changes:
+                changes.append({
+                    "section": "weekly_plans",
+                    "section_title": "Kế hoạch giảng dạy theo tuần",
+                    "change_type": "MODIFIED",
+                    "changes": weekly_changes
+                })
+        
+        # 7. Compare Description
+        if old_version.get('description') != new_version.get('description'):
+            sections_affected.append("description")
+            changes.append({
+                "section": "description",
+                "section_title": "Mô tả môn học",
+                "change_type": "MODIFIED",
+                "changes": [{
+                    "field": "Nội dung mô tả",
+                    "old_value": old_version.get('description', ''),
+                    "new_value": new_version.get('description', ''),
+                    "significance": "MEDIUM"
+                }]
+            })
+        
+        # 8. Compare Objectives
+        if old_version.get('objectives') != new_version.get('objectives'):
+            sections_affected.append("objectives")
+            changes.append({
+                "section": "objectives",
+                "section_title": "Mục tiêu môn học",
+                "change_type": "MODIFIED",
+                "changes": [{
+                    "field": "Nội dung mục tiêu",
+                    "old_value": old_version.get('objectives', ''),
+                    "new_value": new_version.get('objectives', ''),
+                    "significance": "HIGH"
+                }]
+            })
+        
+        # 9. Compare Credit Count
+        if old_version.get('credit_count') != new_version.get('credit_count'):
+            sections_affected.append("credit_count")
+            changes.append({
+                "section": "credit_count",
+                "section_title": "Số tín chỉ",
+                "change_type": "MODIFIED",
+                "changes": [{
+                    "field": "Số tín chỉ",
+                    "old_value": str(old_version.get('credit_count', '')),
+                    "new_value": str(new_version.get('credit_count', '')),
+                    "significance": "HIGH"
+                }]
+            })
+        
+        # Count change types
+        total_changes = len(changes)
+        major_changes = sum(1 for c in changes if any(ch.get('significance') == 'HIGH' for ch in c.get('changes', [])))
+        minor_changes = total_changes - major_changes
+        
+        # AI Analysis with Gemini
+        ai_analysis = self._get_ai_comparison_analysis(old_version, new_version, changes) if self.gemini_client and total_changes > 0 else None
+        
         result = {
             "is_first_version": False,
             "version_history": [
                 {
-                    "version_number": "NaN",
+                    "version_number": new_version.get('version_number', 1),
+                    "version_no": new_version.get('version_no', 'v1'),
                     "status": "Hiện tại",
-                    "created_by": "Trần Thị Lan",
-                    "created_at": "02/01/2026 08:24",
+                    "created_at": new_version.get('created_at', ''),
                     "is_current": True
                 },
                 {
-                    "version_number": "NaN",
-                    "status": "Phiên bản NaN",
-                    "created_by": "Trần Thị Lan",
-                    "created_at": "30/12/2025 16:20",
+                    "version_number": old_version.get('version_number', 1),
+                    "version_no": old_version.get('version_no', 'v1'),
+                    "status": old_version.get('status', 'REJECTED'),
+                    "created_at": old_version.get('created_at', ''),
                     "is_current": False
                 }
             ],
             "changes_summary": {
-                "total_changes": 3,
-                "major_changes": 2,
-                "minor_changes": 1,
-                "sections_affected": ["learning_outcomes", "assessment_scheme", "references"]
+                "total_changes": total_changes,
+                "major_changes": major_changes,
+                "minor_changes": minor_changes,
+                "sections_affected": sections_affected
             },
-            "detailed_changes": [
-                {
-                    "section": "learning_outcomes",
-                    "section_title": "Mục tiêu học tập",
-                    "change_type": "MODIFIED",
-                    "changes": [
-                        {
-                            "field": "CLO 1",
-                            "old_value": "Sinh viên hiểu các khái niệm cơ bản về CSDL",
-                            "new_value": "Sinh viên nắm vững và áp dụng được các khái niệm cơ bản về CSDL",
-                            "significance": "HIGH",
-                            "impact": "Tăng mức độ yêu cầu từ 'hiểu' lên 'áp dụng'"
-                        }
-                    ]
-                }
-            ],
-            "ai_analysis": {
-                "overall_assessment": "Phiên bản mới có cải thiện đáng kể về CLO và phương pháp đánh giá",
-                "key_improvements": [
-                    "CLO được nâng cấp từ mức độ 'hiểu' lên 'áp dụng', phù hợp với PLO",
-                    "Thêm bài tập nhóm giúp phát triển kỹ năng làm việc nhóm"
-                ],
-                "recommendations": [
-                    "Cân nhắc bổ sung rubric chi tiết cho bài tập nhóm"
-                ]
-            }
+            "detailed_changes": changes,
+            "ai_analysis": ai_analysis
         }
         
-        logger.info(f"✅ Version comparison completed")
+        logger.info(f"✅ Version comparison completed: {total_changes} changes detected")
         return result
+    
+    def _compare_clos(self, old_clos: List, new_clos: List) -> List[Dict]:
+        """So sánh CLOs giữa 2 versions"""
+        changes = []
+        
+        # Build maps by code
+        old_map = {clo.get('code'): clo for clo in old_clos}
+        new_map = {clo.get('code'): clo for clo in new_clos}
+        
+        # Find added CLOs
+        for code in new_map:
+            if code not in old_map:
+                changes.append({
+                    "field": f"CLO {code}",
+                    "old_value": None,
+                    "new_value": new_map[code].get('description'),
+                    "significance": "HIGH",
+                    "impact": "Thêm mới CLO"
+                })
+        
+        # Find removed CLOs
+        for code in old_map:
+            if code not in new_map:
+                changes.append({
+                    "field": f"CLO {code}",
+                    "old_value": old_map[code].get('description'),
+                    "new_value": None,
+                    "significance": "HIGH",
+                    "impact": "Xóa CLO"
+                })
+        
+        # Find modified CLOs
+        for code in old_map:
+            if code in new_map:
+                old_clo = old_map[code]
+                new_clo = new_map[code]
+                if old_clo.get('description') != new_clo.get('description'):
+                    changes.append({
+                        "field": f"CLO {code}",
+                        "old_value": old_clo.get('description'),
+                        "new_value": new_clo.get('description'),
+                        "significance": "HIGH",
+                        "impact": "Thay đổi nội dung CLO"
+                    })
+        
+        return changes
+    
+    def _compare_assessments(self, old_assessments: List, new_assessments: List) -> List[Dict]:
+        """So sánh assessment schemes"""
+        changes = []
+        
+        # Build maps by type
+        old_map = {a.get('assessment_type'): a for a in old_assessments}
+        new_map = {a.get('assessment_type'): a for a in new_assessments}
+        
+        # Find added assessments
+        for atype in new_map:
+            if atype not in old_map:
+                changes.append({
+                    "field": f"Đánh giá {atype}",
+                    "old_value": None,
+                    "new_value": f"{new_map[atype].get('weight_percentage', 0)}%",
+                    "significance": "HIGH",
+                    "impact": "Thêm mới phương pháp đánh giá"
+                })
+        
+        # Find removed assessments
+        for atype in old_map:
+            if atype not in new_map:
+                changes.append({
+                    "field": f"Đánh giá {atype}",
+                    "old_value": f"{old_map[atype].get('weight_percentage', 0)}%",
+                    "new_value": None,
+                    "significance": "HIGH",
+                    "impact": "Xóa phương pháp đánh giá"
+                })
+        
+        # Find modified assessments
+        for atype in old_map:
+            if atype in new_map:
+                old_weight = old_map[atype].get('weight_percentage', 0)
+                new_weight = new_map[atype].get('weight_percentage', 0)
+                if old_weight != new_weight:
+                    changes.append({
+                        "field": f"Đánh giá {atype}",
+                        "old_value": f"{old_weight}%",
+                        "new_value": f"{new_weight}%",
+                        "significance": "HIGH",
+                        "impact": "Thay đổi tỷ trọng đánh giá"
+                    })
+        
+        return changes
+    
+    def _compare_teaching_methods(self, old_methods: List, new_methods: List) -> List[Dict]:
+        """So sánh teaching methods"""
+        changes = []
+        
+        old_names = set(m.get('method_name', '') for m in old_methods)
+        new_names = set(m.get('method_name', '') for m in new_methods)
+        
+        # Find added methods
+        for name in new_names - old_names:
+            changes.append({
+                "field": "Phương pháp giảng dạy",
+                "old_value": None,
+                "new_value": name,
+                "significance": "MEDIUM",
+                "impact": "Thêm phương pháp giảng dạy mới"
+            })
+        
+        # Find removed methods
+        for name in old_names - new_names:
+            changes.append({
+                "field": "Phương pháp giảng dạy",
+                "old_value": name,
+                "new_value": None,
+                "significance": "MEDIUM",
+                "impact": "Xóa phương pháp giảng dạy"
+            })
+        
+        return changes
+    
+    def _compare_prerequisites(self, old_prereqs: List, new_prereqs: List) -> List[Dict]:
+        """So sánh prerequisites"""
+        changes = []
+        
+        old_codes = set(p.get('subject_code', '') for p in old_prereqs)
+        new_codes = set(p.get('subject_code', '') for p in new_prereqs)
+        
+        # Find added prerequisites
+        for code in new_codes - old_codes:
+            changes.append({
+                "field": "Môn tiên quyết",
+                "old_value": None,
+                "new_value": code,
+                "significance": "HIGH",
+                "impact": "Thêm môn tiên quyết mới"
+            })
+        
+        # Find removed prerequisites
+        for code in old_codes - new_codes:
+            changes.append({
+                "field": "Môn tiên quyết",
+                "old_value": code,
+                "new_value": None,
+                "significance": "HIGH",
+                "impact": "Xóa môn tiên quyết"
+            })
+        
+        return changes
+    
+    def _compare_learning_materials(self, old_materials: List, new_materials: List) -> List[Dict]:
+        """So sánh learning materials"""
+        changes = []
+        
+        # Build maps by title
+        old_map = {m.get('title'): m for m in old_materials}
+        new_map = {m.get('title'): m for m in new_materials}
+        
+        # Find added materials
+        for title in new_map:
+            if title not in old_map:
+                changes.append({
+                    "field": "Tài liệu học tập",
+                    "old_value": None,
+                    "new_value": title,
+                    "significance": "LOW",
+                    "impact": "Thêm tài liệu mới"
+                })
+        
+        # Find removed materials
+        for title in old_map:
+            if title not in new_map:
+                changes.append({
+                    "field": "Tài liệu học tập",
+                    "old_value": title,
+                    "new_value": None,
+                    "significance": "LOW",
+                    "impact": "Xóa tài liệu"
+                })
+        
+        return changes
+    
+    def _compare_weekly_plans(self, old_weekly: List, new_weekly: List) -> List[Dict]:
+        """So sánh weekly plans"""
+        changes = []
+        
+        if len(old_weekly) != len(new_weekly):
+            changes.append({
+                "field": "Số tuần học",
+                "old_value": f"{len(old_weekly)} tuần",
+                "new_value": f"{len(new_weekly)} tuần",
+                "significance": "HIGH",
+                "impact": "Thay đổi số tuần học"
+            })
+        
+        # Compare week by week
+        for i, (old_week, new_week) in enumerate(zip(old_weekly, new_weekly), 1):
+            old_topic = old_week.get('topic', '')
+            new_topic = new_week.get('topic', '')
+            if old_topic != new_topic:
+                changes.append({
+                    "field": f"Tuần {i}",
+                    "old_value": old_topic,
+                    "new_value": new_topic,
+                    "significance": "MEDIUM",
+                    "impact": f"Thay đổi nội dung tuần {i}"
+                })
+        
+        return changes
+    
+    def _get_ai_comparison_analysis(self, old_version: Dict, new_version: Dict, changes: List[Dict]) -> Dict:
+        """Gọi Gemini AI để phân tích sự khác biệt"""
+        if not self.gemini_client:
+            return None
+        
+        try:
+            prompt = f"""
+Phân tích sự thay đổi giữa 2 phiên bản đề cương môn học:
+
+**Phiên bản cũ (v{old_version.get('version_no')}):**
+- Số CLOs: {len(old_version.get('content', {}).get('clos', []))}
+- Mô tả: {old_version.get('description', '')[:200]}
+
+**Phiên bản mới (v{new_version.get('version_no')}):**
+- Số CLOs: {len(new_version.get('content', {}).get('clos', []))}
+- Mô tả: {new_version.get('description', '')[:200]}
+
+**Các thay đổi đã phát hiện:**
+{len(changes)} thay đổi trong các phần: {', '.join(set(c['section'] for c in changes))}
+
+Hãy đưa ra:
+1. Đánh giá tổng quan về các thay đổi (2-3 câu)
+2. Các cải tiến chính (2-3 điểm)
+3. Khuyến nghị (nếu có, 1-2 điểm)
+
+Trả lời ngắn gọn, súc tích bằng tiếng Việt.
+"""
+            
+            response = self.gemini_client.generate_content(prompt)
+            analysis_text = response.text
+            
+            # Parse response thành structured data
+            lines = [l.strip() for l in analysis_text.split('\n') if l.strip()]
+            
+            return {
+                "overall_assessment": lines[0] if lines else "Phiên bản mới có cải thiện so với phiên bản cũ",
+                "key_improvements": lines[1:3] if len(lines) > 1 else [],
+                "recommendations": lines[3:] if len(lines) > 3 else []
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get AI analysis: {e}")
+            return {
+                "overall_assessment": "Không thể phân tích bằng AI",
+                "key_improvements": [],
+                "recommendations": []
+            }
     
     def _handle_summarize(self, message_id: str, payload: Dict) -> Dict:
         """

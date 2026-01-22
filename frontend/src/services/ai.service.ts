@@ -1,4 +1,37 @@
+import { apiClient } from '@/config/api-config';
+
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Real API types
+export interface ComparisonChange {
+  section_name: string;
+  section_title: string;
+  change_type: 'ADDED' | 'REMOVED' | 'MODIFIED';
+  old_value?: any;
+  new_value?: any;
+  significance: 'MAJOR' | 'MINOR';
+  impact: string;
+  ai_analysis?: string;
+}
+
+export interface ComparisonResult {
+  version_history: {
+    old_version: { version_number: number; status: string; created_at: string; created_by: string };
+    new_version: { version_number: number; status: string; created_at: string; created_by: string };
+  };
+  changes_summary: {
+    total_changes: number;
+    major_changes: number;
+    minor_changes: number;
+    sections_affected: string[];
+  };
+  detailed_changes: ComparisonChange[];
+  ai_analysis: {
+    overall_assessment: string;
+    key_improvements: string[];
+    recommendations: string[];
+  };
+}
 
 export interface VersionDiff {
   section: string;
@@ -14,6 +47,35 @@ export interface AIComparisonResult {
 }
 
 export const aiService = {
+  // Real API: Compare syllabus versions
+  compareSyllabusVersions: async (
+    oldVersionId: string,
+    newVersionId: string,
+    subjectId: string
+  ): Promise<{ task_id: string }> => {
+    const response = await apiClient.post('/api/ai/syllabus/compare', null, {
+      params: { oldVersionId, newVersionId, subjectId }
+    });
+    return response.data;
+  },
+
+  // Real API: Get task status
+  getTaskStatus: async (taskId: string): Promise<any> => {
+    const response = await apiClient.get(`/api/ai/tasks/${taskId}/status`);
+    return response.data;
+  },
+
+  // Real API: Poll for result
+  pollComparisonResult: async (taskId: string, maxAttempts = 30): Promise<ComparisonResult> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      const status = await aiService.getTaskStatus(taskId);
+      if (status.status === 'SUCCESS') return status.result;
+      if (status.status === 'FAILED') throw new Error(status.error || 'Failed');
+      await delay(2000);
+    }
+    throw new Error('Timeout');
+  },
+
   // Mock AI version comparison
   compareVersions: async (_syllabusId: string, _oldVersionId: string): Promise<AIComparisonResult> => {
     await delay(1500);

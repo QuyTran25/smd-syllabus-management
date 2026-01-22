@@ -17,6 +17,9 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
 
     List<SyllabusVersion> findBySubjectId(UUID subjectId);
 
+    @Query("SELECT s FROM SyllabusVersion s WHERE s.subject.id = :subjectId AND s.isDeleted = false ORDER BY s.versionNumber DESC")
+    List<SyllabusVersion> findBySubjectIdAndNotDeleted(@Param("subjectId") UUID subjectId);
+
     List<SyllabusVersion> findByAcademicTermId(UUID academicTermId);
 
     List<SyllabusVersion> findByStatus(SyllabusStatus status);

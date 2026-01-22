@@ -593,7 +593,7 @@ public class SyllabusService {
 
     @Transactional(readOnly = true)
     public List<SyllabusResponse> getSyllabiBySubject(UUID subjectId) {
-        return syllabusVersionRepository.findBySubjectId(subjectId).stream()
+        return syllabusVersionRepository.findBySubjectIdAndNotDeleted(subjectId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

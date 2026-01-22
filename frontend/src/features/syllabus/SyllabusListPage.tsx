@@ -32,6 +32,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { syllabusService, feedbackService } from '@/services';
+import { aiService } from '@/services/ai.service';
 import { Syllabus, SyllabusStatus, SyllabusFilters, FeedbackStatus, UserRole } from '@/types';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig } from 'antd/es/table/interface';
@@ -60,6 +61,8 @@ export const SyllabusListPage: React.FC = () => {
   const [selectedSyllabus, setSelectedSyllabus] = useState<Syllabus | null>(null);
   const [publishForm] = Form.useForm();
   const [unpublishForm] = Form.useForm();
+  const [comparisonResult, setComparisonResult] = useState<any>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
 
   // Admin statuses that should be shown by default
   const ADMIN_ALLOWED_STATUSES = [
@@ -131,6 +134,74 @@ export const SyllabusListPage: React.FC = () => {
       ?.filter((f: any) => f.status === FeedbackStatus.PENDING)
       .map((f: any) => f.syllabusId) || []
   );
+
+  // Handle comparison
+  const handleCompareVersions = async () => {
+    if (!selectedSyllabus) return;
+    setComparisonLoading(true);
+    try {
+      // Fetch all versions of this subject
+      const versions = await syllabusService.getVersionsBySubject(selectedSyllabus.subjectId);
+      
+      console.log('📊 All versions:', versions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
+      
+      if (versions.length < 1) {
+        message.warning('Chưa có phiên bản nào để so sánh');
+        return;
+      }
+
+      // Deduplicate by version_no: Keep only the newest record for each version
+      const uniqueVersions = Object.values(
+        versions.reduce((acc, v) => {
+          const versionKey = v.versionNo || `v${v.versionNumber}`;
+          if (!acc[versionKey] || new Date(v.createdAt) > new Date(acc[versionKey].createdAt)) {
+            acc[versionKey] = v;
+          }
+          return acc;
+        }, {} as Record<string, any>)
+      );
+
+      console.log('📊 Unique versions:', uniqueVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
+
+      if (uniqueVersions.length < 2) {
+        message.warning('Chưa có đủ 2 phiên bản để so sánh');
+        return;
+      }
+
+      // Sort by version number descending to get newest first
+      // Try both versionNumber and versionNo fields
+      const sortedVersions = uniqueVersions.sort((a, b) => {
+        const aVersion = a.versionNumber || parseInt(a.versionNo?.replace('v', '') || '0');
+        const bVersion = b.versionNumber || parseInt(b.versionNo?.replace('v', '') || '0');
+        return bVersion - aVersion;
+      });
+
+      console.log('📊 Sorted versions:', sortedVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
+
+      // Compare newest with previous version
+      const newVersion = sortedVersions[0];
+      const oldVersion = sortedVersions[1];
+
+      console.log(`🔍 Comparing: old=${oldVersion.versionNo} (ID: ${oldVersion.id}) → new=${newVersion.versionNo} (ID: ${newVersion.id})`);
+
+      message.info('Đang gửi yêu cầu so sánh...');
+      
+      const taskResponse = await aiService.compareSyllabusVersions(
+        oldVersion.id,
+        newVersion.id,
+        selectedSyllabus.subjectId
+      );
+      
+      message.info('Đang phân tích với AI...');
+      const result = await aiService.pollComparisonResult(taskResponse.task_id);
+      setComparisonResult(result);
+      message.success('So sánh hoàn tất!');
+    } catch (error: any) {
+      message.error(error.message || 'Lỗi khi so sánh');
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
 
   // Handle publish
   const handlePublishClick = (syllabus: Syllabus) => {
@@ -892,54 +963,101 @@ export const SyllabusListPage: React.FC = () => {
             </Descriptions>
 
             <Card title="Lịch sử phiên bản" size="small">
-              <Timeline
-                items={[
-                  {
-                    color: 'green',
+              {comparisonResult?.version_history ? (
+                <Timeline
+                  items={comparisonResult.version_history.map((vh: any) => ({
+                    color: vh.is_current ? 'green' : 'blue',
                     children: (
                       <Space direction="vertical">
-                        <Text strong>Phiên bản {selectedSyllabus.version} (Hiện tại)</Text>
-                        <Text type="secondary">
-                          Cập nhật: {dayjs(selectedSyllabus.updatedAt).format('DD/MM/YYYY HH:mm')}
+                        <Text strong={vh.is_current}>
+                          Phiên bản {vh.version_no} {vh.is_current && '(Hiện tại)'}
                         </Text>
-                        <Text type="secondary">Người tạo: {selectedSyllabus.ownerName}</Text>
+                        <Text type="secondary">
+                          Cập nhật: {vh.created_at ? dayjs(vh.created_at).format('DD/MM/YYYY HH:mm') : 'N/A'}
+                        </Text>
+                        <Text type="secondary">Người tạo: {vh.created_by || selectedSyllabus.ownerName}</Text>
                       </Space>
                     ),
-                  },
-                  {
-                    color: 'blue',
-                    children: (
-                      <Space direction="vertical">
-                        <Text>Phiên bản {selectedSyllabus.version - 1}</Text>
-                        <Text type="secondary">
-                          Cập nhật: {dayjs(selectedSyllabus.createdAt).format('DD/MM/YYYY HH:mm')}
-                        </Text>
-                        <Button size="small" type="link">
-                          Xem chi tiết khác biệt
-                        </Button>
-                      </Space>
-                    ),
-                  },
-                ]}
-              />
+                  }))}
+                />
+              ) : (
+                <Timeline
+                  items={[
+                    {
+                      color: 'green',
+                      children: (
+                        <Space direction="vertical">
+                          <Text strong>Phiên bản {selectedSyllabus.version} (Hiện tại)</Text>
+                          <Text type="secondary">
+                            Cập nhật: {dayjs(selectedSyllabus.updatedAt).format('DD/MM/YYYY HH:mm')}
+                          </Text>
+                          <Text type="secondary">Người tạo: {selectedSyllabus.ownerName}</Text>
+                        </Space>
+                      ),
+                    },
+                    {
+                      color: 'blue',
+                      children: (
+                        <Space direction="vertical">
+                          <Text>Phiên bản {selectedSyllabus.version - 1}</Text>
+                          <Text type="secondary">
+                            Cập nhật: {dayjs(selectedSyllabus.createdAt).format('DD/MM/YYYY HH:mm')}
+                          </Text>
+                          <Button size="small" type="link">
+                            Xem chi tiết khác biệt
+                          </Button>
+                        </Space>
+                      ),
+                    },
+                  ]}
+                />
+              )}
             </Card>
 
             <Card title="So sánh nội dung" size="small">
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Text strong>Thay đổi chính:</Text>
-                <ul style={{ marginLeft: 16 }}>
-                  <li>
-                    <Text>Cập nhật mục tiêu học tập (CLO 1, CLO 2)</Text>
-                  </li>
-                  <li>
-                    <Text>Điều chỉnh phương pháp đánh giá</Text>
-                  </li>
-                  <li>
-                    <Text>Bổ sung tài liệu tham khảo</Text>
-                  </li>
-                </ul>
-                <Button type="primary" icon={<EyeOutlined />}>
-                  Xem so sánh chi tiết
+                {comparisonLoading ? (
+                  <Text type="secondary">Đang phân tích với AI...</Text>
+                ) : comparisonResult ? (
+                  <>
+                    <Text strong>Đánh giá tổng thể:</Text>
+                    <Text>{comparisonResult.ai_analysis?.overall_assessment}</Text>
+                    
+                    <Text strong>Tổng quan thay đổi:</Text>
+                    <ul style={{ marginLeft: 16 }}>
+                      <li>Tổng: {comparisonResult.changes_summary?.total_changes} thay đổi</li>
+                      <li>Quan trọng: {comparisonResult.changes_summary?.major_changes}</li>
+                      <li>Nhỏ: {comparisonResult.changes_summary?.minor_changes}</li>
+                    </ul>
+
+                    {comparisonResult.ai_analysis?.key_improvements?.length > 0 && (
+                      <>
+                        <Text strong>Cải thiện chính:</Text>
+                        <ul style={{ marginLeft: 16 }}>
+                          {comparisonResult.ai_analysis.key_improvements.map((imp: string, idx: number) => (
+                            <li key={idx}><Text>{imp}</Text></li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Text strong>Thay đổi chính:</Text>
+                    <ul style={{ marginLeft: 16 }}>
+                      <li><Text>Cập nhật mục tiêu học tập (CLO 1, CLO 2)</Text></li>
+                      <li><Text>Điều chỉnh phương pháp đánh giá</Text></li>
+                      <li><Text>Bổ sung tài liệu tham khảo</Text></li>
+                    </ul>
+                  </>
+                )}
+                <Button 
+                  type="primary" 
+                  icon={<EyeOutlined />}
+                  onClick={handleCompareVersions}
+                  loading={comparisonLoading}
+                >
+                  {comparisonResult ? 'Làm mới so sánh' : 'Xem so sánh chi tiết'}
                 </Button>
               </Space>
             </Card>

@@ -37,10 +37,7 @@ def main():
     logger.info("🎯 Actions: MAP_CLO_PLO, COMPARE_VERSIONS")
     logger.info(f"🤖 Mock Mode: {settings.MOCK_MODE}")
     
-    # Initialize handler
-    handler = AIMessageHandler()
-    
-    # Initialize RabbitMQ connection
+    # Initialize RabbitMQ connection first
     conn_manager = RabbitMQConnectionManager(
         host=settings.RABBITMQ_HOST,
         port=settings.RABBITMQ_PORT,
@@ -50,6 +47,9 @@ def main():
         heartbeat=settings.RABBITMQ_HEARTBEAT,
         blocked_timeout=settings.RABBITMQ_BLOCKED_TIMEOUT
     )
+    
+    # Initialize handler with RabbitMQ manager
+    handler = AIMessageHandler(rabbitmq_manager=conn_manager)
     
     def on_message_callback(ch, method, properties, body):
         """Callback khi nhận được message"""

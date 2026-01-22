@@ -198,4 +198,10 @@ export const syllabusService = {
     const response = await apiClient.patch(`/api/syllabi/${id}/effective-date`, { effectiveDate });
     return response.data.data;
   },
+
+  // Get all versions of a subject
+  getVersionsBySubject: async (subjectId: string): Promise<Syllabus[]> => {
+    const response = await apiClient.get(`/api/syllabi/subject/${subjectId}`);
+    return response.data.data;
+  },
 };

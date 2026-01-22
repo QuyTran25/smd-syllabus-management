@@ -102,10 +102,7 @@ const SyllabusFormPage: React.FC = () => {
   // Auto-create syllabus from teaching assignment
   const { data: autoCreatedSyllabus, isLoading: isAutoCreating, error: autoCreateError } = useQuery({
     queryKey: ['create-syllabus-from-assignment', assignmentId],
-    queryFn: () => {
-      console.log('🔵 Creating syllabus from assignmentId:', assignmentId);
-      return syllabusService.createSyllabusFromAssignment(assignmentId!);
-    },
+    queryFn: () => syllabusService.createSyllabusFromAssignment(assignmentId!),
     enabled: !!assignmentId && isCreateMode,
     retry: false,
   });
