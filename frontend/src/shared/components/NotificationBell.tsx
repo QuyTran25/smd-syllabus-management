@@ -42,7 +42,9 @@ const NotificationBell: React.FC = () => {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: notificationService.getNotifications,
-    refetchInterval: 30000, // Auto refresh every 30 seconds
+    refetchInterval: 10000, // Auto refresh every 10 seconds for realtime feel
+    refetchOnWindowFocus: true, // Refresh when user returns to tab
+    refetchOnMount: true, // Always fetch fresh data on mount
   });
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -297,12 +299,12 @@ const NotificationBell: React.FC = () => {
         <div>
           <Divider style={{ margin: '12px 0' }}>
             <Text strong style={{ fontSize: '14px' }}>
-              Chi tiết các lỗi cần sửa ({selectedNotification.payload.feedbacks.length})
+              Chi tiết các lỗi cần sửa ({selectedNotification.payload?.feedbacks?.length || 0})
             </Text>
           </Divider>
           <List
             size="small"
-            dataSource={selectedNotification.payload.feedbacks}
+            dataSource={selectedNotification.payload?.feedbacks || []}
             renderItem={(fb: any, index: number) => (
               <List.Item style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <List.Item.Meta

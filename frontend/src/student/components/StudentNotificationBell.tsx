@@ -50,7 +50,9 @@ export const StudentNotificationBell: React.FC = () => {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['student-notifications'], // Đổi key khác để không đụng cache của admin
     queryFn: studentNotificationService.getNotifications,
-    refetchInterval: 30000,
+    refetchInterval: 10000, // Auto refresh every 10 seconds for realtime feel
+    refetchOnWindowFocus: true, // Refresh when user returns to tab
+    refetchOnMount: true, // Always fetch fresh data on mount
   });
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;

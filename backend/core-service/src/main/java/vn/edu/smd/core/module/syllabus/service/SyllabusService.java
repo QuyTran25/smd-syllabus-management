@@ -56,6 +56,9 @@ public class SyllabusService {
     private final vn.edu.smd.core.service.PloMappingService ploMappingService;
     private final ApprovalHistoryRepository approvalHistoryRepository;
     private final SyllabusVersionHistoryRepository syllabusVersionHistoryRepository;
+    
+    // FCM Service for push notifications
+    private final vn.edu.smd.core.service.FCMService fcmService;
     // ----------------------------------------------------------------
 
     @Transactional(readOnly = true)
@@ -1188,7 +1191,25 @@ public class SyllabusService {
                     .relatedEntityId(syllabus.getId())
                     .build();
             
-            notificationRepository.save(notification);
+            Notification saved = notificationRepository.save(notification);
+            
+            // 🔔 Send FCM push notification
+            try {
+                String pushBody = message.length() > 100 
+                    ? message.substring(0, 100) + "..." 
+                    : message;
+                
+                Map<String, String> fcmData = new HashMap<>();
+                fcmData.put("notificationId", saved.getId().toString());
+                fcmData.put("type", saved.getType());
+                fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                fcmData.put("syllabusId", syllabus.getId().toString());
+                fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                
+                fcmService.sendNotificationToUser(hod, title, pushBody, fcmData);
+            } catch (Exception fcmError) {
+                log.warn("Failed to send FCM for HOD notification: {}", fcmError.getMessage());
+            }
         } catch (Exception e) {
             log.error("Failed to send notification to HOD: {}", e.getMessage());
         }
@@ -1231,7 +1252,25 @@ public class SyllabusService {
                     .relatedEntityId(syllabus.getId())
                     .build();
             
-            notificationRepository.save(notification);
+            Notification saved = notificationRepository.save(notification);
+            
+            // 🔔 Send FCM push notification
+            try {
+                String pushBody = message.length() > 100 
+                    ? message.substring(0, 100) + "..." 
+                    : message;
+                
+                Map<String, String> fcmData = new HashMap<>();
+                fcmData.put("notificationId", saved.getId().toString());
+                fcmData.put("type", saved.getType());
+                fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                fcmData.put("syllabusId", syllabus.getId().toString());
+                fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                
+                fcmService.sendNotificationToUser(hod, title, pushBody, fcmData);
+            } catch (Exception fcmError) {
+                log.warn("Failed to send FCM for HOD progress notification: {}", fcmError.getMessage());
+            }
         } catch (Exception e) {
             log.error("Failed to send progress notification to HOD: {}", e.getMessage());
         }
@@ -1504,7 +1543,27 @@ public class SyllabusService {
                     .relatedEntityId(syllabus.getId())
                     .build();
             
-            notificationRepository.save(notification);
+            Notification saved = notificationRepository.save(notification);
+            
+            // 🔔 Send FCM push notification
+            try {
+                String pushBody = message.length() > 100 
+                    ? message.substring(0, 100) + "..." 
+                    : message;
+                
+                Map<String, String> fcmData = new HashMap<>();
+                fcmData.put("notificationId", saved.getId().toString());
+                fcmData.put("type", saved.getType());
+                fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                fcmData.put("syllabusId", syllabus.getId().toString());
+                fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                fcmData.put("rejectionReason", rejectionReason);
+                fcmData.put("rejectorRole", rejectorRole != null ? rejectorRole.name() : "");
+                
+                fcmService.sendNotificationToUser(primaryLecturer, title, pushBody, fcmData);
+            } catch (Exception fcmError) {
+                log.warn("Failed to send FCM for lecturer rejection notification: {}", fcmError.getMessage());
+            }
             
             log.info("Sent rejection notification to lecturer {} for syllabus {}", 
                      primaryLecturer.getEmail(), syllabus.getId());
@@ -1584,7 +1643,26 @@ public class SyllabusService {
                         .relatedEntityId(syllabus.getId())
                         .build();
                 
-                notificationRepository.save(notification);
+                Notification saved = notificationRepository.save(notification);
+                
+                // 🔔 Send FCM push notification
+                try {
+                    String pushBody = message.length() > 100 
+                        ? message.substring(0, 100) + "..." 
+                        : message;
+                    
+                    Map<String, String> fcmData = new HashMap<>();
+                    fcmData.put("notificationId", saved.getId().toString());
+                    fcmData.put("type", saved.getType());
+                    fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                    fcmData.put("syllabusId", syllabus.getId().toString());
+                    fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                    fcmData.put("hodName", hod.getFullName());
+                    
+                    fcmService.sendNotificationToUser(aaUser, title, pushBody, fcmData);
+                } catch (Exception fcmError) {
+                    log.warn("Failed to send FCM for AA user {}: {}", aaUser.getId(), fcmError.getMessage());
+                }
             }
             
             log.info("Sent AA review notification to {} AA users for syllabus {}", 
@@ -1664,7 +1742,26 @@ public class SyllabusService {
                         .relatedEntityId(syllabus.getId())
                         .build();
                 
-                notificationRepository.save(notification);
+                Notification saved = notificationRepository.save(notification);
+                
+                // 🔔 Send FCM push notification
+                try {
+                    String pushBody = message.length() > 100 
+                        ? message.substring(0, 100) + "..." 
+                        : message;
+                    
+                    Map<String, String> fcmData = new HashMap<>();
+                    fcmData.put("notificationId", saved.getId().toString());
+                    fcmData.put("type", saved.getType());
+                    fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                    fcmData.put("syllabusId", syllabus.getId().toString());
+                    fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                    fcmData.put("aaUserName", aaUser.getFullName());
+                    
+                    fcmService.sendNotificationToUser(principal, title, pushBody, fcmData);
+                } catch (Exception fcmError) {
+                    log.warn("Failed to send FCM for Principal {}: {}", principal.getId(), fcmError.getMessage());
+                }
             }
             
             log.info("Sent Principal review notification to {} Principal users for syllabus {}", 
@@ -1741,7 +1838,26 @@ public class SyllabusService {
                     .relatedEntityId(syllabus.getId())
                     .build();
             
-            notificationRepository.save(notification);
+            Notification saved = notificationRepository.save(notification);
+            
+            // 🔔 Send FCM push notification
+            try {
+                String pushBody = message.length() > 100 
+                    ? message.substring(0, 100) + "..." 
+                    : message;
+                
+                Map<String, String> fcmData = new HashMap<>();
+                fcmData.put("notificationId", saved.getId().toString());
+                fcmData.put("type", saved.getType());
+                fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                fcmData.put("syllabusId", syllabus.getId().toString());
+                fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                fcmData.put("rejectionReason", rejectionReason);
+                
+                fcmService.sendNotificationToUser(hod, title, pushBody, fcmData);
+            } catch (Exception fcmError) {
+                log.warn("Failed to send FCM for HOD rejection notification: {}", fcmError.getMessage());
+            }
             
             log.info("Sent rejection notification to HOD {} for syllabus {}", 
                      hod.getEmail(), syllabus.getId());
@@ -1791,7 +1907,26 @@ public class SyllabusService {
                         .relatedEntityId(syllabus.getId())
                         .build();
                 
-                notificationRepository.save(notification);
+                Notification saved = notificationRepository.save(notification);
+                
+                // 🔔 Send FCM push notification
+                try {
+                    String title = "[Đã duyệt] Đề cương " + syllabus.getSnapSubjectCode() + " chờ xuất bản lại";
+                    String pushBody = "Trưởng bộ môn đã phê duyệt phiên bản chỉnh sửa. Vui lòng xuất bản lại.";
+                    
+                    Map<String, String> fcmData = new HashMap<>();
+                    fcmData.put("notificationId", saved.getId().toString());
+                    fcmData.put("type", saved.getType());
+                    fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                    fcmData.put("syllabusId", syllabus.getId().toString());
+                    fcmData.put("syllabusCode", syllabus.getSnapSubjectCode());
+                    fcmData.put("hodName", hod.getFullName());
+                    
+                    fcmService.sendNotificationToUser(admin, title, pushBody, fcmData);
+                } catch (Exception fcmError) {
+                    log.warn("Failed to send FCM for admin republish: {}", fcmError.getMessage());
+                }
+                
                 log.info("Sent republish notification to admin: {}", admin.getFullName());
             } catch (Exception e) {
                 log.error("Failed to send republish notification to admin {}: {}", admin.getId(), e.getMessage());
@@ -1870,7 +2005,27 @@ public class SyllabusService {
                         .relatedEntityId(syllabus.getId())
                         .build();
                 
-                notificationRepository.save(notification);
+                Notification saved = notificationRepository.save(notification);
+                
+                // 🔔 Send FCM push notification
+                try {
+                    String pushBody = message.length() > 100 
+                        ? message.substring(0, 100) + "..." 
+                        : message;
+                    
+                    Map<String, String> fcmData = new HashMap<>();
+                    fcmData.put("notificationId", saved.getId().toString());
+                    fcmData.put("type", saved.getType());
+                    fcmData.put("actionUrl", payload.get("actionUrl").toString());
+                    fcmData.put("syllabusId", syllabus.getId().toString());
+                    fcmData.put("subjectCode", syllabus.getSnapSubjectCode());
+                    fcmData.put("versionNo", syllabus.getVersionNo());
+                    fcmData.put("principalName", principal.getFullName());
+                    
+                    fcmService.sendNotificationToUser(admin, title, pushBody, fcmData);
+                } catch (Exception fcmError) {
+                    log.warn("Failed to send FCM for Admin {}: {}", admin.getId(), fcmError.getMessage());
+                }
             }
             
             log.info("Sent Admin publish notification to {} Admin users for syllabus {}", 
@@ -1929,7 +2084,29 @@ public class SyllabusService {
                             .isRead(false)
                             .build();
                     
-                    notificationRepository.save(notification);
+                    Notification saved = notificationRepository.save(notification);
+                    
+                    // 🔔 Send FCM push notification
+                    try {
+                        String pushBody = aaMessage.length() > 100 
+                            ? aaMessage.substring(0, 100) + "..." 
+                            : aaMessage;
+                        
+                        Map<String, String> fcmData = new HashMap<>();
+                        fcmData.put("notificationId", saved.getId().toString());
+                        fcmData.put("type", saved.getType());
+                        fcmData.put("actionUrl", aaPayload.get("actionUrl").toString());
+                        fcmData.put("syllabusId", aaPayload.get("syllabusId").toString());
+                        fcmData.put("subjectCode", aaPayload.get("subjectCode").toString());
+                        fcmData.put("rejectionReason", rejectionReason);
+                        fcmData.put("lecturerName", lecturerName);
+                        fcmData.put("principalName", principal.getFullName());
+                        
+                        fcmService.sendNotificationToUser(aaUser, aaTitle, pushBody, fcmData);
+                    } catch (Exception fcmError) {
+                        log.warn("Failed to send FCM for AA rejection notification to {}: {}", 
+                                 aaUser.getId(), fcmError.getMessage());
+                    }
                 }
                 
                 log.info("Sent rejection notification to {} AA users for syllabus {}", 

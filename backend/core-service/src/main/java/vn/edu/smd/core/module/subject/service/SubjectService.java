@@ -59,6 +59,7 @@ public class SubjectService {
     private final AcademicTermRepository academicTermRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final vn.edu.smd.core.service.FCMService fcmService;
     
     private static final int ASSIGNMENT_DEADLINE_DAYS = 7; // Hạn chốt phân công: 7 ngày sau khi tạo môn
 
@@ -258,7 +259,27 @@ public class SubjectService {
                 .relatedEntityId(subject.getId())
                 .build();
         
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        
+        // 🔔 Send FCM push notification
+        try {
+            String pushBody = message.length() > 100 
+                ? message.substring(0, 100) + "..." 
+                : message;
+            
+            Map<String, String> fcmData = new HashMap<>();
+            fcmData.put("notificationId", saved.getId().toString());
+            fcmData.put("type", saved.getType());
+            fcmData.put("actionUrl", payload.get("actionUrl").toString());
+            fcmData.put("subjectId", subject.getId().toString());
+            fcmData.put("subjectCode", subject.getCode());
+            fcmData.put("academicTermId", academicTerm.getId().toString());
+            fcmData.put("deadline", deadline.format(formatter));
+            
+            fcmService.sendNotificationToUser(hod, title, pushBody, fcmData);
+        } catch (Exception fcmError) {
+            log.warn("Failed to send FCM for HOD notification: {}", fcmError.getMessage());
+        }
         
         log.info("Đã gửi thông báo phân công biên soạn đề cương cho HOD: {} ({})", 
                 hod.getFullName(), hod.getEmail());

@@ -3,6 +3,8 @@ import { User, AuthState } from '@/types';
 import { authService } from '@/services/auth.service';
 import { App } from 'antd';
 import { STORAGE_KEYS } from '@/constants';
+import { useFCM } from '@/hooks/useFCM';
+import { unregisterFCMToken } from '@/config/firebase';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<User>;
@@ -24,6 +26,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 
   const [isLoading, setIsLoading] = useState(true);
+
+  // 🔔 Initialize FCM when user is authenticated
+  useFCM(!!user);
 
   // 2. LOGIC "VERIFY FIRST": Kiểm tra Token với Server khi App khởi động
   useEffect(() => {
@@ -86,6 +91,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
+      // 🔔 Unregister FCM token from backend
+      await unregisterFCMToken();
+      
       await authService.logout(); // Gọi API logout nếu có
     } catch (e) {
       console.error(e);

@@ -38,6 +38,7 @@ public class TeachingAssignmentService {
     private final AcademicTermRepository academicTermRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final vn.edu.smd.core.service.FCMService fcmService;
 
     /**
      * Get all teaching assignments with pagination
@@ -264,7 +265,27 @@ public class TeachingAssignmentService {
                 .relatedEntityType("TEACHING_ASSIGNMENT")
                 .relatedEntityId(assignment.getId())
                 .build();
-        notificationRepository.save(mainNotification);
+        Notification savedMain = notificationRepository.save(mainNotification);
+        
+        // 🔔 Send FCM push notification to main lecturer
+        try {
+            String pushBody = mainMessage.length() > 100 
+                ? mainMessage.substring(0, 100) + "..." 
+                : mainMessage;
+            
+            Map<String, String> fcmData = new HashMap<>();
+            fcmData.put("notificationId", savedMain.getId().toString());
+            fcmData.put("type", savedMain.getType());
+            fcmData.put("actionUrl", mainPayload.get("actionUrl").toString());
+            fcmData.put("assignmentId", assignment.getId().toString());
+            fcmData.put("subjectCode", assignment.getSubject().getCode());
+            fcmData.put("hodName", hodName);
+            
+            fcmService.sendNotificationToUser(mainLecturer, mainTitle, pushBody, fcmData);
+        } catch (Exception fcmError) {
+            log.warn("Failed to send FCM to main lecturer {}: {}", 
+                     mainLecturer.getId(), fcmError.getMessage());
+        }
         
         log.info("Sent notification to main lecturer: {} ({})", mainLecturer.getFullName(), mainLecturer.getEmail());
         
@@ -298,7 +319,28 @@ public class TeachingAssignmentService {
                             .relatedEntityType("TEACHING_ASSIGNMENT")
                             .relatedEntityId(assignment.getId())
                             .build();
-                    notificationRepository.save(collabNotification);
+                    Notification savedCollab = notificationRepository.save(collabNotification);
+                    
+                    // 🔔 Send FCM push notification to collaborator
+                    try {
+                        String pushBody = collabMessage.length() > 100 
+                            ? collabMessage.substring(0, 100) + "..." 
+                            : collabMessage;
+                        
+                        Map<String, String> fcmData = new HashMap<>();
+                        fcmData.put("notificationId", savedCollab.getId().toString());
+                        fcmData.put("type", savedCollab.getType());
+                        fcmData.put("actionUrl", collabPayload.get("actionUrl").toString());
+                        fcmData.put("assignmentId", assignment.getId().toString());
+                        fcmData.put("subjectCode", assignment.getSubject().getCode());
+                        fcmData.put("mainLecturerId", mainLecturer.getId().toString());
+                        fcmData.put("mainLecturerName", mainLecturer.getFullName());
+                        
+                        fcmService.sendNotificationToUser(collaborator, collabTitle, pushBody, fcmData);
+                    } catch (Exception fcmError) {
+                        log.warn("Failed to send FCM to collaborator {}: {}", 
+                                 collaborator.getId(), fcmError.getMessage());
+                    }
                     
                     log.info("Sent notification to collaborator: {} ({})", collaborator.getFullName(), collaborator.getEmail());
                 }
