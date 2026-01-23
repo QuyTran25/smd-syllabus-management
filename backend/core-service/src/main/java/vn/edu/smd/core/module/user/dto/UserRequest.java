@@ -12,6 +12,7 @@ public class UserRequest {
     @Email(message = "Invalid email format")
     private String email;
 
+    // Password có thể null khi Update (giữ nguyên pass cũ)
     private String password;
 
     @NotBlank(message = "Full name is required")
@@ -19,6 +20,13 @@ public class UserRequest {
 
     private String phoneNumber;
     private String status;
+    
+    // Role code (ADMIN, LECTURER,...)
+    private String role; 
+    
     private UUID facultyId;
     private UUID departmentId;
+    
+    // Dành cho Lecturer chọn Manager (HOD)
+    private UUID managerId; 
 }

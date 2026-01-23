@@ -15,6 +15,16 @@ import './styles/tables.css';
 // Configure dayjs
 dayjs.locale('vi');
 
+// Handle notification click from Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+      console.log('🔔 Navigation from notification:', event.data.url);
+      window.location.href = event.data.url;
+    }
+  });
+}
+
 // Create TanStack Query client
 const queryClient = new QueryClient({
   defaultOptions: {

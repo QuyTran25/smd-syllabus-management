@@ -7,7 +7,7 @@ import { SyllabusListPage } from './features/syllabus/SyllabusListPage';
 import { SyllabusDetailPage } from './features/syllabus/SyllabusDetailPage';
 import { UserManagementPage } from './features/admin/UserManagementPage';
 import { SystemSettingsPage } from './features/admin/SystemSettingsPage';
-import { AuditLogPage } from './features/admin/AuditLogPage';
+import AuditLogPage from './features/admin/AuditLogPage';
 import { StudentFeedbackPage } from './features/admin/StudentFeedbackPage';
 import { BatchApprovalPage } from './features/principal/BatchApprovalPage';
 import { TeachingAssignmentPage } from './features/hod/TeachingAssignmentPage';

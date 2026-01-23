@@ -65,4 +65,7 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     // Get ALL versions including deleted (for comparison)
     @Query("SELECT s FROM SyllabusVersion s WHERE s.subject.id = :subjectId ORDER BY s.versionNumber DESC")
     List<SyllabusVersion> findAllVersionsBySubjectIdIncludingDeleted(@Param("subjectId") UUID subjectId);
+
+    // Find first syllabus by subject, status, ordered by creation date
+    Optional<SyllabusVersion> findFirstBySubjectIdAndStatusOrderByCreatedAtDesc(UUID subjectId, SyllabusStatus status);
 }

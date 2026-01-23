@@ -1,7 +1,18 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { API_BASE_URL, API_TIMEOUT, STORAGE_KEYS } from '@/constants';
 
-// Create axios instance
+// 🟢 Cấu hình cứng URL Gateway (Port 8888)
+const API_BASE_URL = 'http://localhost:8888/api';
+const API_TIMEOUT = 20000;
+
+// Các Key lưu trữ Token
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_DATA: 'user_data',
+  STUDENT_TOKEN: 'student_token',
+};
+
+// Tạo Axios Instance
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
@@ -10,10 +21,14 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - Add auth token
+// --- 1. Request Interceptor: Gắn Token ---
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    // Tìm token ở cả 2 key phổ biến (Ưu tiên logic hiện tại của bạn)
+    const token =
+      localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) ||
+      localStorage.getItem(STORAGE_KEYS.STUDENT_TOKEN);
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,46 +39,50 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle errors globally
+// --- 2. Response Interceptor: Bắt lỗi ---
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error: AxiosError) => {
-    console.log('🚨 API Error:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      method: error.config?.method,
-    });
+  async (error: AxiosError) => {
+    const originalRequest = error.config;
 
-    // Handle 401 Unauthorized - CHỈ logout khi /api/auth/me thất bại
-    // ⚠️ QUAN TRỌNG: KHÔNG logout khi các API khác trả về 401
-    if (error.response?.status === 401) {
-      const url = error.config?.url || '';
-      
-      // CHỈ clear storage và redirect KHI verify token (/api/auth/me) thất bại
-      // Đây là dấu hiệu token thật sự expired hoặc invalid
-      if (url.includes('/api/auth/me')) {
-        console.log('❌ Token verification failed (401), clearing storage and redirecting to login');
-        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-        localStorage.removeItem('smd_user_data');
-        window.location.href = '/login';
-      } else {
-        // Các API khác trả về 401: chỉ log, KHÔNG logout
-        console.log('⚠️ API returned 401 but NOT /api/auth/me, user stays logged in');
-      }
+    // Log lỗi gọn gàng để debug nếu cần (nhưng không hiện alert làm phiền)
+    if (error.response) {
+      console.error(
+        `🚨 API Error [${error.response.status}] ${originalRequest?.url}:`,
+        error.response.data
+      );
     }
 
-    // ⚠️ KHÔNG hiện message.error ở đây nữa để tránh warning
-    // Component sẽ tự handle error và hiển thị message qua App.useApp()
+    // 🔴 XỬ LÝ LỖI 401 (UNAUTHORIZED) - Token hết hạn hoặc không hợp lệ
+    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
+      console.warn('❌ Phiên đăng nhập hết hạn. Đang đăng xuất...');
+
+      // 1. Xóa sạch token để tránh vòng lặp vô tận
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.STUDENT_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+
+      // 2. Chuyển hướng về trang Login (nếu chưa ở đó)
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+
+      return Promise.reject(error);
+    }
+
+    // 🟠 XỬ LÝ LỖI 403 (FORBIDDEN) - Không có quyền truy cập
+    if (error.response?.status === 403) {
+      console.error('🚫 Lỗi 403: Bạn không có quyền thực hiện thao tác này.');
+      // Không logout, chỉ báo lỗi để UI hiển thị thông báo (ví dụ: message.error)
+    }
 
     return Promise.reject(error);
   }
 );
 
-// Helper function to handle API errors
+// Hàm helper để hiển thị lỗi ra UI (giữ nguyên)
 export const handleAPIError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<{ message?: string }>;

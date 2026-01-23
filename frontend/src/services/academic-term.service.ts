@@ -43,7 +43,7 @@ interface AcademicTermRequest {
 export const academicTermService = {
   // Get all academic terms
   getAllTerms: async (): Promise<AcademicTerm[]> => {
-    const response = await api.get<ApiResponse<PageResponse<AcademicTerm>>>('/api/academic-terms', {
+    const response = await api.get<ApiResponse<PageResponse<AcademicTerm>>>('/academic-terms', {
       params: {
         page: 0,
         size: 100,
@@ -56,14 +56,14 @@ export const academicTermService = {
 
   // Get academic term by ID
   getTermById: async (id: string): Promise<AcademicTerm> => {
-    const response = await api.get<ApiResponse<AcademicTerm>>(`/api/academic-terms/${id}`);
+    const response = await api.get<ApiResponse<AcademicTerm>>(`/academic-terms/${id}`);
     return response.data.data;
   },
 
   // Get active academic term
   getActiveTerm: async (): Promise<AcademicTerm | null> => {
     try {
-      const response = await api.get<ApiResponse<AcademicTerm>>('/api/academic-terms/current');
+      const response = await api.get<ApiResponse<AcademicTerm>>('/academic-terms/current');
       return response.data.data;
     } catch {
       return null;
@@ -72,7 +72,7 @@ export const academicTermService = {
 
   // Get all active academic terms
   getActiveTerms: async (): Promise<AcademicTerm[]> => {
-    const response = await api.get<ApiResponse<AcademicTerm[]>>('/api/academic-terms/active');
+    const response = await api.get<ApiResponse<AcademicTerm[]>>('/academic-terms/active');
     return response.data.data;
   },
 
@@ -87,24 +87,24 @@ export const academicTermService = {
       isActive: data.isActive || false,
     };
 
-    const response = await api.post<ApiResponse<AcademicTerm>>('/api/academic-terms', request);
+    const response = await api.post<ApiResponse<AcademicTerm>>('/academic-terms', request);
     return response.data.data;
   },
 
   // Update academic term
   updateTerm: async (id: string, data: Partial<AcademicTermRequest>): Promise<AcademicTerm> => {
-    const response = await api.put<ApiResponse<AcademicTerm>>(`/api/academic-terms/${id}`, data);
+    const response = await api.put<ApiResponse<AcademicTerm>>(`/academic-terms/${id}`, data);
     return response.data.data;
   },
 
   // Delete academic term
   deleteTerm: async (id: string): Promise<void> => {
-    await api.delete(`/api/academic-terms/${id}`);
+    await api.delete(`/academic-terms/${id}`);
   },
 
   // Set active academic term (backend will auto-deactivate others via trigger)
   setActiveTerm: async (id: string): Promise<AcademicTerm> => {
-    const response = await api.patch<ApiResponse<AcademicTerm>>(`/api/academic-terms/${id}/activate`);
+    const response = await api.patch<ApiResponse<AcademicTerm>>(`/academic-terms/${id}/activate`);
     return response.data.data;
   },
 };

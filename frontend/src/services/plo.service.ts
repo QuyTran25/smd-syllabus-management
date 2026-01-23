@@ -30,7 +30,7 @@ export interface PLOSingleResponse {
 export const ploService = {
   async getAllPLOs(): Promise<PLO[]> {
     try {
-      const response = await apiClient.get<PLOListResponse>('/api/plos');
+      const response = await apiClient.get<PLOListResponse>('/plos');
       return response.data.data || [];
     } catch (error) {
       console.error('Error fetching PLOs:', error);
@@ -40,7 +40,7 @@ export const ploService = {
 
   async getPLOById(id: string): Promise<PLO | null> {
     try {
-      const response = await apiClient.get<PLOSingleResponse>(`/api/plos/${id}`);
+      const response = await apiClient.get<PLOSingleResponse>(`/plos/${id}`);
       return response.data.data;
     } catch (error) {
       console.error('Error fetching PLO:', error);
@@ -50,7 +50,7 @@ export const ploService = {
 
   async getPLOsBySubject(subjectId: string): Promise<PLO[]> {
     try {
-      const response = await apiClient.get<PLOListResponse>(`/api/plos/subject/${subjectId}`);
+      const response = await apiClient.get<PLOListResponse>(`/plos/subject/${subjectId}`);
       return response.data.data || [];
     } catch (error) {
       console.error('Error fetching PLOs by subject:', error);
@@ -59,17 +59,17 @@ export const ploService = {
   },
 
   async createPLO(data: Partial<PLO>): Promise<PLO> {
-    const response = await apiClient.post<PLOSingleResponse>('/api/plos', data);
+    const response = await apiClient.post<PLOSingleResponse>('/plos', data);
     return response.data.data;
   },
 
   async updatePLO(id: string, data: Partial<PLO>): Promise<PLO> {
-    const response = await apiClient.put<PLOSingleResponse>(`/api/plos/${id}`, data);
+    const response = await apiClient.put<PLOSingleResponse>(`/plos/${id}`, data);
     return response.data.data;
   },
 
   async deletePLO(id: string): Promise<void> {
-    await apiClient.delete(`/api/plos/${id}`);
+    await apiClient.delete(`/plos/${id}`);
   },
 
   // Map category to Vietnamese display name

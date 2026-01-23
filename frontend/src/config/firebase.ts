@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import axios from 'axios';
+import { apiClient } from './api-config';
 
 // Firebase configuration từ Firebase Console
 const firebaseConfig = {
@@ -22,8 +22,9 @@ const VAPID_KEY = "BHyaLLjx0t-1O5dIDWB5vdkLIUTM4Wmtj-g2ddFU-H33rr2JuApwzPP9hstZe
 
 /**
  * Đăng ký FCM token và gửi lên backend
+ * @param userId - ID của user hiện tại
  */
-export const registerFCMToken = async () => {
+export const registerFCMToken = async (userId: string) => {
   try {
     // Kiểm tra browser support
     if (!('Notification' in window)) {
@@ -45,7 +46,7 @@ export const registerFCMToken = async () => {
         
         // Gửi token lên backend
         try {
-          await axios.put('/api/users/fcm-token', { token });
+          await apiClient.put('/users/fcm-token', { token });
           console.log('✅ FCM Token đã lưu vào backend');
         } catch (error) {
           console.error('❌ Lỗi lưu FCM token:', error);
@@ -68,11 +69,12 @@ export const registerFCMToken = async () => {
 
 /**
  * Unregister FCM token (khi logout)
+ * @param userId - ID của user hiện tại
  */
-export const unregisterFCMToken = async () => {
+export const unregisterFCMToken = async (userId: string) => {
   try {
     // Xóa token khỏi backend
-    await axios.delete('/api/users/fcm-token');
+    await apiClient.delete('/users/fcm-token');
     console.log('✅ FCM Token đã xóa khỏi backend');
   } catch (error) {
     console.error('❌ Lỗi xóa FCM token:', error);

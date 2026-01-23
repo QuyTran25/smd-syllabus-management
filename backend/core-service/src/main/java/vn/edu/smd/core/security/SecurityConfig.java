@@ -14,9 +14,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+// ❌ Đã xóa các import liên quan đến CORS để tránh lỗi thừa
+// import org.springframework.web.cors.CorsConfiguration;
+// import org.springframework.web.cors.CorsConfigurationSource;
+// import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
@@ -33,28 +34,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
     
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Cho phép tất cả các frontend ports: admin (3000, 5173), student (3001, 5174)
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://localhost:5173", 
-            "http://localhost:5174", 
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001",
-            "http://127.0.0.1:5173"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -79,31 +58,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ⭐ CORS handled by Gateway - Core Service không cần CORS config
-            // Khi dùng API Gateway pattern, chỉ Gateway xử lý CORS để tránh duplicate headers
             .cors(AbstractHttpConfigurer::disable)
             
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Cho phép truy cập không cần Token vào các API Auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 
-                // ⭐ CHO PHÉP STUDENT API PUBLIC (sinh viên không cần đăng nhập để xem đề cương)
+                // ⭐ Student API requires authentication
                 .requestMatchers("/api/student/**").authenticated()
                 
-                // ⭐ CHO PHÉP AI API PUBLIC (để student có thể gọi AI summarize)
+                // ⭐ Allow AI API for student syllabus summarization
                 .requestMatchers("/api/ai/**").permitAll()
                 
-                // ⭐ CHO PHÉP ACADEMIC TERMS API (tạm thời để admin config)
+                // ⭐ Allow public access to academic terms and semesters
                 .requestMatchers("/api/academic-terms/**").permitAll()
                 .requestMatchers("/api/semesters/**").permitAll()
-                
-                // Cho phép Swagger và Actuator để debug
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
-                
-                // Tất cả các API khác bắt buộc phải có Token
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )

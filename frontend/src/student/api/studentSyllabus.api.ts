@@ -1,4 +1,5 @@
-import { http } from './http';
+// 1. QUAN TRỌNG: Dùng apiClient (đã có Token & BaseURL http://localhost:8888/api)
+import { apiClient } from '../../config/api-config';
 import { SyllabusListItem, SyllabusDetail, StudentSyllabiFilters } from '../types';
 
 export interface ReportIssuePayload {
@@ -7,12 +8,19 @@ export interface ReportIssuePayload {
   description: string;
 }
 
+// ==========================================
+// LƯU Ý KỸ: Các đường dẫn bên dưới KHÔNG ĐƯỢC có chữ '/api' ở đầu
+// Vì apiClient đã có sẵn '/api' rồi.
+// ==========================================
+
+// 1. Lấy danh sách
 export async function listStudentSyllabi(
   filters?: StudentSyllabiFilters
 ): Promise<SyllabusListItem[]> {
-  const res = await http.get('/student/syllabi', { params: filters });
-  const rawData = (Array.isArray(res.data) ? res.data : []) as any[];
+  // ✅ ĐÚNG: '/student/syllabi' (Không có /api)
+  const res = await apiClient.get('/student/syllabi', { params: filters });
 
+  const rawData = (Array.isArray(res.data) ? res.data : []) as any[];
   return rawData.map((item) => ({
     id: item.id,
     code: item.code || 'N/A',
@@ -30,10 +38,11 @@ export async function listStudentSyllabi(
   }));
 }
 
+// 2. Lấy chi tiết (Nguyên nhân bạn bị văng ra Login nằm ở đây nếu sai URL)
 export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDetail> {
   try {
-    // ✅ FIX: Thêm try-catch để handle error graceful (không reload trang)
-    const res = await http.get(`/student/syllabi/${id}`);
+    // ✅ ĐÚNG: `/student/syllabi/${id}` (Không có /api)
+    const res = await apiClient.get(`/student/syllabi/${id}`);
     const d = res.data;
 
     return {
@@ -46,53 +55,51 @@ export async function getStudentSyllabusDetail(id: string): Promise<SyllabusDeta
       lecturerName: d.lecturerName || 'Giảng viên hướng dẫn',
       status: d.status || 'PUBLISHED',
       summaryInline: d.description || 'Chưa có tóm tắt nội dung môn học.',
-
-      // ⭐ Map isTracked từ backend sang tracked
       tracked: d.tracked ?? d.isTracked ?? false,
-
       assessmentMatrix: d.assessmentMatrix || [],
       clos: d.clos || [],
       ploList: d.ploList || [],
       cloPloMap: d.cloPloMap || {},
       timeAllocation: {
-        theory: d.timeAllocation?.theory || d.theoryHours || 30,
-        practice: d.timeAllocation?.practice || d.practiceHours || 30,
-        selfStudy: d.timeAllocation?.selfStudy || d.selfStudyHours || 90,
+        theory: d.timeAllocation?.theory || d.theoryHours || 0,
+        practice: d.timeAllocation?.practice || d.practiceHours || 0,
+        selfStudy: d.timeAllocation?.selfStudy || d.selfStudyHours || 0,
       },
       objectives: d.objectives || [],
       studentTasks: d.studentTasks || [],
       teachingMethods: d.teachingMethods || 'Giảng dạy lý thuyết và thực hành nhóm',
+      textbooks: d.textbooks || [],
+      references: d.references || [],
     };
   } catch (error: any) {
     console.error('Lỗi khi lấy detail đề cương:', error);
-    // ✅ Handle error: Có thể throw hoặc return default object với message error
-    throw new Error(
-      error.response?.data?.message || 'Không thể tải đề cương. Vui lòng thử lại sau.'
-    );
+    // apiClient tự handle logout nếu 401.
+    // Nếu ID sai format (UUID), server trả 400 -> Không logout, chỉ hiện lỗi.
+    throw error;
   }
 }
 
+// 3. Toggle theo dõi
 export async function toggleTrackSyllabus(id: string) {
-  try {
-    // ✅ FIX: Thêm try-catch để handle error (không reload trang)
-    const res = await http.post(`/student/syllabi/${id}/track`);
-    return res.data;
-  } catch (error: any) {
-    console.error('Lỗi khi toggle theo dõi:', error);
-    throw new Error(
-      error.response?.data?.message || 'Không thể cập nhật theo dõi. Vui lòng thử lại.'
-    );
-  }
-}
-
-export async function reportIssue(payload: ReportIssuePayload) {
-  console.log('LOG: Đang gửi báo cáo lỗi với data:', payload);
-  const res = await http.post('/student/syllabi/issues/report', payload);
+  // ✅ ĐÚNG: Không có /api
+  const res = await apiClient.post(`/student/syllabi/${id}/track`);
   return res.data;
 }
 
+// 4. Báo lỗi
+export async function reportIssue(payload: ReportIssuePayload) {
+  // ✅ ĐÚNG: Không có /api
+  const res = await apiClient.post('/student/syllabi/issues/report', payload);
+  return res.data;
+}
+
+// 5. Tải PDF
 export async function downloadSyllabusPdf(id: string) {
-  return http.get(`/student/syllabi/${id}/pdf`, {
+  // ✅ ĐÚNG: Không có /api
+  return apiClient.get(`/student/syllabi/${id}/pdf`, {
     responseType: 'blob',
+    headers: {
+      Accept: 'application/pdf',
+    },
   });
 }

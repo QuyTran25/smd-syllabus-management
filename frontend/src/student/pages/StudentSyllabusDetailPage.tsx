@@ -18,7 +18,7 @@ import {
   RobotOutlined,
   TableOutlined,
   DownloadOutlined,
-  StarFilled, // 👈 Thêm
+  StarFilled,
   StarOutlined,
 } from '@ant-design/icons';
 
@@ -202,6 +202,21 @@ export const StudentSyllabusDetailPage: React.FC = () => {
       </div>
     );
 
+  // --- 🔥 UX: Cấu hình nút theo dõi dựa trên trạng thái ---
+  const isTracked = data.tracked;
+  const trackButtonConfig = {
+    icon: isTracked ? <StarFilled style={{ color: '#faad14', fontSize: 18 }} /> : <StarOutlined />,
+    text: isTracked ? 'Đang theo dõi' : 'Theo dõi',
+    style: isTracked
+      ? {
+          borderColor: '#faad14',
+          color: '#d48806',
+          background: '#fffbe6',
+          fontWeight: 600,
+        }
+      : {}, // Style mặc định khi chưa theo dõi
+  };
+
   return (
     <div style={{ padding: 18, background: '#f5f7f9', minHeight: '100vh' }}>
       <Breadcrumb
@@ -264,6 +279,7 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           <Button icon={<TableOutlined />} onClick={() => setOpenCloPlo(true)}>
             📊 Bản đồ CLO-PLO
           </Button>
+
           <Button
             type="primary"
             icon={<DownloadOutlined />}
@@ -279,13 +295,16 @@ export const StudentSyllabusDetailPage: React.FC = () => {
           >
             Tải PDF
           </Button>
+
           <Button
-            onClick={() => toggleTrack.mutate(data.id)}
-            loading={toggleTrack.isPending} // Hiện loading nếu cần
-            icon={data.tracked ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />} // Đổi icon
+            onClick={() => toggleTrack.mutate(id)}
+            loading={toggleTrack.isPending}
+            icon={trackButtonConfig.icon}
+            style={trackButtonConfig.style}
           >
-            {data.tracked ? 'Đang theo dõi' : 'Theo dõi'}
+            {trackButtonConfig.text}
           </Button>
+
           <Button danger onClick={() => setOpenReport(true)}>
             Báo lỗi
           </Button>
