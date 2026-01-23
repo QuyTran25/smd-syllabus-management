@@ -263,7 +263,7 @@ class AIMessageHandler:
             ]
         }
         
-        logger.info(f"✅ CLO-PLO analysis completed. Status: {result['overall_status']}")
+        logger.info(f" CLO-PLO analysis completed. Status: {result['overall_status']}")
         return result
     
     def _handle_compare_versions(self, message_id: str, payload: Dict) -> Dict:
@@ -278,14 +278,14 @@ class AIMessageHandler:
         new_version = payload.get('new_version', {})
         
         logger.info(f"🔍 Comparing versions: {old_version.get('version_no')} → {new_version.get('version_no')}")
-        logger.info(f"📊 Old version: ID={old_version_id[:8]}..., version_no={old_version.get('version_no')}, CLOs={len(old_version.get('content', {}).get('clos', []))}")
-        logger.info(f"📊 New version: ID={new_version_id[:8]}..., version_no={new_version.get('version_no')}, CLOs={len(new_version.get('content', {}).get('clos', []))}")
+        logger.info(f" Old version: ID={old_version_id[:8]}..., version_no={old_version.get('version_no')}, CLOs={len(old_version.get('content', {}).get('clos', []))}")
+        logger.info(f" New version: ID={new_version_id[:8]}..., version_no={new_version.get('version_no')}, CLOs={len(new_version.get('content', {}).get('clos', []))}")
         
         # Extract content from both versions
         old_content = old_version.get('content', {})
         new_content = new_version.get('content', {})
         
-        logger.info(f"📊 Comparing all sections of the syllabus")
+        logger.info(f" Comparing all sections of the syllabus")
         
         # Detect changes
         changes = []
@@ -456,7 +456,7 @@ class AIMessageHandler:
             "ai_analysis": ai_analysis
         }
         
-        logger.info(f"✅ Version comparison completed: {total_changes} changes detected")
+        logger.info(f" Version comparison completed: {total_changes} changes detected")
         return result
     
     def _compare_clos(self, old_clos: List, new_clos: List) -> List[Dict]:
@@ -675,38 +675,115 @@ class AIMessageHandler:
             return None
         
         try:
+            # Build detailed change list for prompt
+            change_details = []
+            for change in changes[:15]:  # Limit to 15 most important changes
+                section = change.get('section', 'unknown')
+                section_names = {
+                    'learning_outcomes': 'CLOs (Chuẩn đầu ra)',
+                    'assessment_schemes': 'Phương pháp đánh giá',
+                    'teaching_methods': 'Phương pháp giảng dạy',
+                    'prerequisites': 'Điều kiện tiên quyết',
+                    'learning_materials': 'Tài liệu học tập',
+                    'weekly_plans': 'Kế hoạch giảng dạy',
+                    'description': 'Mô tả môn học',
+                    'objectives': 'Mục tiêu môn học'
+                }
+                section_vn = section_names.get(section, section)
+                
+                for detail in change.get('changes', []):
+                    field = detail.get('field', '')
+                    old_val = detail.get('old_value')
+                    new_val = detail.get('new_value')
+                    impact = detail.get('impact', '')
+                    
+                    if old_val is None:
+                        change_details.append(f"• {section_vn} - {field}: THÊM MỚI '{new_val}' ({impact})")
+                    elif new_val is None:
+                        change_details.append(f"• {section_vn} - {field}: XÓA '{old_val}' ({impact})")
+                    else:
+                        change_details.append(f"• {section_vn} - {field}: SỬA ĐỔI từ '{old_val}' → '{new_val}' ({impact})")
+            
+            change_list = '\n'.join(change_details) if change_details else "Không có thay đổi đáng kể"
+            
             prompt = f"""
-Phân tích sự thay đổi giữa 2 phiên bản đề cương môn học:
+Phân tích chi tiết sự thay đổi giữa 2 phiên bản đề cương môn học:
 
-**Phiên bản cũ (v{old_version.get('version_no')}):**
+**PHIÊN BẢN CŨ (v{old_version.get('version_no')}):**
 - Số CLOs: {len(old_version.get('content', {}).get('clos', []))}
-- Mô tả: {old_version.get('description', '')[:200]}
+- Số phương pháp đánh giá: {len(old_version.get('content', {}).get('assessment_schemes', []))}
+- Mô tả: {old_version.get('description', '')[:150]}...
 
-**Phiên bản mới (v{new_version.get('version_no')}):**
+**PHIÊN BẢN MỚI (v{new_version.get('version_no')}):**
 - Số CLOs: {len(new_version.get('content', {}).get('clos', []))}
-- Mô tả: {new_version.get('description', '')[:200]}
+- Số phương pháp đánh giá: {len(new_version.get('content', {}).get('assessment_schemes', []))}
+- Mô tả: {new_version.get('description', '')[:150]}...
 
-**Các thay đổi đã phát hiện:**
-{len(changes)} thay đổi trong các phần: {', '.join(set(c['section'] for c in changes))}
+**CHI TIẾT CÁC THAY ĐỔI ({len(changes)} thay đổi):**
+{change_list}
 
-Hãy đưa ra:
-1. Đánh giá tổng quan về các thay đổi (2-3 câu)
-2. Các cải tiến chính (2-3 điểm)
-3. Khuyến nghị (nếu có, 1-2 điểm)
+**YÊU CẦU PHÂN TÍCH:**
+1. Tổng quan: Đánh giá chung về mức độ và tính chất thay đổi (2-3 câu ngắn)
+2. Cải tiến chính: Liệt kê 3-4 thay đổi QUAN TRỌNG NHẤT theo format:
+   - [Mục]: Nội dung thay đổi cụ thể
+   Ví dụ: "CLOs: Thêm CLO3 về kỹ năng phân tích dữ liệu"
+3. Khuyến nghị: 1-2 gợi ý cải thiện tiếp (nếu cần)
 
-Trả lời ngắn gọn, súc tích bằng tiếng Việt.
+Trả lời NGẮN GỌN, TẬP TRUNG VÀO ĐIỂM KHÁC BIỆT QUAN TRỌNG, bằng tiếng Việt.
 """
             
             response = self.gemini_client.generate_content(prompt)
             analysis_text = response.text
             
-            # Parse response thành structured data
+            # Parse response - clean markdown formatting
             lines = [l.strip() for l in analysis_text.split('\n') if l.strip()]
             
+            # Remove markdown formatting (**, ##, ---, bullets)
+            clean_lines = []
+            for line in lines:
+                # Skip separator lines
+                if line in ['---', '***', '___']:
+                    continue
+                # Remove markdown bold/italic
+                line = line.replace('**', '').replace('__', '').replace('*', '').replace('_', '')
+                # Remove heading markers
+                line = line.lstrip('#').strip()
+                # Remove bullet points and numbering
+                if line.startswith(('- ', '+ ', '* ')):
+                    line = line[2:].strip()
+                elif len(line) > 2 and line[0].isdigit() and line[1:3] in ['. ', ') ']:
+                    line = line[3:].strip()
+                
+                if line:  # Only add non-empty lines
+                    clean_lines.append(line)
+            
+            # Categorize lines into sections
+            overall = ""
+            improvements = []
+            recommendations = []
+            current_section = "overall"
+            
+            for line in clean_lines:
+                line_lower = line.lower()
+                if any(keyword in line_lower for keyword in ['cải tiến', 'cải thiện', 'improvement']):
+                    current_section = "improvements"
+                    continue
+                elif any(keyword in line_lower for keyword in ['khuyến nghị', 'đề xuất', 'recommendation']):
+                    current_section = "recommendations"
+                    continue
+                
+                # Add to appropriate section
+                if current_section == "overall" and not overall:
+                    overall = line
+                elif current_section == "improvements":
+                    improvements.append(line)
+                elif current_section == "recommendations":
+                    recommendations.append(line)
+            
             return {
-                "overall_assessment": lines[0] if lines else "Phiên bản mới có cải thiện so với phiên bản cũ",
-                "key_improvements": lines[1:3] if len(lines) > 1 else [],
-                "recommendations": lines[3:] if len(lines) > 3 else []
+                "overall_assessment": overall if overall else (clean_lines[0] if clean_lines else "Phiên bản mới có cải thiện so với phiên bản cũ"),
+                "key_improvements": improvements if improvements else clean_lines[1:4],
+                "recommendations": recommendations if recommendations else clean_lines[4:]
             }
             
         except Exception as e:
@@ -842,7 +919,8 @@ Trả lời ngắn gọn, súc tích bằng tiếng Việt.
         
         text = ' '.join(text.split())
         
-        if len(text) <= max_length:
+        # Only skip summarization if text is already VERY SHORT (< 60 chars)
+        if len(text) <= 60:
             return text
         
         # Try Gemini first
@@ -869,18 +947,27 @@ Trả lời ngắn gọn, súc tích bằng tiếng Việt.
     
     def _summarize_with_gemini(self, text: str, max_length: int) -> str:
         """Summarize using Gemini API"""
-        logger.info(f"🤖 [GEMINI] Summarizing text: {len(text)} chars")
+        logger.info(f"🤖 [GEMINI] Summarizing text: {len(text)} chars → target {max_length} chars")
         
-        prompt = f"""Tóm tắt văn bản sau thành 2-3 câu ngắn gọn (tối đa {max_length} ký tự), giữ nguyên thông tin quan trọng nhất:
+        prompt = f"""Rút gọn văn bản sau thành TỐI ĐA {max_length} ký tự.
 
-{text}
+Yêu cầu:
+- CHỈ giữ TỪ KHÓA CHÍNH
+- BỎ ví dụ trong ngoặc (), chi tiết dài dòng
+- Viết cực ngắn gọn
 
-Tóm tắt:"""
+Ví dụ:
+"Giải thích được nguyên lý vận hành của CPU (ALU, Control Unit)" → "Nguyên lý CPU"
+"Viết và gỡ lỗi chương trình Assembly" → "Lập trình Assembly"
+
+Văn bản: {text[:1500]}
+
+Rút gọn:"""
         
         response = self.gemini_client.generate_content(prompt)
         summary = response.text.strip()
         
-        logger.info(f"✅ [GEMINI SUCCESS] Summary: {len(summary)} chars")
+        logger.info(f"✅ [GEMINI SUCCESS] Summary: {len(text)} → {len(summary)} chars")
         return summary
     
     def _summarize_with_local_model(self, text: str, max_length: int) -> str:
@@ -916,10 +1003,10 @@ Tóm tắt:"""
     
     def _extractive_summarize(self, text: str, max_length: int = 100) -> str:
         """
-        Simple extractive summarization - take first N sentences
+        Simple extractive summarization - take first N sentences and ensure max_length
         Fallback when AI model not available
         """
-        # Simple: Take first N sentences
+        # Split into sentences
         sentences = []
         for delimiter in ['. ', '.\n', '! ', '? ']:
             if delimiter in text:
@@ -928,28 +1015,44 @@ Tóm tắt:"""
                 break
         
         if not sentences:
-            # No sentences, just truncate
-            return text[:max_length] + '...'
+            # No sentences, just truncate at word boundary
+            if len(text) <= max_length:
+                return text
+            # Truncate at word boundary without "..."
+            truncated = text[:max_length].rsplit(' ', 1)[0]
+            return truncated.strip()
         
-        # Take first 2-3 sentences
+        # Take first sentences that fit within max_length
         result = []
         current_len = 0
-        for sent in sentences[:3]:
-            if current_len + len(sent) <= max_length:
-                result.append(sent)
-                current_len += len(sent) + 2
-            else:
+        for sent in sentences:
+            sent_with_period = sent if sent.endswith('.') else sent + '.'
+            # If adding this sentence exceeds max_length
+            if current_len + len(sent_with_period) + 1 > max_length:
+                # If we already have some sentences, stop here (no "..." needed)
+                if result:
+                    break
+                # If even first sentence is too long, truncate at word boundary
+                available = max_length - current_len
+                if available > 50:  # Only if we have reasonable space
+                    truncated = sent[:available].rsplit(' ', 1)[0]
+                    return truncated.strip()  # No "..." - just truncate cleanly
+                else:
+                    # Just truncate the whole text
+                    truncated = text[:max_length].rsplit(' ', 1)[0]
+                    return truncated.strip()
                 break
+            result.append(sent_with_period)
+            current_len += len(sent_with_period) + 1
         
         if result:
-            summary = '. '.join(result)
-            if not summary.endswith('.'):
-                summary += '.'
-            logger.info(f"📝 Simple truncation: {len(text)} -> {len(summary)} chars")
+            summary = ' '.join(result)
+            logger.info(f"📝 Extractive summary: {len(text)} -> {len(summary)} chars")
             return summary
         
-        # Fallback
-        return text[:max_length] + '...'
+        # Final fallback - truncate at word boundary (no "...")
+        truncated = text[:max_length].rsplit(' ', 1)[0]
+        return truncated.strip()
 
     def _summarize_with_ai(self, syllabus_data: Dict) -> Dict:
         """
@@ -985,8 +1088,8 @@ Tóm tắt:"""
             logger.info(f"   Assessment scheme: {len(assessment_scheme)} items")
             logger.info(f"   Assessment matrix: {len(syllabus_data.get('assessment_matrix', []))} items")
             
-            # 1. Mô tả học phần - TÓM TẮT GỌN bằng extractive summarization
-            mo_ta = self._summarize_text(description, max_length=200) if description else "Không có thông tin"
+            # 1. Mô tả học phần - TÓM TẮT GỌN bằng AI (80 ký tự tối đa)
+            mo_ta = self._summarize_text(description, max_length=80) if description else "Không có thông tin"
             logger.info(f"✅ Description summarized: {len(description) if description else 0} -> {len(mo_ta)} chars")
             
             # 2. Mục tiêu học phần - TÓM TẮT TỪNG MỤC bằng extractive summarization
@@ -1002,21 +1105,21 @@ Tóm tắt:"""
                         else:
                             obj_text = obj if isinstance(obj, str) else str(obj)
                         if obj_text and obj_text.strip():
-                            # Tóm tắt mỗi mục tiêu bằng extractive summarization
-                            summarized = self._summarize_text(obj_text.strip(), max_length=120)
+                            # Tóm tắt mỗi mục tiêu bằng AI (20 ký tự tối đa)
+                            summarized = self._summarize_text(obj_text.strip(), max_length=20)
                             muc_tieu.append(summarized)
                             logger.debug(f"   Objective: {len(obj_text)} -> {len(summarized)} chars")
                 elif isinstance(objectives, str) and objectives.strip():
                     # If it's a string, split by common delimiters or add as single item
                     if '\n' in objectives:
                         parts = [o.strip() for o in objectives.split('\n') if o.strip()]
-                        muc_tieu = [self._summarize_text(p, max_length=80) for p in parts[:5]]  # Limit to 5 objectives
+                        muc_tieu = [self._summarize_text(p, max_length=20) for p in parts[:5]]  # Limit to 5 objectives
                     elif '. ' in objectives and len(objectives) > 50:  # Only split if it's a long text
                         parts = objectives.split('. ')
                         formatted = [o.strip() + ('.' if not o.endswith('.') else '') for o in parts if o.strip()]
-                        muc_tieu = [self._summarize_text(f, max_length=80) for f in formatted[:5]]  # Limit to 5
+                        muc_tieu = [self._summarize_text(f, max_length=20) for f in formatted[:5]]  # Limit to 5
                     else:
-                        muc_tieu = [self._summarize_text(objectives.strip(), max_length=120)]
+                        muc_tieu = [self._summarize_text(objectives.strip(), max_length=50)]
             
             logger.info(f"✅ Objectives processed: {len(muc_tieu)} items")
             
@@ -1030,16 +1133,34 @@ Tóm tắt:"""
                     # Split by newline or comma
                     if '\n' in teaching_method:
                         methods_list = [m.strip() for m in teaching_method.split('\n') if m.strip()]
-                        # Tóm tắt từng phương pháp nếu dài
-                        phuong_phap_giang_day = [self._summarize_text(m, max_length=100) if len(m) > 100 else m for m in methods_list]
+                        # Xử lý: cắt nội dung sau dấu ":", rồi mới tóm tắt
+                        phuong_phap_giang_day = []
+                        for m in methods_list:
+                            # Cắt nội dung sau dấu ":"
+                            if ':' in m:
+                                m = m.split(':')[0].strip()
+                            # Tóm tắt nếu vẫn còn dài
+                            phuong_phap_giang_day.append(self._summarize_text(m, max_length=35) if len(m) > 35 else m)
                     elif ',' in teaching_method:
                         methods_list = [m.strip() for m in teaching_method.split(',') if m.strip()]
-                        phuong_phap_giang_day = [self._summarize_text(m, max_length=100) if len(m) > 100 else m for m in methods_list]
+                        phuong_phap_giang_day = []
+                        for m in methods_list:
+                            if ':' in m:
+                                m = m.split(':')[0].strip()
+                            phuong_phap_giang_day.append(self._summarize_text(m, max_length=35) if len(m) > 35 else m)
                     else:
-                        phuong_phap_giang_day = [self._summarize_text(teaching_method.strip(), max_length=150)]
+                        # Cắt sau dấu ":"
+                        if ':' in teaching_method:
+                            teaching_method = teaching_method.split(':')[0].strip()
+                        phuong_phap_giang_day = [self._summarize_text(teaching_method.strip(), max_length=50)]
                 elif isinstance(teaching_method, list):
-                    # Tóm tắt từng phương pháp nếu dài
-                    phuong_phap_giang_day = [self._summarize_text(str(m).strip(), max_length=100) if len(str(m)) > 100 else str(m).strip() for m in teaching_method if str(m).strip()]
+                    # Xử lý list: cắt sau dấu ":" trước khi tóm tắt
+                    phuong_phap_giang_day = []
+                    for m in teaching_method:
+                        m_str = str(m).strip()
+                        if ':' in m_str:
+                            m_str = m_str.split(':')[0].strip()
+                        phuong_phap_giang_day.append(self._summarize_text(m_str, max_length=35) if len(m_str) > 35 else m_str)
             
             # Fallback to weekly_content if teaching_method is empty
             if not phuong_phap_giang_day and weekly_content and isinstance(weekly_content, list):
@@ -1149,8 +1270,8 @@ Tóm tắt:"""
                 for clo in learning_outcomes:
                     if isinstance(clo, dict):
                         desc = clo.get('description', '')
-                        # Tóm tắt CLO description nếu dài hơn 120 ký tự
-                        summarized_desc = self._summarize_text(desc, max_length=120) if desc and len(desc) > 120 else desc
+                        # Tóm tắt CLO description bằng AI (40 ký tự tối đa)
+                        summarized_desc = self._summarize_text(desc, max_length=40) if desc else ""
                         clo_list.append({
                             "code": clo.get('code', ''),
                             "description": summarized_desc,
@@ -1173,7 +1294,7 @@ Tóm tắt:"""
                             "weight": str(item.get('weight', ''))
                         })
             else:
-                logger.warning("⚠️ No assessment matrix received from backend - check if syllabus was saved properly")
+                logger.warning(" No assessment matrix received from backend - check if syllabus was saved properly")
             
             result = {
                 "course_name": course_name,
@@ -1189,8 +1310,8 @@ Tóm tắt:"""
             }
             
             logger.info("=" * 80)
-            logger.info("✅ STRUCTURED SUMMARY COMPLETED")
-            logger.info(f"📊 Summary stats:")
+            logger.info(" STRUCTURED SUMMARY COMPLETED")
+            logger.info(f" Summary stats:")
             logger.info(f"   - Description: {len(mo_ta)} chars")
             logger.info(f"   - Objectives: {len(muc_tieu)} items")
             logger.info(f"   - Teaching methods: {len(phuong_phap_giang_day)} items")
@@ -1201,7 +1322,7 @@ Tóm tắt:"""
             return result
             
         except Exception as e:
-            logger.error(f"❌ Summary creation failed: {e}", exc_info=True)
+            logger.error(f" Summary creation failed: {e}", exc_info=True)
             # Fallback to basic structured summary
             return self._create_structured_summary(syllabus_data)
     
@@ -1242,7 +1363,7 @@ Tóm tắt:"""
             return summary.strip()
             
         except Exception as e:
-            logger.error(f"❌ Generation failed: {e}")
+            logger.error(f" Generation failed: {e}")
             return prompt[:max_length]  # Fallback to truncated input
     
     def _format_learning_outcomes(self, outcomes: list) -> str:

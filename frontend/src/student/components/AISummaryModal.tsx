@@ -75,14 +75,14 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
           <>
             {/* 1. Mô tả học phần */}
             {result.mo_ta_hoc_phan && (
-              <Card size="small" title="📝 Mô tả học phần">
+              <Card size="small" title=" Mô tả học phần">
                 <Text>{result.mo_ta_hoc_phan}</Text>
               </Card>
             )}
 
             {/* 2. Mục tiêu học phần */}
             {result.muc_tieu_hoc_phan && result.muc_tieu_hoc_phan.length > 0 && (
-              <Card size="small" title="🎯 Mục tiêu học phần">
+              <Card size="small" title=" Mục tiêu học phần">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.muc_tieu_hoc_phan.map((muc_tieu: string, i: number) => (
                     <li key={i}>{muc_tieu}</li>
@@ -93,7 +93,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 3. Phương pháp giảng dạy */}
             {result.phuong_phap_giang_day && result.phuong_phap_giang_day.length > 0 && (
-              <Card size="small" title="👨‍🏫 Phương pháp giảng dạy">
+              <Card size="small" title=" Phương pháp giảng dạy">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.phuong_phap_giang_day.map((pp: string, i: number) => (
                     <li key={i}>{pp}</li>
@@ -104,7 +104,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 4. Phương pháp đánh giá */}
             {result.phuong_phap_danh_gia && result.phuong_phap_danh_gia.length > 0 && (
-              <Card size="small" title="📊 Phương pháp đánh giá">
+              <Card size="small" title=" Phương pháp đánh giá">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.phuong_phap_danh_gia.map((dg: any, i: number) => (
                     <li key={i}>
@@ -117,7 +117,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 5. Giáo trình chính */}
             {result.giao_trinh_chinh && result.giao_trinh_chinh.length > 0 && (
-              <Card size="small" title="📚 Giáo trình chính">
+              <Card size="small" title=" Giáo trình chính">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.giao_trinh_chinh.map((gt: any, i: number) => (
                     <li key={i}>
@@ -130,7 +130,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 6. Tài liệu tham khảo */}
             {result.tai_lieu_tham_khao && result.tai_lieu_tham_khao.length > 0 && (
-              <Card size="small" title="📖 Tài liệu tham khảo">
+              <Card size="small" title=" Tài liệu tham khảo">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.tai_lieu_tham_khao.slice(0, 5).map((tl: any, i: number) => (
                     <li key={i}>
@@ -143,7 +143,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 7. Nhiệm vụ của Sinh viên */}
             {result.nhiem_vu_sinh_vien && result.nhiem_vu_sinh_vien.length > 0 && (
-              <Card size="small" title="✅ Nhiệm vụ của Sinh viên">
+              <Card size="small" title=" Nhiệm vụ của Sinh viên">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.nhiem_vu_sinh_vien.map((nv: string, i: number) => (
                     <li key={i}>{nv}</li>
@@ -154,7 +154,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 8. Chuẩn đầu ra học phần (CLO) */}
             {result.clo && result.clo.length > 0 && (
-              <Card size="small" title="🎓 Chuẩn đầu ra học phần (CLO)">
+              <Card size="small" title=" Chuẩn đầu ra học phần (CLO)">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.clo.map((clo: any, i: number) => (
                     <li key={i}>
@@ -168,7 +168,7 @@ export const AISummaryModal: React.FC<Props> = ({ open, onClose, taskStatus }) =
 
             {/* 9. Ma trận đánh giá */}
             {result.ma_tran_danh_gia && result.ma_tran_danh_gia.length > 0 && (
-              <Card size="small" title="📋 Ma trận đánh giá">
+              <Card size="small" title=" Ma trận đánh giá">
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {result.ma_tran_danh_gia.map((item: any, i: number) => (
                     <li key={i}>

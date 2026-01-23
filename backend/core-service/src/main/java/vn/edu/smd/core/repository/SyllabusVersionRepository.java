@@ -57,4 +57,12 @@ public interface SyllabusVersionRepository extends JpaRepository<SyllabusVersion
     
     // Count syllabi by status
     long countByStatusAndIsDeletedFalse(SyllabusStatus status);
+    
+    // Get max version number for a subject
+    @Query("SELECT COALESCE(MAX(s.versionNumber), 0) FROM SyllabusVersion s WHERE s.subject.id = :subjectId AND s.isDeleted = false")
+    Integer findMaxVersionNumberBySubjectId(@Param("subjectId") UUID subjectId);
+    
+    // Get ALL versions including deleted (for comparison)
+    @Query("SELECT s FROM SyllabusVersion s WHERE s.subject.id = :subjectId ORDER BY s.versionNumber DESC")
+    List<SyllabusVersion> findAllVersionsBySubjectIdIncludingDeleted(@Param("subjectId") UUID subjectId);
 }

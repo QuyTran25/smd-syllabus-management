@@ -72,7 +72,7 @@ class AIService {
    */
   async checkCloPloMapping(syllabusId: string, curriculumId: string): Promise<string> {
     const response = await axios.post<{ task_id: string }>(
-      `${API_BASE_URL}/ai/syllabus/${syllabusId}/check-clo-plo`,
+      `${API_BASE_URL}/api/ai/syllabus/${syllabusId}/check-clo-plo`,
       null,
       {
         params: { curriculumId },
@@ -93,7 +93,7 @@ class AIService {
     subjectId: string
   ): Promise<string> {
     const response = await axios.post<{ task_id: string }>(
-      `${API_BASE_URL}/ai/syllabus/compare`,
+      `${API_BASE_URL}/api/ai/syllabus/compare`,
       null,
       {
         params: { oldVersionId, newVersionId, subjectId },
@@ -110,7 +110,7 @@ class AIService {
    */
   async summarizeSyllabus(syllabusId: string): Promise<string> {
     const response = await axios.post<{ task_id: string }>(
-      `${API_BASE_URL}/ai/syllabus/${syllabusId}/summarize`,
+      `${API_BASE_URL}/api/ai/syllabus/${syllabusId}/summarize`,
       null,
       {
         headers: {
@@ -126,7 +126,7 @@ class AIService {
    */
   async getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
     const response = await axios.get<TaskStatusResponse>(
-      `${API_BASE_URL}/ai/tasks/${taskId}/status`,
+      `${API_BASE_URL}/api/ai/tasks/${taskId}/status`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

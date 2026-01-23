@@ -140,41 +140,27 @@ export const SyllabusListPage: React.FC = () => {
     if (!selectedSyllabus) return;
     setComparisonLoading(true);
     try {
-      // Fetch all versions of this subject
-      const versions = await syllabusService.getVersionsBySubject(selectedSyllabus.subjectId);
+      // Fetch ALL versions including deleted ones (for comparison)
+      const versions = await syllabusService.getVersionsBySubject(selectedSyllabus.subjectId, true);
       
-      console.log('📊 All versions:', versions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
+      console.log('📊 API returned versions (including deleted):', versions);
+      console.log('📊 Versions count:', versions.length);
+      console.log('📊 All versions:', versions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber, syllabusId: v.syllabusId })));
       
-      if (versions.length < 1) {
-        message.warning('Chưa có phiên bản nào để so sánh');
-        return;
-      }
-
-      // Deduplicate by version_no: Keep only the newest record for each version
-      const uniqueVersions = Object.values(
-        versions.reduce((acc, v) => {
-          const versionKey = v.versionNo || `v${v.versionNumber}`;
-          if (!acc[versionKey] || new Date(v.createdAt) > new Date(acc[versionKey].createdAt)) {
-            acc[versionKey] = v;
-          }
-          return acc;
-        }, {} as Record<string, any>)
-      );
-
-      console.log('📊 Unique versions:', uniqueVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
-
-      if (uniqueVersions.length < 2) {
-        message.warning('Chưa có đủ 2 phiên bản để so sánh');
+      if (versions.length < 2) {
+        message.error(`Chỉ có ${versions.length} phiên bản, cần ít nhất 2 phiên bản để so sánh`);
+        console.error('❌ Not enough versions:', versions);
         return;
       }
 
       // Sort by version number descending to get newest first
-      // Try both versionNumber and versionNo fields
-      const sortedVersions = uniqueVersions.sort((a, b) => {
+      const sortedVersions = versions.sort((a, b) => {
         const aVersion = a.versionNumber || parseInt(a.versionNo?.replace('v', '') || '0');
         const bVersion = b.versionNumber || parseInt(b.versionNo?.replace('v', '') || '0');
         return bVersion - aVersion;
       });
+
+      console.log('📊 Sorted versions:', sortedVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
 
       console.log('📊 Sorted versions:', sortedVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
 

@@ -120,10 +120,10 @@ public class AITaskService {
                                          UUID subjectId, String userId) {
         String messageId = UUID.randomUUID().toString();
         
-        // Query cả 2 versions từ database
-        SyllabusVersion oldVersion = syllabusVersionRepository.findByIdAndNotDeleted(oldVersionId)
+        // Query cả 2 versions từ database (bao gồm cả deleted versions để so sánh)
+        SyllabusVersion oldVersion = syllabusVersionRepository.findById(oldVersionId)
                 .orElseThrow(() -> new RuntimeException("Old version not found: " + oldVersionId));
-        SyllabusVersion newVersion = syllabusVersionRepository.findByIdAndNotDeleted(newVersionId)
+        SyllabusVersion newVersion = syllabusVersionRepository.findById(newVersionId)
                 .orElseThrow(() -> new RuntimeException("New version not found: " + newVersionId));
         
         // Build full content cho mỗi version

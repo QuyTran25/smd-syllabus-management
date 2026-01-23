@@ -355,40 +355,80 @@ public class SyllabusService {
 
         User currentUser = getCurrentUser();
         SyllabusStatus previousStatus = syllabus.getStatus();
+        SyllabusVersion savedSyllabus;
         
-        // If saving draft after rejection, create snapshot and increment version
+        // If editing REJECTED version, create NEW version immediately (not on submit)
+        // ONLY for REJECTED, not REVISION_IN_PROGRESS (to avoid duplicate version on submit)
         if (previousStatus == SyllabusStatus.REJECTED) {
-            log.info("Creating snapshot for rejected syllabus {} before revision", syllabus.getId());
+            log.info("🆕 Creating NEW version for editing rejected syllabus {} (current: {})", 
+                     syllabus.getId(), syllabus.getVersionNo());
             
-            // Create snapshot of current version before updating
-            createSnapshot(syllabus, "BEFORE_REVISION_V" + (syllabus.getVersionNumber() != null ? syllabus.getVersionNumber() : 1));
+            // Calculate new version number
+            Integer maxVersionNumber = syllabusVersionRepository.findMaxVersionNumberBySubjectId(syllabus.getSubject().getId());
+            Integer newVersionNumber = (maxVersionNumber != null ? maxVersionNumber : 0) + 1;
+            String newVersionNo = "v" + newVersionNumber;
             
-            // Increment version number
-            Integer currentVersionNumber = syllabus.getVersionNumber() != null ? syllabus.getVersionNumber() : 1;
-            Integer newVersionNumber = currentVersionNumber + 1;
-            syllabus.setVersionNumber(newVersionNumber);
-            syllabus.setVersionNo("v" + newVersionNumber + ".0");
+            Subject subject = subjectRepository.findById(request.getSubjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
             
-            // Change status to REVISION_IN_PROGRESS
-            syllabus.setStatus(SyllabusStatus.REVISION_IN_PROGRESS);
+            // Create NEW version with updated content
+            SyllabusVersion newVersion = SyllabusVersion.builder()
+                    .subject(subject)
+                    .academicTerm(syllabus.getAcademicTerm())
+                    .versionNo(newVersionNo)
+                    .versionNumber(newVersionNumber)
+                    .status(SyllabusStatus.REVISION_IN_PROGRESS) // Đang thực hiện
+                    .previousVersion(syllabus)
+                    // Apply NEW content from request
+                    .content(request.getContent())
+                    .keywords(request.getKeywords())
+                    .description(request.getDescription())
+                    .objectives(request.getObjectives())
+                    .studentTasks(request.getStudentTasks())
+                    .studentDuties(syllabus.getStudentDuties()) // Copy from old version
+                    .reviewDeadline(request.getReviewDeadline())
+                    .effectiveDate(request.getEffectiveDate())
+                    // Copy snapshot metadata
+                    .snapSubjectCode(syllabus.getSnapSubjectCode())
+                    .snapSubjectNameVi(syllabus.getSnapSubjectNameVi())
+                    .snapSubjectNameEn(syllabus.getSnapSubjectNameEn())
+                    .snapCreditCount(syllabus.getSnapCreditCount())
+                    // Copy course details
+                    .courseType(syllabus.getCourseType())
+                    .componentType(syllabus.getComponentType())
+                    .theoryHours(syllabus.getTheoryHours())
+                    .practiceHours(syllabus.getPracticeHours())
+                    .selfStudyHours(syllabus.getSelfStudyHours())
+                    // Set audit fields
+                    .createdBy(currentUser)
+                    .updatedBy(currentUser)
+                    .build();
             
-            log.info("Incremented version from {} to {} for syllabus {}", 
-                     currentVersionNumber, newVersionNumber, syllabus.getId());
+            savedSyllabus = syllabusVersionRepository.save(newVersion);
+            
+            // Soft delete old version
+            syllabus.setIsDeleted(true);
+            syllabusVersionRepository.save(syllabus);
+            
+            log.info("✅ Created NEW version {} (DRAFT) for editing, old version {} soft deleted", 
+                     newVersionNo, syllabus.getVersionNo());
+            
+        } else {
+            // For DRAFT: Just update existing record
+            Subject subject = subjectRepository.findById(request.getSubjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
+
+            syllabus.setSubject(subject);
+            syllabus.setVersionNo(request.getVersionNo());
+            syllabus.setReviewDeadline(request.getReviewDeadline());
+            syllabus.setEffectiveDate(request.getEffectiveDate());
+            syllabus.setKeywords(request.getKeywords());
+            syllabus.setContent(request.getContent());
+            syllabus.setDescription(request.getDescription());
+            syllabus.setUpdatedBy(currentUser);
+
+            savedSyllabus = syllabusVersionRepository.save(syllabus);
         }
-
-        Subject subject = subjectRepository.findById(request.getSubjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Subject", "id", request.getSubjectId()));
-
-        syllabus.setSubject(subject);
-        syllabus.setVersionNo(request.getVersionNo());
-        syllabus.setReviewDeadline(request.getReviewDeadline());
-        syllabus.setEffectiveDate(request.getEffectiveDate());
-        syllabus.setKeywords(request.getKeywords());
-        syllabus.setContent(request.getContent());
-        syllabus.setDescription(request.getDescription());
-        syllabus.setUpdatedBy(currentUser);
-
-        SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
         
         // Gửi thông báo cho sinh viên khi đề cương bị cập nhật
         notifyStudentsOnUpdate(savedSyllabus);
@@ -401,6 +441,23 @@ public class SyllabusService {
         SyllabusVersion syllabus = syllabusVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Syllabus", "id", id));
         
+        // ✅ FIX: If frontend sends old deleted version, find the LATEST active version
+        if (syllabus.getIsDeleted()) {
+            log.warn("⚠️ Frontend sent deleted version {}, finding latest active version for subject {}", 
+                     syllabus.getVersionNo(), syllabus.getSubject().getCode());
+            
+            List<SyllabusVersion> activeVersions = syllabusVersionRepository.findBySubjectIdAndNotDeleted(
+                syllabus.getSubject().getId());
+            
+            if (activeVersions.isEmpty()) {
+                throw new BadRequestException("Không tìm thấy phiên bản đang hoạt động của đề cương này");
+            }
+            
+            // Use the latest active version (list is ordered by version_number DESC)
+            syllabus = activeVersions.get(0);
+            log.info("✅ Using latest active version {} instead", syllabus.getVersionNo());
+        }
+        
         // Allow submit for DRAFT, REJECTED, and REVISION_IN_PROGRESS
         if (!syllabus.getStatus().isEditable()) {
             throw new BadRequestException("Chỉ có thể gửi phê duyệt đề cương ở trạng thái Bản nháp, Bị từ chối hoặc Đang chỉnh sửa");
@@ -408,14 +465,15 @@ public class SyllabusService {
         
         User currentUser = getCurrentUser();
         
-        // Single Active Record: Just update status
+        // Đơn giản hóa: chỉ cập nhật status → PENDING_HOD
+        // Version mới đã được tạo ở updateSyllabus() rồi khi user ấn "Lưu"
         syllabus.setStatus(SyllabusStatus.PENDING_HOD);
         syllabus.setUpdatedBy(currentUser);
         syllabus.setSubmittedAt(LocalDateTime.now());
         
         SyllabusVersion savedSyllabus = syllabusVersionRepository.save(syllabus);
-
-        log.info("Submitted syllabus {} (version {}) for approval", 
+        
+        log.info("✅ Submitted syllabus {} (version {}) for approval", 
                  savedSyllabus.getId(), savedSyllabus.getVersionNo());
         
         // Update teaching assignment status to SUBMITTED
@@ -594,6 +652,14 @@ public class SyllabusService {
     @Transactional(readOnly = true)
     public List<SyllabusResponse> getSyllabiBySubject(UUID subjectId) {
         return syllabusVersionRepository.findBySubjectIdAndNotDeleted(subjectId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+    
+    // For comparison feature: include deleted versions
+    @Transactional(readOnly = true)
+    public List<SyllabusResponse> getSyllabiBySubjectIncludingDeleted(UUID subjectId) {
+        return syllabusVersionRepository.findAllVersionsBySubjectIdIncludingDeleted(subjectId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

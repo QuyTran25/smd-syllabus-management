@@ -5,7 +5,7 @@ import os
 import google.generativeai as genai
 
 # Load API key from .env
-api_key = 'AIzaSyADyZQmIz4SYKzocxdx285ONphM2AAALBQ'
+api_key = 'AIzaSyAShxKMx7W0-1kTkhH1FqfqaT-Cp6tNbKY'
 
 try:
     genai.configure(api_key=api_key)

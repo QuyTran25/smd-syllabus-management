@@ -140,8 +140,12 @@ public class SyllabusController {
 
     @Operation(summary = "Get syllabi by subject", description = "Get all syllabi for a specific subject")
     @GetMapping("/subject/{subjectId}")
-    public ResponseEntity<ApiResponse<List<SyllabusResponse>>> getSyllabiBySubject(@PathVariable UUID subjectId) {
-        List<SyllabusResponse> syllabi = syllabusService.getSyllabiBySubject(subjectId);
+    public ResponseEntity<ApiResponse<List<SyllabusResponse>>> getSyllabiBySubject(
+            @PathVariable UUID subjectId,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeDeleted) {
+        List<SyllabusResponse> syllabi = includeDeleted 
+                ? syllabusService.getSyllabiBySubjectIncludingDeleted(subjectId)
+                : syllabusService.getSyllabiBySubject(subjectId);
         return ResponseEntity.ok(ApiResponse.success(syllabi));
     }
 
