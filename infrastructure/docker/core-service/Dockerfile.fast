@@ -1,0 +1,36 @@
+# ============================================
+# Fast Dockerfile - Use Pre-built JAR
+# Build local first: cd backend/core-service && mvn clean package -DskipTests
+# ============================================
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
+# Add non-root user for security
+RUN addgroup -S spring && adduser -S spring -G spring
+
+# Create directories
+RUN mkdir -p /app/uploads && chown -R spring:spring /app
+
+USER spring:spring
+
+# Copy pre-built JAR
+COPY backend/core-service/target/core-service-1.0.0.jar app.jar
+
+# Expose port
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8081/actuator/health || exit 1
+
+# JVM options for production
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -XX:+UseG1GC \
+    -Djava.security.egd=file:/dev/./urandom"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

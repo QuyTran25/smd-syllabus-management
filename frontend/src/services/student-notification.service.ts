@@ -37,11 +37,19 @@ const safeDate = (dateInput: any): string => {
 export const studentNotificationService = {
   async getNotifications(): Promise<NotificationDTO[]> {
     try {
+      console.log('🔔 [Student] Fetching notifications...');
       const response = await http.get('/notifications');
+      console.log('📨 [Student] Raw response:', response.data);
+      
       const rawData = response.data?.data || [];
+      
+      if (!rawData || rawData.length === 0) {
+        console.log('ℹ️ [Student] No notifications found');
+        return [];
+      }
 
       // Map dữ liệu an toàn (Safe Mapping)
-      return rawData.map((n: any) => {
+      const mapped = rawData.map((n: any) => {
         // Xử lý Payload an toàn (tránh lỗi JSON parse)
         let safePayload = {};
         if (n.payload) {
@@ -67,8 +75,21 @@ export const studentNotificationService = {
           payload: safePayload,
         };
       });
+      
+      console.log('📋 [Student] Before sort:', mapped.map(n => `${n.title.substring(0, 30)} - ${n.createdAt}`));
+      
+      // Sort theo createdAt giảm dần (mới nhất lên đầu)
+      const notifications = mapped.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Descending: newest first
+      });
+      
+      console.log('✅ [Student] After sort:', notifications.map(n => `${n.title.substring(0, 30)} - ${n.createdAt}`));
+      console.log('✅ [Student] Notifications processed:', notifications.length);
+      return notifications;
     } catch (error) {
-      console.error('Lỗi parse notification:', error);
+      console.error('❌ [Student] Lỗi parse notification:', error);
       return []; // Trả về mảng rỗng để không crash web
     }
   },

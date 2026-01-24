@@ -1,0 +1,17 @@
+# Fast Dockerfile - Use Pre-built JAR
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Add non-root user
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+# Copy pre-built JAR
+COPY backend/gateway/target/gateway-1.0.0.jar app.jar
+
+EXPOSE 8888
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

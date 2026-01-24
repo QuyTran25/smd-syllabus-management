@@ -49,20 +49,31 @@ const NotificationBell: React.FC = () => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  // Debug: Log unread count changes
+  React.useEffect(() => {
+    console.log('🔔 Unread count updated:', unreadCount);
+    console.log('📊 Total notifications:', notifications.length);
+    console.log('📝 Unread notifications:', notifications.filter(n => !n.isRead).map(n => n.title));
+  }, [unreadCount, notifications.length]);
+
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: notificationService.markAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    onSuccess: async () => {
+      // Invalidate và refetch ngay lập tức
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await queryClient.refetchQueries({ queryKey: ['notifications'] });
     },
   });
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
     mutationFn: notificationService.markAllAsRead,
-    onSuccess: () => {
+    onSuccess: async () => {
       message.success('Đã đánh dấu tất cả đã đọc');
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Invalidate và refetch ngay lập tức
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await queryClient.refetchQueries({ queryKey: ['notifications'] });
     },
   });
 
@@ -90,13 +101,21 @@ const NotificationBell: React.FC = () => {
   const handleNotificationClick = (notification: Notification) => {
     console.log('Notification clicked:', notification);
     console.log('Notification payload:', notification.payload);
+    console.log('🟦 Current isRead:', notification.isRead);
+    console.log('📊 Current unread count:', unreadCount);
+    
     setSelectedNotification(notification);
     setDetailModalOpen(true);
     setDropdownOpen(false);
     
     // Auto mark as read when opening detail
     if (!notification.isRead) {
-      markAsReadMutation.mutate(notification.id);
+      console.log('🔵 Marking as read:', notification.id);
+      markAsReadMutation.mutate(notification.id, {
+        onSuccess: () => {
+          console.log('✅ Mark as read successful, should refetch now');
+        }
+      });
     }
   };
 

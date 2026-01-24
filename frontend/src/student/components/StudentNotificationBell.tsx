@@ -57,19 +57,30 @@ export const StudentNotificationBell: React.FC = () => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  // Debug: Log unread count changes
+  React.useEffect(() => {
+    console.log('🔔 [Student] Unread count updated:', unreadCount);
+    console.log('📊 [Student] Total notifications:', notifications.length);
+    console.log('📝 [Student] Unread notifications:', notifications.filter(n => !n.isRead).map(n => n.title));
+  }, [unreadCount, notifications.length]);
+
   // 2. Các Mutation dùng service riêng
   const markAsReadMutation = useMutation({
     mutationFn: studentNotificationService.markAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['student-notifications'] });
+    onSuccess: async () => {
+      // Invalidate và refetch ngay lập tức
+      await queryClient.invalidateQueries({ queryKey: ['student-notifications'] });
+      await queryClient.refetchQueries({ queryKey: ['student-notifications'] });
     },
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: studentNotificationService.markAllAsRead,
-    onSuccess: () => {
+    onSuccess: async () => {
       message.success('Đã đánh dấu tất cả đã đọc');
-      queryClient.invalidateQueries({ queryKey: ['student-notifications'] });
+      // Invalidate và refetch ngay lập tức
+      await queryClient.invalidateQueries({ queryKey: ['student-notifications'] });
+      await queryClient.refetchQueries({ queryKey: ['student-notifications'] });
     },
   });
 
@@ -87,11 +98,21 @@ export const StudentNotificationBell: React.FC = () => {
   const handleDelete = (id: string) => deleteNotificationMutation.mutate(id);
 
   const handleNotificationClick = (notification: NotificationDTO) => {
+    console.log('🔔 [Student] Notification clicked:', notification.id);
+    console.log('🟦 [Student] Current isRead:', notification.isRead);
+    console.log('📊 [Student] Current unread count:', unreadCount);
+    
     setSelectedNotification(notification);
     setDetailModalOpen(true);
     setDropdownOpen(false);
+    
     if (!notification.isRead) {
-      markAsReadMutation.mutate(notification.id);
+      console.log('🔵 [Student] Marking as read:', notification.id);
+      markAsReadMutation.mutate(notification.id, {
+        onSuccess: () => {
+          console.log('✅ [Student] Mark as read successful, should refetch now');
+        }
+      });
     }
   };
 

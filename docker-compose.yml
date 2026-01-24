@@ -72,8 +72,8 @@ services:
   # ============================================
   gateway:
     build:
-      context: ./backend/gateway
-      dockerfile: ../../infrastructure/docker/gateway/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/gateway/Dockerfile.fast
     container_name: smd-gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -94,8 +94,8 @@ services:
   # ============================================
   core-service:
     build:
-      context: ./backend/core-service
-      dockerfile: ../../infrastructure/docker/core-service/Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/core-service/Dockerfile.fast
     container_name: smd-core-service
     environment:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT:-development}
