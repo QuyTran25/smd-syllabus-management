@@ -10,7 +10,6 @@ import vn.edu.smd.core.module.student.dto.StudentSyllabusDetailDto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
 @Service
 public class PdfService {

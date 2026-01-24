@@ -145,15 +145,6 @@
         </dependency>
 
         <!-- ============================================ -->
-        <!-- KAFKA -->
-        <!-- ============================================ -->
-        
-        <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
-        </dependency>
-
-        <!-- ============================================ -->
         <!-- UTILITIES -->
         <!-- ============================================ -->
         
@@ -225,12 +216,6 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
 

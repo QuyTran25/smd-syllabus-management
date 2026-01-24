@@ -14,18 +14,23 @@ import vn.edu.smd.core.repository.AssessmentSchemeRepository;
 import vn.edu.smd.core.repository.SyllabusVersionRepository;
 import vn.edu.smd.shared.dto.ai.AIMessageRequest;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import vn.edu.smd.core.dto.TaskStatusDTO;
 
 /**
  * AI Task Service
  * Gửi messages vào RabbitMQ queue để AI Service xử lý
+ * 
+ * ✅ FIXED: Replaced ConcurrentHashMap with Redis for stateless architecture
  */
 @Service
 @RequiredArgsConstructor
@@ -37,11 +42,8 @@ public class AITaskService {
     private final CLORepository cloRepository;
     private final AssessmentSchemeRepository assessmentSchemeRepository;
     
-    // In-memory cache cho task status (TODO: Replace with Redis in production)
-    private final Map<String, Map<String, Object>> taskStatusCache = new ConcurrentHashMap<>();
-    
-    // TODO: Add RedisTemplate for caching task status
-    // private final RedisTemplate<String, Object> redisTemplate;
+    // ✅ Redis template for task status caching (stateless, scalable)
+    private final RedisTemplate<String, TaskStatusDTO> taskStatusRedisTemplate;
     
     // =============================================
     // 1. MAP_CLO_PLO - Kiểm tra tuân thủ CLO-PLO
@@ -75,22 +77,24 @@ public class AITaskService {
                 .payload(payload)
                 .build();
         
-        // Cache initial task status
-        Map<String, Object> initialStatus = new HashMap<>();
-        initialStatus.put("taskId", messageId);
-        initialStatus.put("action", "MAP_CLO_PLO");
-        initialStatus.put("status", "QUEUED");
-        initialStatus.put("progress", 0);
-        initialStatus.put("message", "Task queued for processing");
-        initialStatus.put("timestamp", System.currentTimeMillis());
-        taskStatusCache.put(messageId, initialStatus);
+        // ✅ Cache initial task status in Redis (stateless)
+        TaskStatusDTO initialStatus = TaskStatusDTO.builder()
+                .taskId(messageId)
+                .action("MAP_CLO_PLO")
+                .status("QUEUED")
+                .progress(0)
+                .message("Task queued for processing")
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .priority("HIGH")
+                .build();
         
-        // TODO: Lưu task status vào Redis
-        // redisTemplate.opsForValue().set(
-        //     "task:" + messageId,
-        //     Map.of("status", "QUEUED", "progress", 0),
-        //     Duration.ofMinutes(30)
-        // );
+        // Save to Redis with 30-minute TTL
+        taskStatusRedisTemplate.opsForValue().set(
+                "task:" + messageId,
+                initialStatus,
+                Duration.ofMinutes(30)
+        );
         
         // Gửi vào queue với priority
         rabbitTemplate.convertAndSend(
@@ -147,15 +151,23 @@ public class AITaskService {
                 .payload(payload)
                 .build();
         
-        // Cache initial status
-        Map<String, Object> initialStatus = new HashMap<>();
-        initialStatus.put("taskId", messageId);
-        initialStatus.put("action", "COMPARE_VERSIONS");
-        initialStatus.put("status", "QUEUED");
-        initialStatus.put("progress", 0);
-        initialStatus.put("message", "Task queued for processing");
-        initialStatus.put("timestamp", System.currentTimeMillis());
-        taskStatusCache.put(messageId, initialStatus);
+        // ✅ Cache initial status in Redis
+        TaskStatusDTO initialStatus = TaskStatusDTO.builder()
+                .taskId(messageId)
+                .action("COMPARE_VERSIONS")
+                .status("QUEUED")
+                .progress(0)
+                .message("Task queued for processing")
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .priority("MEDIUM")
+                .build();
+        
+        taskStatusRedisTemplate.opsForValue().set(
+                "task:" + messageId,
+                initialStatus,
+                Duration.ofMinutes(30)
+        );
         
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.EXCHANGE_DIRECT,
@@ -299,7 +311,7 @@ public class AITaskService {
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("syllabus_id", syllabusId.toString());
-        payload.put("syllabus_data", syllabusData);  // NOW WITH FULL DATA!
+        payload.put("syllabus_data", syllabusData);
         payload.put("language", "vi");
         payload.put("include_prerequisites", true);
         
@@ -312,15 +324,23 @@ public class AITaskService {
                 .payload(payload)
                 .build();
         
-        // Cache initial status
-        Map<String, Object> initialStatus = new HashMap<>();
-        initialStatus.put("taskId", messageId);
-        initialStatus.put("action", "SUMMARIZE_SYLLABUS");
-        initialStatus.put("status", "QUEUED");
-        initialStatus.put("progress", 0);
-        initialStatus.put("message", "Task queued for processing");
-        initialStatus.put("timestamp", System.currentTimeMillis());
-        taskStatusCache.put(messageId, initialStatus);
+        // Cache initial status in Redis
+        TaskStatusDTO initialStatus = TaskStatusDTO.builder()
+                .taskId(messageId)
+                .action("SUMMARIZE_SYLLABUS")
+                .status("QUEUED")
+                .progress(0)
+                .message("Task queued for processing")
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .priority("LOW")
+                .build();
+        
+        taskStatusRedisTemplate.opsForValue().set(
+                "task:" + messageId,
+                initialStatus,
+                Duration.ofMinutes(30)
+        );
         
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.EXCHANGE_DIRECT,
@@ -346,55 +366,73 @@ public class AITaskService {
     /**
      * Lấy status của task để Frontend polling
      * 
+     * ✅ FIXED: Query from Redis instead of in-memory HashMap
+     * 
      * @param taskId Message ID
-     * @return Task status map
+     * @return Task status DTO
      */
-    public Map<String, Object> getTaskStatus(String taskId) {
-        // Check in-memory cache
-        Map<String, Object> cachedStatus = taskStatusCache.get(taskId);
+    public TaskStatusDTO getTaskStatus(String taskId) {
+        // Query from Redis
+        TaskStatusDTO cachedStatus = taskStatusRedisTemplate.opsForValue()
+                .get("task:" + taskId);
         
         if (cachedStatus != null) {
-            log.debug("Task status found in cache: taskId={}, status={}", 
-                     taskId, cachedStatus.get("status"));
+            log.debug("✅ Task status found in Redis: taskId={}, status={}", 
+                     taskId, cachedStatus.getStatus());
             return cachedStatus;
         }
         
-        // TODO: Query from Redis if not in cache
-        // TODO: Query from DB (ai_service.syllabus_ai_analysis) if not in Redis
+        // Task not found in Redis - may have expired or never existed
+        log.warn("⚠️ Task status not found in Redis: taskId={}", taskId);
         
-        // Task not found
-        Map<String, Object> response = new HashMap<>();
-        response.put("taskId", taskId);
-        response.put("status", "NOT_FOUND");
-        response.put("message", "Task not found. It may have expired or never existed.");
-        
-        log.warn("Task status not found: taskId={}", taskId);
-        return response;
+        // Return NOT_FOUND status
+        return TaskStatusDTO.builder()
+                .taskId(taskId)
+                .status("NOT_FOUND")
+                .progress(0)
+                .message("Task not found. It may have expired (>30min) or never existed.")
+                .timestamp(System.currentTimeMillis())
+                .build();
     }
     
     /**
      * Update task status (được gọi khi nhận response từ AI service)
-     * TODO: Create listener consumer for ai_result_queue
+     * 
+     * ✅ FIXED: Update Redis instead of in-memory HashMap
+     * 
+     * Called by AIResultListener when receiving results from ai_result_queue
      */
     public void updateTaskStatus(String taskId, String status, int progress, 
                                   Map<String, Object> result, String errorMessage) {
-        Map<String, Object> statusUpdate = new HashMap<>();
-        statusUpdate.put("taskId", taskId);
-        statusUpdate.put("status", status);
-        statusUpdate.put("progress", progress);
-        statusUpdate.put("timestamp", System.currentTimeMillis());
+        
+        // Build status update
+        TaskStatusDTO.TaskStatusDTOBuilder statusBuilder = TaskStatusDTO.builder()
+                .taskId(taskId)
+                .status(status)
+                .progress(progress)
+                .timestamp(System.currentTimeMillis());
         
         if (result != null) {
-            statusUpdate.put("result", result);
+            statusBuilder.result(result);
         }
         if (errorMessage != null) {
-            statusUpdate.put("error", errorMessage);
+            statusBuilder.errorMessage(errorMessage);
         }
         
-        taskStatusCache.put(taskId, statusUpdate);
-        log.info("Updated task status: taskId={}, status={}, progress={}", 
-                 taskId, status, progress);
+        TaskStatusDTO statusUpdate = statusBuilder.build();
         
-        // TODO: Also update Redis cache
+        // Update Redis with extended TTL (2 hours for completed tasks)
+        Duration ttl = "SUCCESS".equals(status) || "ERROR".equals(status) 
+                ? Duration.ofHours(2)  // Keep completed tasks longer
+                : Duration.ofMinutes(30); // In-progress tasks expire faster
+        
+        taskStatusRedisTemplate.opsForValue().set(
+                "task:" + taskId,
+                statusUpdate,
+                ttl
+        );
+        
+        log.info("✅ Updated task status in Redis: taskId={}, status={}, progress={}", 
+                 taskId, status, progress);
     }
 }

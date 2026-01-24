@@ -1,6 +1,5 @@
 package vn.edu.smd.core.module.ai.listener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -19,7 +18,6 @@ import java.util.Map;
 public class AIResultListener {
     
     private final AITaskService aiTaskService;
-    private final ObjectMapper objectMapper;
     
     /**
      * Nhận kết quả AI từ queue
@@ -33,6 +31,7 @@ public class AIResultListener {
             String action = (String) message.get("action");
             String status = (String) message.get("status");
             Integer progress = (Integer) message.get("progress");
+            @SuppressWarnings("unchecked")
             Map<String, Object> result = (Map<String, Object>) message.get("result");
             String errorMessage = (String) message.get("errorMessage");
             Integer processingTimeMs = (Integer) message.get("processingTimeMs");

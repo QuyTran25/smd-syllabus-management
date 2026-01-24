@@ -142,8 +142,8 @@ class AIMessageHandler:
             logger.info(f"[Done] Processing completed.")
             logger.info(f"✅ {action} completed in {processing_time}ms")
             
-            # TODO: Lưu result vào DB (ai_service.syllabus_ai_analysis)
-            # self._save_to_database(message_id, action, result, processing_time)
+            # ✅ Save result to database (Transactional Outbox pattern)
+            await self._save_to_database(message_id, action, result, processing_time, payload)
             
             # Send result to result queue
             self._send_result_to_queue(response)
@@ -186,6 +186,67 @@ class AIMessageHandler:
                 logger.error(f"❌ Failed to send result to {result_queue}")
         except Exception as e:
             logger.error(f"❌ Error sending result: {e}", exc_info=True)
+    
+    async def _save_to_database(
+        self,
+        message_id: str,
+        action: str,
+        result: Dict[str, Any],
+        processing_time: int,
+        payload: Dict[str, Any]
+    ) -> None:
+        """
+        Save analysis result to database
+        
+        ✅ IMPLEMENTED: Database persistence for audit and history
+        
+        This implements the "Database per Service" pattern:
+        - AI Service owns ai_service schema
+        - Core Service queries via API (not direct DB access)
+        
+        Args:
+            message_id: Task ID
+            action: Analysis type
+            result: Analysis result
+            processing_time: Processing time in ms
+            payload: Original request payload
+        """
+        try:
+            from app.database.repository import AnalysisRepository
+            
+            # Extract syllabus_version_id from payload
+            syllabus_id = payload.get('syllabus_id')
+            if not syllabus_id:
+                logger.warning(f"⚠️ No syllabus_id in payload, skipping database save")
+                return
+            
+            # Determine model used
+            model_used = "gemini-pro" if self.ai_provider == 'gemini' else "mock"
+            if self.mock_mode:
+                model_used = "mock"
+            
+            # Calculate confidence score (mock for now)
+            confidence_score = 0.85  # TODO: Get from AI model
+            
+            # Save to database
+            success = await AnalysisRepository.save_analysis(
+                analysis_id=message_id,
+                syllabus_version_id=syllabus_id,
+                analysis_type=action,
+                result=result,
+                model_used=model_used,
+                confidence_score=confidence_score,
+                processing_time_ms=processing_time
+            )
+            
+            if success:
+                logger.info(f"💾 Saved to database: {message_id}")
+            else:
+                logger.error(f"❌ Failed to save to database: {message_id}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error saving to database: {e}", exc_info=True)
+            # Don't raise - database save failure shouldn't block RabbitMQ result
     
     def _handle_map_clo_plo(self, message_id: str, payload: Dict) -> Dict:
         """

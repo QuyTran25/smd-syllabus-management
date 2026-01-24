@@ -99,14 +99,3 @@ services:
         limits:
           cpus: '1'
           memory: 1G
-
-  # ============================================
-  # KAFKA - Production Settings
-  # ============================================
-  kafka:
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G

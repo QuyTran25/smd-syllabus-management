@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.smd.core.dto.TaskStatusDTO;
 import vn.edu.smd.core.module.ai.service.AITaskService;
 import vn.edu.smd.core.security.UserPrincipal;
 
@@ -142,11 +143,11 @@ public class AIAnalysisController {
      * @return Task status và result nếu có
      */
     @GetMapping("/tasks/{taskId}/status")
-    public ResponseEntity<Map<String, Object>> getTaskStatus(@PathVariable String taskId) {
+    public ResponseEntity<TaskStatusDTO> getTaskStatus(@PathVariable String taskId) {
         
         log.debug("Polling task status: taskId={}", taskId);
         
-        Map<String, Object> status = aiTaskService.getTaskStatus(taskId);
+        TaskStatusDTO status = aiTaskService.getTaskStatus(taskId);
         
         return ResponseEntity.ok(status);
     }
