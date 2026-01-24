@@ -94,7 +94,7 @@ class AIMessageHandler:
         logger.info(f"✅ Gemini initialized: {model_name}")
         logger.info(f"📊 Free tier: 1500 req/day, 1M tokens/day")
     
-    def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """
         Route message tới handler phù hợp dựa trên action
         

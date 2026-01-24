@@ -202,7 +202,7 @@ export const syllabusService = {
   // Get all versions of a subject (active only by default)
   getVersionsBySubject: async (subjectId: string, includeDeleted: boolean = false): Promise<Syllabus[]> => {
     const params = includeDeleted ? { includeDeleted: 'true' } : {};
-    const response = await apiClient.get(`/api/syllabi/subject/${subjectId}`, { params });
+    const response = await apiClient.get(`/syllabi/subject/${subjectId}`, { params });
     return response.data.data;
   },
 };

@@ -51,7 +51,7 @@ spring:
   cloud:
     gateway:
       routes:
-        # Core Service Route
+        # Core Service Route (includes AI endpoints)
         - id: core-service
           uri: http://localhost:8081
           predicates:
@@ -62,26 +62,6 @@ spring:
               args:
                 name: coreServiceCircuitBreaker
                 fallbackUri: forward:/fallback/core-service
-        
-        # AI Service Route with Circuit Breaker
-        - id: ai-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/ai/**
-          filters:
-            - StripPrefix=0
-            - name: CircuitBreaker
-              args:
-                name: aiServiceCircuitBreaker
-                fallbackUri: forward:/fallback/ai-service
-            - name: Retry
-              args:
-                retries: 3
-                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 500ms
-                  factor: 2
             
       globalcors:
         corsConfigurations:
@@ -131,7 +111,7 @@ spring:
   cloud:
     gateway:
       routes:
-        # Core Service Route (Docker)
+        # Core Service Route (Docker) - includes AI endpoints
         - id: core-service
           uri: http://core-service:8081
           predicates:
@@ -142,26 +122,6 @@ spring:
               args:
                 name: coreServiceCircuitBreaker
                 fallbackUri: forward:/fallback/core-service
-        
-        # AI Service Route (Docker) with Circuit Breaker
-        - id: ai-service
-          uri: http://ai-service:8082
-          predicates:
-            - Path=/api/ai/**
-          filters:
-            - StripPrefix=0
-            - name: CircuitBreaker
-              args:
-                name: aiServiceCircuitBreaker
-                fallbackUri: forward:/fallback/ai-service
-            - name: Retry
-              args:
-                retries: 3
-                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
-                backoff:
-                  firstBackoff: 100ms
-                  maxBackoff: 500ms
-                  factor: 2
             
       globalcors:
         corsConfigurations:

@@ -53,7 +53,7 @@ export const aiService = {
     newVersionId: string,
     subjectId: string
   ): Promise<{ task_id: string }> => {
-    const response = await apiClient.post('/api/ai/syllabus/compare', null, {
+    const response = await apiClient.post('/ai/syllabus/compare', null, {
       params: { oldVersionId, newVersionId, subjectId }
     });
     return response.data;
@@ -61,7 +61,7 @@ export const aiService = {
 
   // Real API: Get task status
   getTaskStatus: async (taskId: string): Promise<any> => {
-    const response = await apiClient.get(`/api/ai/tasks/${taskId}/status`);
+    const response = await apiClient.get(`/ai/tasks/${taskId}/status`);
     return response.data;
   },
 

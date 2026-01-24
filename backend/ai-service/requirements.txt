@@ -34,9 +34,13 @@ python-json-logger==2.0.7
 # Transformers & PyTorch
 transformers==4.36.2
 torch==2.1.2
+numpy<2  # CRITICAL: NumPy 2.x breaks PyTorch compatibility
 sentencepiece==0.1.99
 accelerate==0.25.0
 bitsandbytes==0.41.3  # For 8-bit quantization (Gemma 2B)
+
+# Google Gemini API
+google-generativeai>=0.8.0
 
 # Vietnamese Models Support
 # Using: google/gemma-2b (Google's small LLM - good for Vietnamese)

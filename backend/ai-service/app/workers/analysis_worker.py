@@ -57,8 +57,9 @@ def main():
             # Parse JSON message
             message = json.loads(body)
             
-            # Process message
-            result = handler.handle_message(message)
+            # Process message (async function)
+            import asyncio
+            result = asyncio.run(handler.handle_message(message))
             
             # ACK message (thành công)
             ch.basic_ack(delivery_tag=method.delivery_tag)
