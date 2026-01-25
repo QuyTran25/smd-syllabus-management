@@ -17,19 +17,16 @@ export const useFCM = (isAuthenticated: boolean, userId?: string) => {
 
   useEffect(() => {
     if (!isAuthenticated || !userId) {
-      console.log('⏭️ User not authenticated or userId not available, skipping FCM registration');
       return;
     }
 
     // Register FCM token when user is authenticated
     const initFCM = async () => {
       try {
-        console.log('🔔 Initializing FCM...');
         const token = await registerFCMToken(userId);
         
         if (token) {
           setFcmToken(token);
-          console.log('✅ FCM initialized successfully');
         } else {
           console.warn('⚠️ FCM token registration failed');
         }
@@ -42,8 +39,6 @@ export const useFCM = (isAuthenticated: boolean, userId?: string) => {
 
     // Listen for foreground messages (when app is open)
     const unsubscribe = onMessage(messaging, (payload: MessagePayload) => {
-      console.log('📨 Foreground notification received:', payload);
-
       // Extract notification data
       const title = payload.notification?.title || 'Thông báo mới';
       const body = payload.notification?.body || '';
@@ -65,13 +60,10 @@ export const useFCM = (isAuthenticated: boolean, userId?: string) => {
       // Refresh notifications list to show new notification
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['student-notifications'] });
-      
-      console.log('✅ Notification list refreshed');
     });
 
     // Cleanup listener on unmount
     return () => {
-      console.log('🧹 Cleaning up FCM listener');
       unsubscribe();
     };
   }, [isAuthenticated, userId, queryClient, notification]);

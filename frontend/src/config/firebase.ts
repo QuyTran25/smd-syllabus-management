@@ -36,18 +36,13 @@ export const registerFCMToken = async (userId: string) => {
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted') {
-      console.log('✅ Notification permission granted');
-      
       // Get FCM token
       const token = await getToken(messaging, { vapidKey: VAPID_KEY });
       
       if (token) {
-        console.log('✅ FCM Token:', token);
-        
         // Gửi token lên backend
         try {
           await apiClient.put('/users/fcm-token', { token });
-          console.log('✅ FCM Token đã lưu vào backend');
         } catch (error) {
           console.error('❌ Lỗi lưu FCM token:', error);
         }
@@ -58,7 +53,6 @@ export const registerFCMToken = async (userId: string) => {
         return null;
       }
     } else {
-      console.log('❌ User từ chối notification permission');
       return null;
     }
   } catch (error) {
@@ -75,7 +69,6 @@ export const unregisterFCMToken = async (userId: string) => {
   try {
     // Xóa token khỏi backend
     await apiClient.delete('/users/fcm-token');
-    console.log('✅ FCM Token đã xóa khỏi backend');
   } catch (error) {
     console.error('❌ Lỗi xóa FCM token:', error);
   }

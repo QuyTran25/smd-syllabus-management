@@ -253,12 +253,10 @@ export const StudentSyllabusDetailPage: React.FC = () => {
             icon={<RobotOutlined />} 
             loading={summarizeAI.isPending || taskStatus.isFetching}
             onClick={async () => {
-              console.log('🔵 Robot button clicked! URL ID:', id, 'Data ID:', data.id);
               try {
                 message.loading({ content: 'Đang gửi yêu cầu AI...', key: 'ai-loading', duration: 0 });
                 // ✅ FIX: Dùng id từ URL thay vì data.id
                 const taskId = await summarizeAI.mutateAsync(id);
-                console.log('🟢 Task ID:', taskId);
                 
                 // Lưu taskId và bắt đầu polling
                 setCurrentTaskId(taskId);

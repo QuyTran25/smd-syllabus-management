@@ -150,10 +150,6 @@ export const SyllabusListPage: React.FC = () => {
       // Fetch ALL versions including deleted ones (for comparison)
       const versions = await syllabusService.getVersionsBySubject(selectedSyllabus.subjectId, true);
       
-      console.log('📊 API returned versions (including deleted):', versions);
-      console.log('📊 Versions count:', versions.length);
-      console.log('📊 All versions:', versions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber, syllabusId: v.syllabusId })));
-      
       if (versions.length < 2) {
         message.error(`Chỉ có ${versions.length} phiên bản, cần ít nhất 2 phiên bản để so sánh`);
         console.error('❌ Not enough versions:', versions);
@@ -167,15 +163,9 @@ export const SyllabusListPage: React.FC = () => {
         return bVersion - aVersion;
       });
 
-      console.log('📊 Sorted versions:', sortedVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
-
-      console.log('📊 Sorted versions:', sortedVersions.map(v => ({ id: v.id, versionNo: v.versionNo, versionNumber: v.versionNumber })));
-
       // Compare newest with previous version
       const newVersion = sortedVersions[0];
       const oldVersion = sortedVersions[1];
-
-      console.log(`🔍 Comparing: old=${oldVersion.versionNo} (ID: ${oldVersion.id}) → new=${newVersion.versionNo} (ID: ${newVersion.id})`);
 
       message.info('Đang gửi yêu cầu so sánh...');
       

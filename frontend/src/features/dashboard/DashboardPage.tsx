@@ -256,24 +256,13 @@ export const DashboardPage: React.FC = () => {
   const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
-      console.log('🔍 Fetching notifications for user:', user?.id);
       const allNotifications = await notificationService.getNotifications();
-      console.log('📨 Notifications received:', allNotifications);
       return allNotifications
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 3);
     },
     enabled: !!user?.id,
   });
-
-  // Thêm useEffect để log
-  React.useEffect(() => {
-    console.log('📊 Dashboard notifications state:', {
-      notifications,
-      notificationsLoading,
-      userEnabled: !!user?.id,
-    });
-  }, [notifications, notificationsLoading, user?.id]);
 
   // Table columns
   const columns: ColumnsType<SyllabusItem> = [

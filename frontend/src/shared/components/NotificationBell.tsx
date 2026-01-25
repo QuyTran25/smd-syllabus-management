@@ -49,13 +49,6 @@ const NotificationBell: React.FC = () => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  // Debug: Log unread count changes
-  React.useEffect(() => {
-    console.log('🔔 Unread count updated:', unreadCount);
-    console.log('📊 Total notifications:', notifications.length);
-    console.log('📝 Unread notifications:', notifications.filter(n => !n.isRead).map(n => n.title));
-  }, [unreadCount, notifications.length]);
-
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: notificationService.markAsRead,
@@ -99,23 +92,13 @@ const NotificationBell: React.FC = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    console.log('Notification clicked:', notification);
-    console.log('Notification payload:', notification.payload);
-    console.log('🟦 Current isRead:', notification.isRead);
-    console.log('📊 Current unread count:', unreadCount);
-    
     setSelectedNotification(notification);
     setDetailModalOpen(true);
     setDropdownOpen(false);
     
     // Auto mark as read when opening detail
     if (!notification.isRead) {
-      console.log('🔵 Marking as read:', notification.id);
-      markAsReadMutation.mutate(notification.id, {
-        onSuccess: () => {
-          console.log('✅ Mark as read successful, should refetch now');
-        }
-      });
+      markAsReadMutation.mutate(notification.id);
     }
   };
 
@@ -333,11 +316,7 @@ const NotificationBell: React.FC = () => {
       </div>
 
       {/* Feedbacks List (if exists in payload) */}
-      {(() => {
-        console.log('Checking feedbacks in payload:', selectedNotification.payload);
-        console.log('Feedbacks array:', selectedNotification.payload?.feedbacks);
-        return selectedNotification.payload?.feedbacks && selectedNotification.payload.feedbacks.length > 0;
-      })() && (
+      {selectedNotification.payload?.feedbacks && selectedNotification.payload.feedbacks.length > 0 && (
         <div>
           <Divider style={{ margin: '12px 0' }}>
             <Text strong style={{ fontSize: '14px' }}>

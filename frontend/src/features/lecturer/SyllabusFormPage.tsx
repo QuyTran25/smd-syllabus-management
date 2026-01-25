@@ -218,17 +218,6 @@ const SyllabusFormPage: React.FC = () => {
       // Parse content from JSONB - cast to any since content not in type
       const syllabusAny = syllabus as any;
       const content = syllabusAny.content || {};
-      
-      console.log('📋 Loading syllabus data:', {
-        syllabusId: syllabus.id,
-        hasContent: !!syllabusAny.content,
-        contentKeys: Object.keys(content),
-        description: syllabus.description,
-        contentDescription: content.description,
-        hasAssessmentMethods: !!content.assessmentMethods,
-        assessmentMethodsType: Array.isArray(content.assessmentMethods) ? 'array' : typeof content.assessmentMethods,
-        assessmentMethodsLength: Array.isArray(content.assessmentMethods) ? content.assessmentMethods.length : 0,
-      });
 
       form.setFieldsValue({
         subjectCode: syllabus.subjectCode,
@@ -277,7 +266,6 @@ const SyllabusFormPage: React.FC = () => {
 
       // Load assessment methods
       if (content.assessmentMethods && Array.isArray(content.assessmentMethods)) {
-        console.log('✅ Loading assessmentMethods:', content.assessmentMethods);
         setAssessmentMethods(
           content.assessmentMethods.map((method: any, index: number) => ({
             id: method.id || `am-${index}`,
@@ -287,8 +275,6 @@ const SyllabusFormPage: React.FC = () => {
             description: method.description || '',
           }))
         );
-      } else {
-        console.log('⚠️ No assessmentMethods found in content');
       }
 
       // Load prerequisites
@@ -385,7 +371,6 @@ const SyllabusFormPage: React.FC = () => {
         });
       } else {
         // Auto-suggest PLO mappings from backend
-        console.log('🤖 Auto-suggesting PLO mappings for CLOs...');
         try {
           const response = await fetch('/api/syllabi/suggest-plo-mappings', {
             method: 'POST',
@@ -399,7 +384,6 @@ const SyllabusFormPage: React.FC = () => {
           if (response.ok) {
             const result = await response.json();
             ploMappings = result.data || [];
-            console.log(`✅ Auto-suggested ${ploMappings.length} PLO mappings`);
           } else {
             console.warn('⚠️ Failed to auto-suggest PLO mappings, continuing without them');
           }
@@ -430,13 +414,6 @@ const SyllabusFormPage: React.FC = () => {
         ploMappings, // Add PLO mappings extracted from CLOs
       };
 
-      console.log('💾 Saving syllabus with content:', {
-        hasDescription: !!values.description,
-        hasObjectives: !!values.objectives,
-        hasTeachingMethods: !!values.teachingMethod,
-        cloCount: clos.length,
-        contentKeys: Object.keys(content),
-      });
 
       const payload = {
         subjectId: (syllabus as any)?.subjectId || (syllabus as any)?.id || 'temp-subject-id',

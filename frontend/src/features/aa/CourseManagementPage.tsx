@@ -629,7 +629,6 @@ export const CourseManagementPage: React.FC = () => {
           onFinish={async (values) => {
             // Prevent double submit
             if (createMutation.isPending || updateMutation.isPending) {
-              console.log('Mutation is pending, skipping...');
               return;
             }
             
@@ -650,8 +649,6 @@ export const CourseManagementPage: React.FC = () => {
               recommendedTerm: values.recommendedTerm,
               isActive: values.isActive !== false,
             };
-            
-            console.log('📤 Sending payload to backend:', payload);
 
             try {
               if (editingCourse) {

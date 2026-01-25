@@ -18,46 +18,37 @@ interface NotificationResponseDTO {
 export const notificationService = {
   async getNotifications(): Promise<Notification[]> {
     try {
-      console.log('🔔 Fetching notifications...');
       const response = await apiClient.get<{ success: boolean; data: NotificationResponseDTO[] }>(
         '/notifications'
       );
       
-      console.log('📨 Raw response:', response.data);
-      
       if (!response.data || !response.data.data) {
-        console.warn('⚠️ No data in response');
         return [];
       }
       
-      // Map backend response to frontend format
-      const mapped = response.data.data.map((n) => ({
-        id: n.id,
-        type: n.type as Notification['type'],
-        title: n.title,
-        content: n.message, // Backend uses 'message', frontend uses 'content'
-        createdAt: n.createdAt,
-        isRead: n.isRead,
-        readAt: n.readAt,
-        relatedEntityId: n.relatedEntityId,
-        relatedEntityType: n.relatedEntityType as Notification['relatedEntityType'],
-        payload: n.payload,
-      }));
+      // Map backend response to frontend format and sort by createdAt descending (newest first)
+      const notifications = response.data.data
+        .map((n) => ({
+          id: n.id,
+          type: n.type as Notification['type'],
+          title: n.title,
+          content: n.message, // Backend uses 'message', frontend uses 'content'
+          createdAt: n.createdAt,
+          isRead: n.isRead,
+          readAt: n.readAt,
+          relatedEntityId: n.relatedEntityId,
+          relatedEntityType: n.relatedEntityType as Notification['relatedEntityType'],
+          payload: n.payload,
+        }))
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return dateB - dateA; // Descending: newest first
+        });
       
-      console.log('📋 Before sort:', mapped.map(n => `${n.title.substring(0, 30)} - ${n.createdAt}`));
-      
-      // Sort by createdAt descending (newest first)
-      const notifications = mapped.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA; // Descending: newest first
-      });
-      
-      console.log('✅ After sort:', notifications.map(n => `${n.title.substring(0, 30)} - ${n.createdAt}`));
-      console.log('✅ Notifications processed:', notifications.length);
       return notifications;
     } catch (error) {
-      console.error('❌ Error fetching notifications:', error);
+      console.error('Error fetching notifications:', error);
       return [];
     }
   },

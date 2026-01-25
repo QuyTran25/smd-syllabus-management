@@ -101,8 +101,6 @@ export default function AuditLogPage() {
         size: pagination.pageSize,
       };
 
-      console.log('🔍 Fetching audit logs with filters:', filters);
-
       // 🔥 FIX: Logic chọn API
       // Nếu có filter tìm kiếm -> gọi search, ngược lại gọi get all
       const hasSearchFilters =
@@ -112,7 +110,6 @@ export default function AuditLogPage() {
         ? await auditLogService.searchAuditLogs(filters)
         : await auditLogService.getAuditLogs(filters);
 
-      console.log('📨 Audit logs received:', result);
       return result;
     },
     retry: 1,

@@ -39,15 +39,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (storedToken) {
         try {
-          console.log('🔄 [AuthContext] Đang kiểm tra token với Server...');
-
           // Gọi API verify token (Hàm này bạn đã có trong auth.service.ts)
           const currentUser = await authService.getCurrentUser(storedToken);
 
           // Server OK -> Cập nhật State
           setUser(currentUser);
           setToken(storedToken);
-          console.log('✅ [AuthContext] Token hợp lệ:', currentUser.email);
         } catch (error) {
           console.error('❌ [AuthContext] Token hết hạn hoặc không hợp lệ.');
 

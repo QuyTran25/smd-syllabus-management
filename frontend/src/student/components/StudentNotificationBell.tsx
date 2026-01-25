@@ -17,7 +17,6 @@ import {
   BellOutlined,
   CheckOutlined,
   DeleteOutlined,
-  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -57,13 +56,6 @@ export const StudentNotificationBell: React.FC = () => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  // Debug: Log unread count changes
-  React.useEffect(() => {
-    console.log('🔔 [Student] Unread count updated:', unreadCount);
-    console.log('📊 [Student] Total notifications:', notifications.length);
-    console.log('📝 [Student] Unread notifications:', notifications.filter(n => !n.isRead).map(n => n.title));
-  }, [unreadCount, notifications.length]);
-
   // 2. Các Mutation dùng service riêng
   const markAsReadMutation = useMutation({
     mutationFn: studentNotificationService.markAsRead,
@@ -98,21 +90,12 @@ export const StudentNotificationBell: React.FC = () => {
   const handleDelete = (id: string) => deleteNotificationMutation.mutate(id);
 
   const handleNotificationClick = (notification: NotificationDTO) => {
-    console.log('🔔 [Student] Notification clicked:', notification.id);
-    console.log('🟦 [Student] Current isRead:', notification.isRead);
-    console.log('📊 [Student] Current unread count:', unreadCount);
-    
     setSelectedNotification(notification);
     setDetailModalOpen(true);
     setDropdownOpen(false);
     
     if (!notification.isRead) {
-      console.log('🔵 [Student] Marking as read:', notification.id);
-      markAsReadMutation.mutate(notification.id, {
-        onSuccess: () => {
-          console.log('✅ [Student] Mark as read successful, should refetch now');
-        }
-      });
+      markAsReadMutation.mutate(notification.id);
     }
   };
 
@@ -140,19 +123,6 @@ export const StudentNotificationBell: React.FC = () => {
       // Default to syllabi list
       navigate('/syllabi');
     }
-  };
-
-  const getNotificationTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      SUBMISSION: 'Nộp đề cương',
-      APPROVAL: 'Phê duyệt',
-      REJECTION: 'Từ chối',
-      COMMENT: 'Bình luận',
-      DEADLINE: 'Hạn chót',
-      ASSIGNMENT: 'Phân công',
-      SYSTEM: 'Hệ thống',
-    };
-    return labels[type] || type;
   };
 
   // --- GIAO DIỆN DROPDOWN (Copy y nguyên, chỉ sửa style nếu thích) ---

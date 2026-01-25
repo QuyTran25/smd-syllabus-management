@@ -36,7 +36,6 @@ const mapRoleToCode = (roleName: string): UserRole => {
 
   // Try exact match first
   if (roleMap[roleName]) {
-    console.log('✅ [mapRoleToCode] Exact match:', roleName, '→', roleMap[roleName]);
     return roleMap[roleName];
   }
 
@@ -44,30 +43,24 @@ const mapRoleToCode = (roleName: string): UserRole => {
   const lowerRoleName = roleName.toLowerCase();
   for (const [key, value] of Object.entries(roleMap)) {
     if (key.toLowerCase() === lowerRoleName) {
-      console.log('✅ [mapRoleToCode] Case-insensitive match:', roleName, '→', value);
       return value;
     }
   }
 
   // Try partial match for common keywords
   if (lowerRoleName.includes('admin') || lowerRoleName.includes('quản trị')) {
-    console.log('⚠️ [mapRoleToCode] Partial match (admin):', roleName, '→', UserRole.ADMIN);
     return UserRole.ADMIN;
   }
   if (lowerRoleName.includes('principal') || lowerRoleName.includes('hiệu trưởng')) {
-    console.log('⚠️ [mapRoleToCode] Partial match (principal):', roleName, '→', UserRole.PRINCIPAL);
     return UserRole.PRINCIPAL;
   }
   if (lowerRoleName.includes('head') || lowerRoleName.includes('trưởng bộ')) {
-    console.log('⚠️ [mapRoleToCode] Partial match (hod):', roleName, '→', UserRole.HOD);
     return UserRole.HOD;
   }
   if (lowerRoleName.includes('academic') || lowerRoleName.includes('đào tạo')) {
-    console.log('⚠️ [mapRoleToCode] Partial match (aa):', roleName, '→', UserRole.AA);
     return UserRole.AA;
   }
   if (lowerRoleName.includes('lecturer') || lowerRoleName.includes('giảng viên')) {
-    console.log('⚠️ [mapRoleToCode] Partial match (lecturer):', roleName, '→', UserRole.LECTURER);
     return UserRole.LECTURER;
   }
 
@@ -119,29 +112,16 @@ export const authService = {
 
   // Verify token and get current user
   getCurrentUser: async (token: string): Promise<User> => {
-    console.log('📡 [authService.getCurrentUser] Setting token and calling GET /api/auth/me');
-    console.log('📡 [authService.getCurrentUser] Token preview:', token.substring(0, 30) + '...');
-
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
     try {
       // 🟢 FIX: Đổi '/api/auth/me' -> '/auth/me'
       const response = await apiClient.get('/auth/me');
-      console.log('✅ [authService.getCurrentUser] GET /api/auth/me SUCCESS');
-      console.log('✅ [authService.getCurrentUser] Response data:', response.data);
-
       const userInfo = response.data.data;
 
       // Map backend user info to frontend User type
       const rawRole = userInfo.roles && userInfo.roles.length > 0 ? userInfo.roles[0] : 'Lecturer';
-      console.log(
-        '🔍 [authService.getCurrentUser] Backend returned roles:',
-        userInfo.roles,
-        'First role:',
-        rawRole
-      );
       const mappedRole = mapRoleToCode(rawRole);
-      console.log('✅ [authService.getCurrentUser] Mapped to frontend role:', mappedRole);
 
       const user: User = {
         id: userInfo.id,

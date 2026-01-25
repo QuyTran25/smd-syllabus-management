@@ -29,7 +29,6 @@ export const useAuditLog = () => {
         oldValue,
         newValue
       );
-      console.log(`✅ Logged: ${action} on ${entityName}`);
     } catch (error) {
       console.error('❌ Failed to log action:', error);
       // Không throw error, để không ảnh hưởng hành động chính
@@ -41,7 +40,6 @@ export const useAuditLog = () => {
 
     try {
       await auditLogService.logAction(entityName, entityId, action, description, 'FAILED');
-      console.log(`⚠️ Logged failed action: ${action} on ${entityName}`);
     } catch (error) {
       console.error('❌ Failed to log error:', error);
     }

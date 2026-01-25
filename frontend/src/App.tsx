@@ -27,19 +27,15 @@ import { UserRole } from '@/types';
 const RoleBasedRedirect: React.FC = () => {
   const { user, isLoading } = useAuth();
 
-  console.log('🔀 RoleBasedRedirect:', { hasUser: !!user, userRole: user?.role, isLoading });
-
   if (isLoading) {
     return <div style={{ padding: '50px', textAlign: 'center' }}>Đang tải...</div>;
   }
 
   if (!user) {
-    console.log('⚠️ No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   // Redirect based on role
-  console.log('✅ User found, redirecting based on role:', user.role);
   switch (user.role) {
     case UserRole.LECTURER:
       return <Navigate to="/lecturer" replace />;
