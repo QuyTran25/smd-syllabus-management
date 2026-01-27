@@ -91,6 +91,23 @@ logging:
     org.springframework.web.reactive: DEBUG
     reactor.netty: DEBUG
 
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      coreServiceCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - java.io.IOException
+  timelimiter:
+    instances:
+      coreServiceCircuitBreaker:
+        timeout-duration: 30s
+
 management:
   endpoints:
     web:

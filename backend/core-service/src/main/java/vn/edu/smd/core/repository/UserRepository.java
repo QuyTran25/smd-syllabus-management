@@ -43,14 +43,20 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> findAllWithRoles(Pageable pageable);
     
     // --- Các hàm HOD ---
-    @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
-           "WHERE u.department.id = :departmentId AND r.code = 'HOD' " +
-           "ORDER BY u.createdAt ASC")
+    @Query(value = "SELECT u.* FROM core_service.users u " +
+           "JOIN core_service.user_roles ur ON u.id = ur.user_id " +
+           "JOIN core_service.roles r ON ur.role_id = r.id " +
+           "WHERE u.department_id = :departmentId AND r.code = 'HOD' " +
+           "ORDER BY u.created_at ASC " +
+           "LIMIT 1", nativeQuery = true)
     Optional<User> findHodByDepartmentId(@Param("departmentId") UUID departmentId);
     
-    @Query("SELECT u FROM User u JOIN u.userRoles ur JOIN ur.role r " +
-           "WHERE ur.scopeType = 'DEPARTMENT' AND ur.scopeId = :departmentId AND r.code = 'HOD' " +
-           "ORDER BY u.createdAt ASC")
+    @Query(value = "SELECT u.* FROM core_service.users u " +
+           "JOIN core_service.user_roles ur ON u.id = ur.user_id " +
+           "JOIN core_service.roles r ON ur.role_id = r.id " +
+           "WHERE ur.scope_type = 'DEPARTMENT' AND ur.scope_id = :departmentId AND r.code = 'HOD' " +
+           "ORDER BY u.created_at ASC " +
+           "LIMIT 1", nativeQuery = true)
     Optional<User> findHodByScopeId(@Param("departmentId") UUID departmentId);
     
     @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.userRoles ur JOIN ur.role r " +
